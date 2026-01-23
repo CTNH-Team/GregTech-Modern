@@ -4,6 +4,10 @@ tasks.register('slimJar', Jar) {
     from sourceSets.main.output
 }
 
+tasks.jar {
+    from("LICENSE")
+}
+
 obfuscation {
     reobfuscate(tasks.named('slimJar'), sourceSets.main) {
         archiveClassifier = "slim"

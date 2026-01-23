@@ -37,7 +37,7 @@ import java.util.Map;
 @FunctionalInterface
 public interface ModifierFunction {
 
-    //TODO: Add reasons for any NULL ModifierFunction (replace them with cancel)
+    // TODO: Add reasons for any NULL ModifierFunction (replace them with cancel)
     /**
      * Use this static to denote that the recipe should be cancelled
      */
