@@ -207,9 +207,11 @@ public class CommonProxy {
         FusionReactorMachine.registerFusionTier(GTValues.UV, " (MKIII)");
         initConfig();
     }
-    private static void initConfig(){
+
+    private static void initConfig() {
         ConfigInit.reloadConfig();
     }
+
     private static void initMaterials() {
         // First, register other mods' Registries
         MaterialRegistryManager managerInternal = (MaterialRegistryManager) GTCEuAPI.materialManager;

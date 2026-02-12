@@ -2,12 +2,10 @@ package com.gregtechceu.gtceu.api.gui.widget;
 
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemEntryHandler;
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemStackHandler;
+
 import com.lowdragmc.lowdraglib.LDLib;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUIGuiContainer;
-import com.mojang.blaze3d.platform.InputConstants;
-import dev.emi.emi.api.stack.EmiStackInteraction;
-import dev.emi.emi.api.stack.ListEmiIngredient;
-import dev.emi.emi.screen.EmiScreenManager;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -15,9 +13,14 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.emi.emi.api.stack.EmiStackInteraction;
+import dev.emi.emi.api.stack.ListEmiIngredient;
+import dev.emi.emi.screen.EmiScreenManager;
+
 import java.util.List;
 
-public class CandidateSlotWidget extends SlotWidget{
+public class CandidateSlotWidget extends SlotWidget {
 
     public CandidateSlotWidget(IItemHandlerModifiable itemHandler, int slotIndex, int xPosition, int yPosition,
                                boolean canTakeItems, boolean canPutItems) {
@@ -26,7 +29,8 @@ public class CandidateSlotWidget extends SlotWidget{
 
     public boolean showListIngredient(Object ingredient, int button) {
         List<ListEmiIngredient> ingredients = (List<ListEmiIngredient>) ingredient;
-        return EmiScreenManager.stackInteraction(new EmiStackInteraction(new ListEmiIngredient(ingredients,1)), bind -> bind.matchesMouse(button));
+        return EmiScreenManager.stackInteraction(new EmiStackInteraction(new ListEmiIngredient(ingredients, 1)),
+                bind -> bind.matchesMouse(button));
     }
 
     @Override

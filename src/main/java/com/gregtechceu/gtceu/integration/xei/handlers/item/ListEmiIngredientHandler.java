@@ -1,17 +1,18 @@
 package com.gregtechceu.gtceu.integration.xei.handlers.item;
 
-import com.gregtechceu.gtceu.integration.xei.entry.item.ItemStackList;
-import dev.emi.emi.api.stack.EmiIngredient;
-import dev.emi.emi.api.stack.ListEmiIngredient;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraftforge.items.IItemHandlerModifiable;
+
+import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.ListEmiIngredient;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ListEmiIngredientHandler implements IItemHandlerModifiable {
+
     private final List<ListEmiIngredient> stacks;
 
     public ListEmiIngredientHandler(List<ListEmiIngredient> stacks) {
@@ -25,7 +26,7 @@ public class ListEmiIngredientHandler implements IItemHandlerModifiable {
             EmiIngredient emiIngredient = EmiIngredient.of(ingredient);
             List<EmiIngredient> emiIngredientList = new ArrayList<>();
             emiIngredientList.add(emiIngredient);
-            stacks.set(index, new ListEmiIngredient(emiIngredientList,1));
+            stacks.set(index, new ListEmiIngredient(emiIngredientList, 1));
         }
     }
 
