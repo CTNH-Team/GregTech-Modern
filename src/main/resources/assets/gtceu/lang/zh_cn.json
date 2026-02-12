@@ -5865,5 +5865,6 @@
     "tile.gtceu.petrified_foam.name": "石化建筑泡沫",
     "tile.gtceu.reinforced_foam.name": "强化建筑泡沫",
     "tile.gtceu.reinforced_stone.name": "防爆石",
-    "tile.gtceu.seal.name": "密封方块"
+    "tile.gtceu.seal.name": "密封方块",
+    "config.gtceu.option.widgetScale": "多方块预览界面尺寸"
 }

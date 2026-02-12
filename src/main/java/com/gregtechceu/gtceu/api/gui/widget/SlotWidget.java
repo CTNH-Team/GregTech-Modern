@@ -7,10 +7,12 @@ import com.gregtechceu.gtceu.integration.xei.entry.item.ItemTagList;
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemEntryHandler;
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemStackHandler;
 
+import com.lowdragmc.lowdraglib.LDLib;
 import com.lowdragmc.lowdraglib.gui.editor.annotation.LDLRegister;
 import com.lowdragmc.lowdraglib.gui.editor.configurator.ConfiguratorGroup;
 import com.lowdragmc.lowdraglib.gui.editor.configurator.WrapperConfigurator;
 import com.lowdragmc.lowdraglib.gui.editor.runtime.ConfiguratorParser;
+import com.lowdragmc.lowdraglib.gui.modular.ModularUIGuiContainer;
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib.jei.IngredientIO;
 import com.lowdragmc.lowdraglib.jei.JEIPlugin;
@@ -18,6 +20,11 @@ import com.lowdragmc.lowdraglib.side.item.IItemTransfer;
 import com.lowdragmc.lowdraglib.utils.Position;
 import com.lowdragmc.lowdraglib.utils.Size;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.emi.emi.api.stack.EmiStackInteraction;
+import dev.emi.emi.api.stack.ListEmiIngredient;
+import dev.emi.emi.screen.EmiScreenManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
@@ -25,6 +32,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 
@@ -90,7 +99,64 @@ public class SlotWidget extends com.lowdragmc.lowdraglib.gui.widget.SlotWidget {
         super.setContainerSlot(inventory, slotIndex);
         return this;
     }
+    public boolean mouseClicked2(Object ingredient, int button) {
+        List<ListEmiIngredient> ingredients = (List<ListEmiIngredient>) ingredient;
 
+            return EmiScreenManager.stackInteraction(new EmiStackInteraction(new ListEmiIngredient(ingredients,1)), (bind) -> {
+                return bind.matchesMouse(button);
+            });
+
+    }
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.slotReference != null && this.isMouseOverElement(mouseX, mouseY) && this.gui != null) {
+            ItemStack stack = this.slotReference.getItem();
+            if ((!this.canPutItems || !stack.isEmpty()) && (!this.canTakeItems || stack.isEmpty())) {
+                return LDLib.isEmiLoaded() && this.mouseClicked2(this.getXEICurrentIngredient(), button);
+            } else {
+                ModularUIGuiContainer modularUIGui = this.gui.getModularUIGui();
+                boolean last = modularUIGui.getQuickCrafting();
+                InputConstants.Key mouseKey = InputConstants.Type.MOUSE.getOrCreate(button);
+                HOVER_SLOT = this.slotReference;
+                this.gui.getModularUIGui().superMouseClicked(mouseX, mouseY, button);
+                HOVER_SLOT = null;
+                if (last != modularUIGui.getQuickCrafting()) {
+                    modularUIGui.dragSplittingButton = button;
+                    if (button == 0) {
+                        modularUIGui.dragSplittingLimit = 0;
+                    } else if (button == 1) {
+                        modularUIGui.dragSplittingLimit = 1;
+                    } else if (Minecraft.getInstance().options.keyPickItem.matchesMouse(mouseKey.getValue())) {
+                        modularUIGui.dragSplittingLimit = 2;
+                    }
+                }
+
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+    @Override
+    public Object getXEICurrentIngredient() {
+        if (this.slotReference != null && !this.slotReference.getItem().isEmpty()) {
+            Slot handler = this.getHandler();
+            if (handler == null) {
+                return null;
+            } else {
+                ItemStack realStack = this.getRealStack(handler.getItem());
+                if (handler instanceof WidgetSlotItemHandler slotHandler) {
+                    if (slotHandler.itemHandler instanceof CycleItemStackHandler stackHandler) {
+                        return getXEIIngredientsClickable(stackHandler, slotHandler.index);
+                    } else if (slotHandler.itemHandler instanceof CycleItemEntryHandler entryHandler) {
+                        return getXEIIngredientsClickable(entryHandler, slotHandler.index);
+                    }
+                }
+            }
+        }
+        return null;
+    }
     @Override
     public void updateSlot(Slot slot) {
         super.updateSlot(slot);
