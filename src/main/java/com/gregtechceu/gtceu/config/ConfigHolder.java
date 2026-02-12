@@ -751,7 +751,7 @@ public class ConfigHolder {
 
         @Configurable
         @Configurable.Comment({ "Multiblock Structure Display Size" })
-        public WidgetScale widgetScale = WidgetScale.MEIDUM;
+        public WidgetScale widgetScale = WidgetScale.LARGE;
 
         public static class PatternPreviewWidgetConfigs {
 

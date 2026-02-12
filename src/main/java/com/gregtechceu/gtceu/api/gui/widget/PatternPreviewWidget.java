@@ -386,16 +386,17 @@ public class PatternPreviewWidget extends WidgetGroup {
                         new TextTexture("1").setSupplier(() -> layer >= 0 ? "L:" + layer : "ALL")),
                 cd -> updateLayer())
                 .setHoverBorderTexture(1, -1));
-        addWidget(new ButtonWidget(
-                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX,
-                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY,
-                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightWidth,
-                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightHeight,
-                new GuiTextureGroup(
-                        ColorPattern.T_GRAY.rectTexture(),
-                        new TextTexture("1").setSupplier(() -> isHighLight ? "ON" : "OFF")),
-                cd -> updateHighLight())
-                .setHoverBorderTexture(1, -1));
+        //TODO: 太卡了，等优化
+//        addWidget(new ButtonWidget(
+//                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX,
+//                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY,
+//                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightWidth,
+//                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightHeight,
+//                new GuiTextureGroup(
+//                        ColorPattern.T_GRAY.rectTexture(),
+//                        new TextTexture("1").setSupplier(() -> isHighLight ? "ON" : "OFF")),
+//                cd -> updateHighLight())
+//                .setHoverBorderTexture(1, -1));
 
         setPage(0);
     }
@@ -516,7 +517,7 @@ public class PatternPreviewWidget extends WidgetGroup {
             int maxCol = (160 - (((slotWidgets.length - 1) / 9 + 1) * 18) - 35) % 18;
             for (int i = 0; i < candidateStacks.size(); i++) {
                 int finalI = i;
-                candidates[i] = new SlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
+                candidates[i] = new CandidateSlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
                         false)
                         .setIngredientIO(IngredientIO.INPUT)
                         .setBackgroundTexture(new ColorRectTexture(0x4fffffff))
