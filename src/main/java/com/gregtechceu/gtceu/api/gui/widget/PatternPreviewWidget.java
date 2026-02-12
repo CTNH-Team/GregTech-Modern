@@ -1,6 +1,7 @@
 package com.gregtechceu.gtceu.api.gui.widget;
 
 import com.gregtechceu.gtceu.GTCEu;
+import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
@@ -11,12 +12,8 @@ import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate;
 import com.gregtechceu.gtceu.api.pattern.predicates.SimplePredicate;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.xei.entry.item.ItemEntryList;
-import com.gregtechceu.gtceu.integration.xei.entry.item.ItemStackList;
-import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemEntryHandler;
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemStackHandler;
 
-import com.gregtechceu.gtceu.integration.xei.handlers.item.ListEmiIngredientHandler;
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
 import com.lowdragmc.lowdraglib.client.utils.RenderUtils;
 import com.lowdragmc.lowdraglib.gui.editor.ColorPattern;
@@ -30,10 +27,6 @@ import com.lowdragmc.lowdraglib.utils.BlockPosFace;
 import com.lowdragmc.lowdraglib.utils.ItemStackKey;
 import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
-import dev.emi.emi.api.EmiDragDropHandler;
-import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
-import dev.emi.emi.api.stack.EmiIngredient;
-import dev.emi.emi.api.stack.ListEmiIngredient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
@@ -41,7 +34,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -60,7 +52,6 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.shedaniel.rei.impl.client.gui.screen.AbstractDisplayViewingScreen;
-import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
@@ -68,6 +59,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.gregtechceu.gtceu.common.data.GTMachines.*;
+import static com.gregtechceu.gtceu.common.data.machines.GCYMMachines.PARALLEL_HATCH;
 import static java.lang.Math.cos;
 import static java.lang.Math.sin;
 
@@ -84,6 +77,7 @@ public class PatternPreviewWidget extends WidgetGroup {
     public final MultiblockMachineDefinition controllerDefinition;
     public final MBPattern[] patterns;
     private final List<SimplePredicate> predicates;
+    public boolean isHighLight;
     private int index;
     public int layer;
     private SlotWidget[] slotWidgets;
@@ -99,7 +93,7 @@ public class PatternPreviewWidget extends WidgetGroup {
         this.controllerDefinition = controllerDefinition;
         predicates = new ArrayList<>();
         layer = -1;
-
+        isHighLight = false;
         addWidget(sceneWidget = new SceneWidget(
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneX,
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneY,
@@ -119,7 +113,6 @@ public class PatternPreviewWidget extends WidgetGroup {
                     if (this.draggable) {
                         this.dragging = true;
                     }
-
                     this.clickPosFace = this.hoverPosFace;
                     return true;
                 } else {
@@ -144,17 +137,25 @@ public class PatternPreviewWidget extends WidgetGroup {
                     return false;
                 } else if (this.dragging && button == 1) {// 右键情况下
                     var eyePos = this.renderer.getEyePos();
-                    var deltax = dragX * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var deltay = dragY * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var nx = deltax * cos(Math.toRadians(this.rotationYaw)) + deltay * sin(Math.toRadians(this.rotationYaw));
-                    var nz = -deltax * sin(Math.toRadians(this.rotationYaw)) + deltay * cos(Math.toRadians(this.rotationYaw));
+                    var deltax = dragX *
+                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var deltay = dragY *
+                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var nx = deltax * cos(Math.toRadians(this.rotationYaw)) +
+                            deltay * sin(Math.toRadians(this.rotationYaw));
+                    var nz = -deltax * sin(Math.toRadians(this.rotationYaw)) +
+                            deltay * cos(Math.toRadians(this.rotationYaw));
                     eyePos.x += (float) nx;
                     eyePos.z += (float) nz;
                     var lookAt = this.renderer.getLookAt();
-                    deltax = dragX * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    deltay = dragY * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var lnx = deltax* cos(Math.toRadians(this.rotationYaw)) + deltay * sin(Math.toRadians(this.rotationYaw));
-                    var lnz = -deltax * sin(Math.toRadians(this.rotationYaw)) + deltay * cos(Math.toRadians(this.rotationYaw));
+                    deltax = dragX *
+                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    deltay = dragY *
+                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var lnx = deltax * cos(Math.toRadians(this.rotationYaw)) +
+                            deltay * sin(Math.toRadians(this.rotationYaw));
+                    var lnz = -deltax * sin(Math.toRadians(this.rotationYaw)) +
+                            deltay * cos(Math.toRadians(this.rotationYaw));
                     lookAt.x += (float) lnx;
                     lookAt.z += (float) lnz;
                     if (this.renderer != null) {
@@ -165,6 +166,30 @@ public class PatternPreviewWidget extends WidgetGroup {
                 } else {
                     return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
                 }
+            }
+
+            public static float[] intRGBAToFloatRGBA(int rgba) {
+                float[] result = new float[4];
+                result[0] = ((rgba >> 24) & 0xFF) / 255.0f; // R
+                result[1] = ((rgba >> 16) & 0xFF) / 255.0f; // G
+                result[2] = ((rgba >> 8) & 0xFF) / 255.0f;  // B
+                result[3] = (rgba & 0xFF) / 255.0f;         // A
+                return result;
+            }
+
+            public int rgbaToArgb(int rgba) {
+                return ((rgba & 0x000000ff) << 24) |
+                        ((rgba & 0xffffff00) >>> 8);
+            }
+
+            private void renderUtils(PoseStack poseStack, BlockPos pos, int color) {
+                int color2 = rgbaToArgb(color);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.NORTH), color2);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.SOUTH), color2);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.EAST), color2);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.WEST), color2);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.NORTH), color2);
+                drawFacingBorder(poseStack, new BlockPosFace(pos, Direction.SOUTH), color2);
             }
 
             @Override
@@ -219,7 +244,70 @@ public class PatternPreviewWidget extends WidgetGroup {
                 if (selectedPosFace != null && renderSelect) {
                     RenderUtils.renderBlockOverLay(poseStack, selectedPosFace.pos, 0.6f, 0, 0, 1.03f);
                 }
+                if (isHighLight) {
+                    Map<BlockPos, TraceabilityPredicate> predicateMap = patterns[index].controllerBase
+                            .getMultiblockState().getMatchContext().get("predicates");
+                    PoseStack poseStack2 = new PoseStack();
+                    core.forEach(x -> {
 
+                        if (selectedPosFace != null && x == selectedPosFace.pos) return;
+                        if (predicateMap.containsKey(x)) {
+                            var predicate = predicateMap.get(x);
+                            List<ItemStack> candidates = new ArrayList<ItemStack>();
+                            predicate.common.forEach(y -> candidates.addAll(y.getCandidates()));
+                            predicate.limited.forEach(y -> candidates.addAll(y.getCandidates()));
+                            int cnt = 0;
+                            int color = 0x00000000;
+                            for (var candidate : candidates) {
+                                if (cnt > 1) break;
+                                if (candidate.equals(ITEM_IMPORT_BUS[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(FLUID_IMPORT_HATCH[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(STEAM_IMPORT_BUS.asStack(), false)) {
+                                    cnt++;
+                                    color = 0x00ff00ff;// 绿色
+                                    continue;
+                                }
+                                if (candidate.equals(ITEM_EXPORT_BUS[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(FLUID_EXPORT_HATCH[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(STEAM_EXPORT_BUS.asStack(), false)) {
+                                    cnt++;
+                                    color = 0xff8000ff;// 橙色
+                                    continue;
+                                }
+                                if (candidate.equals(ENERGY_INPUT_HATCH[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(ENERGY_OUTPUT_HATCH[GTValues.LV].asStack(), false) ||
+                                        candidate.equals(LASER_INPUT_HATCH_256[GTValues.IV].asStack(), false) ||
+                                        candidate.equals(LASER_OUTPUT_HATCH_256[GTValues.IV].asStack(), false) ||
+                                        candidate.equals(STEAM_HATCH.asStack())) {
+                                    cnt++;
+                                    color = 0xffff00ff;// 黄色
+                                    continue;
+                                }
+                                if (candidate.equals(MAINTENANCE_HATCH.asStack(), false)) {
+                                    cnt++;
+                                    color = 0x00ffffff;// 青色
+                                    continue;
+                                }
+                                if (candidate.equals(MUFFLER_HATCH[GTValues.LV].asStack(), false)) {
+                                    cnt++;
+                                    color = 0x800080ff;// 紫色
+                                    continue;
+                                }
+                                if (candidate.equals(PARALLEL_HATCH[GTValues.IV].asStack(), false)) {
+                                    cnt++;
+                                    color = 0xf0ffffff;// 蔚蓝色
+                                }
+                            }
+
+                            if (cnt > 1) {
+                                color = 0x3b2525ff;
+                            }
+                            renderUtils(poseStack, x, color);
+                            var rgba = intRGBAToFloatRGBA(color);
+                            RenderUtils.renderBlockOverLay(poseStack, x, 0, 0, 0, 0);
+                        }
+                    });
+                }
                 if (this.afterWorldRender != null) {
                     this.afterWorldRender.accept(this);
                 }
@@ -250,10 +338,14 @@ public class PatternPreviewWidget extends WidgetGroup {
             }
         }
 
-        addWidget(new ImageWidget(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageX, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageY, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageWidth, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageHeight,
+        addWidget(new ImageWidget(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageHeight,
                 new TextTexture(controllerDefinition.getDescriptionId(), -1)
                         .setType(TextTexture.TextType.ROLL)
-                        .setWidth(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageTextureWidth)
+                        .setWidth(
+                                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageTextureWidth)
                         .setDropShadow(true)));
 
         this.patterns = CACHE.computeIfAbsent(controllerDefinition, definition -> {
@@ -286,8 +378,22 @@ public class PatternPreviewWidget extends WidgetGroup {
                         new TextTexture("1").setSupplier(() -> layer >= 0 ? "L:" + layer : "ALL")),
                 cd -> updateLayer())
                 .setHoverBorderTexture(1, -1));
+        addWidget(new ButtonWidget(
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightHeight,
+                new GuiTextureGroup(
+                        ColorPattern.T_GRAY.rectTexture(),
+                        new TextTexture("1").setSupplier(() -> isHighLight ? "ON" : "OFF")),
+                cd -> updateHighLight())
+                .setHoverBorderTexture(1, -1));
 
         setPage(0);
+    }
+
+    private void updateHighLight() {
+        isHighLight = !isHighLight;
     }
 
     private void updateLayer() {
@@ -388,29 +494,30 @@ public class PatternPreviewWidget extends WidgetGroup {
                     removeWidget(candidate);
                 }
             }
-                List<List<ItemStack>> candidateStacks = new ArrayList<>();
-                List<List<Component>> predicateTips = new ArrayList<>();
-                for (SimplePredicate simplePredicate : predicates) {
-                    List<ItemStack> itemStacks = simplePredicate.getCandidates();
-                    if (!itemStacks.isEmpty()) {
-                        candidateStacks.add(itemStacks);
-                        predicateTips.add(simplePredicate.getToolTips(predicate));
-                    }
+            List<List<ItemStack>> candidateStacks = new ArrayList<>();
+            List<List<Component>> predicateTips = new ArrayList<>();
+            for (SimplePredicate simplePredicate : predicates) {
+                List<ItemStack> itemStacks = simplePredicate.getCandidates();
+                if (!itemStacks.isEmpty()) {
+                    candidateStacks.add(itemStacks);
+                    predicateTips.add(simplePredicate.getToolTips(predicate));
                 }
-                candidates = new SlotWidget[candidateStacks.size()];
-                CycleItemStackHandler itemHandler = new CycleItemStackHandler(candidateStacks);
-                int maxCol = (160 - (((slotWidgets.length - 1) / 9 + 1) * 18) - 35) % 18;
-                for (int i = 0; i < candidateStacks.size(); i++) {
-                    int finalI = i;
-                    candidates[i] = new SlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
-                            false)
-                            .setIngredientIO(IngredientIO.INPUT)
-                            .setBackgroundTexture(new ColorRectTexture(0x4fffffff))
-                            .setOnAddedTooltips((slot, list) -> list.addAll(predicateTips.get(finalI)));
-                    addWidget(candidates[i]);
-                }
+            }
+            candidates = new SlotWidget[candidateStacks.size()];
+            CycleItemStackHandler itemHandler = new CycleItemStackHandler(candidateStacks);
+            int maxCol = (160 - (((slotWidgets.length - 1) / 9 + 1) * 18) - 35) % 18;
+            for (int i = 0; i < candidateStacks.size(); i++) {
+                int finalI = i;
+                candidates[i] = new SlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
+                        false)
+                        .setIngredientIO(IngredientIO.INPUT)
+                        .setBackgroundTexture(new ColorRectTexture(0x4fffffff))
+                        .setOnAddedTooltips((slot, list) -> list.addAll(predicateTips.get(finalI)));
+                addWidget(candidates[i]);
+            }
         }
     }
+
     /**
      * Finds the next section of the dummy preview level to place a multiblock at in a spiral pattern.
      * <p>
