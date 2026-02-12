@@ -4,6 +4,10 @@ import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
 import com.gregtechceu.gtceu.api.capability.GTCapabilityHelper;
+import com.gregtechceu.gtceu.api.machine.SimpleGeneratorMachine;
+import com.gregtechceu.gtceu.api.machine.SimpleTieredMachine;
+import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.steam.SimpleSteamMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
@@ -59,8 +63,15 @@ public class RecipeLogicProvider extends CapabilityBlockProvider<RecipeLogic> {
     }
 
     public static long getVoltage(RecipeLogic capability) {
-        long voltage = capability.machine.getDisplayRecipeVoltage();
-
+        long voltage = -1;
+        if (capability.machine instanceof SimpleTieredMachine machine) {
+            voltage = GTValues.V[machine.getTier()];
+        } else if (capability.machine instanceof SimpleGeneratorMachine machine) {
+            voltage = GTValues.V[machine.getTier()];
+        } else if (capability.machine instanceof WorkableElectricMultiblockMachine machine) {
+            voltage = Math.max(machine.getEnergyContainer().getHighestInputVoltage(),
+                    machine.getEnergyContainer().getOutputVoltage());
+        }
         // default display as LV, this shouldn't happen because a machine is either electric or steam
         return voltage == -1 ? GTValues.V[GTValues.LV] : voltage;
     }
@@ -125,6 +136,20 @@ public class RecipeLogicProvider extends CapabilityBlockProvider<RecipeLogic> {
                     } else {
                         tooltip.add(Component.translatable("gtceu.top.energy_production").append(" ").append(text));
                     }
+                }
+            }
+        } else {
+            if (blockEntity instanceof MetaMachineBlockEntity mbe &&
+                    mbe.metaMachine instanceof IRecipeLogicMachine rlm) {
+                var logic = rlm.getRecipeLogic();
+
+                if (logic.showFancyTooltip() && logic.isWorkingEnabled()) {
+                    Component status = logic.isWaiting() ?
+                            Component.translatable("gtceu.recipe_logic.recipe_waiting")
+                                    .withStyle(ChatFormatting.YELLOW) :
+                            Component.translatable("gtceu.recipe_logic.setup_fail").withStyle(ChatFormatting.RED);
+                    tooltip.add(status);
+                    logic.getFancyTooltip().forEach(tooltip::add);
                 }
             }
         }
