@@ -11,8 +11,12 @@ import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate;
 import com.gregtechceu.gtceu.api.pattern.predicates.SimplePredicate;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.xei.entry.item.ItemEntryList;
+import com.gregtechceu.gtceu.integration.xei.entry.item.ItemStackList;
+import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemEntryHandler;
 import com.gregtechceu.gtceu.integration.xei.handlers.item.CycleItemStackHandler;
 
+import com.gregtechceu.gtceu.integration.xei.handlers.item.ListEmiIngredientHandler;
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
 import com.lowdragmc.lowdraglib.client.utils.RenderUtils;
 import com.lowdragmc.lowdraglib.gui.editor.ColorPattern;
@@ -26,6 +30,10 @@ import com.lowdragmc.lowdraglib.utils.BlockPosFace;
 import com.lowdragmc.lowdraglib.utils.ItemStackKey;
 import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
+import dev.emi.emi.api.EmiDragDropHandler;
+import dev.emi.emi.api.recipe.handler.EmiRecipeHandler;
+import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.ListEmiIngredient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
@@ -33,6 +41,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -51,12 +60,16 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.shedaniel.rei.impl.client.gui.screen.AbstractDisplayViewingScreen;
+import net.minecraftforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
 
 @OnlyIn(Dist.CLIENT)
 public class PatternPreviewWidget extends WidgetGroup {
@@ -77,13 +90,82 @@ public class PatternPreviewWidget extends WidgetGroup {
     private SlotWidget[] candidates;
 
     protected PatternPreviewWidget(MultiblockMachineDefinition controllerDefinition) {
-        super(0, 0, 160, 160);
+        // ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetX = 1;
+        super(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetHeight);
         setClientSideWidget();
         this.controllerDefinition = controllerDefinition;
         predicates = new ArrayList<>();
         layer = -1;
 
-        addWidget(sceneWidget = new SceneWidget(3, 3, 150, 150, LEVEL) {
+        addWidget(sceneWidget = new SceneWidget(
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneWidget,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneHeight, LEVEL) {
+
+            private double lastX, lastY;
+
+            @Override
+            @OnlyIn(Dist.CLIENT)
+            public boolean mouseClicked(double mouseX, double mouseY, int button) {
+                if (super.mouseClicked(mouseX, mouseY, button)) {
+                    return true;
+                } else if (!this.intractable) {
+                    return false;
+                } else if (this.isMouseOverElement(mouseX, mouseY)) {
+                    if (this.draggable) {
+                        this.dragging = true;
+                    }
+
+                    this.clickPosFace = this.hoverPosFace;
+                    return true;
+                } else {
+                    this.dragging = false;
+                    return false;
+                }
+            }
+
+            @Override
+            @OnlyIn(Dist.CLIENT)
+            public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+                if (!this.intractable) {
+                    return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+                } else if (this.dragging && button == 0) {
+                    this.rotationPitch = (float) ((double) this.rotationPitch + dragX + 360.0);
+                    this.rotationPitch %= 360.0F;
+                    this.rotationYaw = (float) Mth.clamp((double) this.rotationYaw + dragY, -89.9, 89.9);
+                    if (this.renderer != null) {
+                        this.renderer.setCameraLookAt(this.center, (double) this.camZoom(),
+                                Math.toRadians((double) this.rotationPitch), Math.toRadians((double) this.rotationYaw));
+                    }
+                    return false;
+                } else if (this.dragging && button == 1) {// 右键情况下
+                    var eyePos = this.renderer.getEyePos();
+                    var deltax = dragX * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var deltay = dragY * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var nx = deltax * cos(Math.toRadians(this.rotationYaw)) + deltay * sin(Math.toRadians(this.rotationYaw));
+                    var nz = -deltax * sin(Math.toRadians(this.rotationYaw)) + deltay * cos(Math.toRadians(this.rotationYaw));
+                    eyePos.x += (float) nx;
+                    eyePos.z += (float) nz;
+                    var lookAt = this.renderer.getLookAt();
+                    deltax = dragX * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    deltay = dragY * ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+                    var lnx = deltax* cos(Math.toRadians(this.rotationYaw)) + deltay * sin(Math.toRadians(this.rotationYaw));
+                    var lnz = -deltax * sin(Math.toRadians(this.rotationYaw)) + deltay * cos(Math.toRadians(this.rotationYaw));
+                    lookAt.x += (float) lnx;
+                    lookAt.z += (float) lnz;
+                    if (this.renderer != null) {
+                        this.renderer.setCameraLookAt(eyePos, lookAt, this.renderer.getWorldUp());
+                    }
+                    return false;
+
+                } else {
+                    return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+                }
+            }
 
             @Override
             public void renderBlockOverLay(WorldSceneRenderer renderer) {
@@ -120,6 +202,7 @@ public class PatternPreviewWidget extends WidgetGroup {
                         }
                     }
                 }
+
                 if (hoverPosFace != null) {
                     var state = getDummyWorld().getBlockState(hoverPosFace.pos);
                     hoverItem = state.getBlock().getCloneItemStack(getDummyWorld(), hoverPosFace.pos, state);
@@ -146,7 +229,11 @@ public class PatternPreviewWidget extends WidgetGroup {
                 .setRenderFacing(false)
                 .setRenderFacing(false));
 
-        scrollableWidgetGroup = new DraggableScrollableWidgetGroup(3, 132, 154, 22)
+        scrollableWidgetGroup = new DraggableScrollableWidgetGroup(
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupHeight)
                 .setXScrollBarHeight(4)
                 .setXBarStyle(GuiTextures.SLIDER_BACKGROUND, GuiTextures.BUTTON)
                 .setScrollable(true)
@@ -163,10 +250,10 @@ public class PatternPreviewWidget extends WidgetGroup {
             }
         }
 
-        addWidget(new ImageWidget(3, 3, 160, 10,
+        addWidget(new ImageWidget(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageX, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageY, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageWidth, ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageHeight,
                 new TextTexture(controllerDefinition.getDescriptionId(), -1)
                         .setType(TextTexture.TextType.ROLL)
-                        .setWidth(170)
+                        .setWidth(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetImageTextureWidth)
                         .setDropShadow(true)));
 
         this.patterns = CACHE.computeIfAbsent(controllerDefinition, definition -> {
@@ -178,15 +265,25 @@ public class PatternPreviewWidget extends WidgetGroup {
                     .toArray(MBPattern[]::new);
         });
 
-        addWidget(new ButtonWidget(138, 30, 18, 18, new GuiTextureGroup(
-                ColorPattern.T_GRAY.rectTexture(),
-                new TextTexture("1").setSupplier(() -> "P:" + index)),
+        addWidget(new ButtonWidget(
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetHeight,
+                new GuiTextureGroup(
+                        ColorPattern.T_GRAY.rectTexture(),
+                        new TextTexture("1").setSupplier(() -> "P:" + index)),
                 (x) -> setPage((index + 1 >= patterns.length) ? 0 : index + 1))
                 .setHoverBorderTexture(1, -1));
 
-        addWidget(new ButtonWidget(138, 50, 18, 18, new GuiTextureGroup(
-                ColorPattern.T_GRAY.rectTexture(),
-                new TextTexture("1").setSupplier(() -> layer >= 0 ? "L:" + layer : "ALL")),
+        addWidget(new ButtonWidget(
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetX,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetY,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetWidth,
+                ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetHeight,
+                new GuiTextureGroup(
+                        ColorPattern.T_GRAY.rectTexture(),
+                        new TextTexture("1").setSupplier(() -> layer >= 0 ? "L:" + layer : "ALL")),
                 cd -> updateLayer())
                 .setHoverBorderTexture(1, -1));
 
@@ -245,7 +342,7 @@ public class PatternPreviewWidget extends WidgetGroup {
                 scrollableWidgetGroup.removeWidget(slotWidget);
             }
         }
-        slotWidgets = new SlotWidget[Math.min(pattern.parts.size(), 18)];
+        slotWidgets = new SlotWidget[pattern.parts.size()];
         var itemHandler = new CycleItemStackHandler(pattern.parts);
         int xOffset = 0;
         for (int i = 0; i < slotWidgets.length; i++) {
@@ -291,30 +388,29 @@ public class PatternPreviewWidget extends WidgetGroup {
                     removeWidget(candidate);
                 }
             }
-            List<List<ItemStack>> candidateStacks = new ArrayList<>();
-            List<List<Component>> predicateTips = new ArrayList<>();
-            for (SimplePredicate simplePredicate : predicates) {
-                List<ItemStack> itemStacks = simplePredicate.getCandidates();
-                if (!itemStacks.isEmpty()) {
-                    candidateStacks.add(itemStacks);
-                    predicateTips.add(simplePredicate.getToolTips(predicate));
+                List<List<ItemStack>> candidateStacks = new ArrayList<>();
+                List<List<Component>> predicateTips = new ArrayList<>();
+                for (SimplePredicate simplePredicate : predicates) {
+                    List<ItemStack> itemStacks = simplePredicate.getCandidates();
+                    if (!itemStacks.isEmpty()) {
+                        candidateStacks.add(itemStacks);
+                        predicateTips.add(simplePredicate.getToolTips(predicate));
+                    }
                 }
-            }
-            candidates = new SlotWidget[candidateStacks.size()];
-            CycleItemStackHandler itemHandler = new CycleItemStackHandler(candidateStacks);
-            int maxCol = (160 - (((slotWidgets.length - 1) / 9 + 1) * 18) - 35) % 18;
-            for (int i = 0; i < candidateStacks.size(); i++) {
-                int finalI = i;
-                candidates[i] = new SlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
-                        false)
-                        .setIngredientIO(IngredientIO.INPUT)
-                        .setBackgroundTexture(new ColorRectTexture(0x4fffffff))
-                        .setOnAddedTooltips((slot, list) -> list.addAll(predicateTips.get(finalI)));
-                addWidget(candidates[i]);
-            }
+                candidates = new SlotWidget[candidateStacks.size()];
+                CycleItemStackHandler itemHandler = new CycleItemStackHandler(candidateStacks);
+                int maxCol = (160 - (((slotWidgets.length - 1) / 9 + 1) * 18) - 35) % 18;
+                for (int i = 0; i < candidateStacks.size(); i++) {
+                    int finalI = i;
+                    candidates[i] = new SlotWidget(itemHandler, i, 3 + (i / maxCol) * 18, 3 + (i % maxCol) * 18, false,
+                            false)
+                            .setIngredientIO(IngredientIO.INPUT)
+                            .setBackgroundTexture(new ColorRectTexture(0x4fffffff))
+                            .setOnAddedTooltips((slot, list) -> list.addAll(predicateTips.get(finalI)));
+                    addWidget(candidates[i]);
+                }
         }
     }
-
     /**
      * Finds the next section of the dummy preview level to place a multiblock at in a spiral pattern.
      * <p>

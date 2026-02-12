@@ -747,6 +747,78 @@ public class ConfigHolder {
 
     public static class ClientConfigs {
 
+        public enum WidgetScale {
+            MEIDUM,
+            LARGE,
+            CUSTOM
+        }
+
+        @Configurable
+        @Configurable.Comment({ "Multiblock Structure Display Size" })
+        public WidgetScale widgetScale = WidgetScale.MEIDUM;
+
+        public static class PatternPreviewWidgetConfigs {
+
+            @Configurable
+            public int PatternPreviewWidgetButtonPWidgetX = 138;
+            @Configurable
+            public int PatternPreviewWidgetButtonPWidgetY = 30;
+            @Configurable
+            public int PatternPreviewWidgetButtonPWidgetWidth = 18;
+            @Configurable
+            public int PatternPreviewWidgetButtonPWidgetHeight = 18;
+            @Configurable
+            public int PatternPreviewWidgetButtonALLWidgetX = 138;
+            @Configurable
+            public int PatternPreviewWidgetButtonALLWidgetY = 50;
+            @Configurable
+            public int PatternPreviewWidgetButtonALLWidgetWidth = 18;
+            @Configurable
+            public int PatternPreviewWidgetButtonALLWidgetHeight = 18;
+            @Configurable
+            public int PatternPreviewWidgetSrollableWidgetGroupX = 3;
+            @Configurable
+            public int PatternPreviewWidgetSrollableWidgetGroupY = 132;
+            @Configurable
+            public int PatternPreviewWidgetSrollableWidgetGroupWidth = 154;
+            @Configurable
+            public int PatternPreviewWidgetSrollableWidgetGroupHeight = 22;
+            @Configurable
+            public int PatternPreviewWidgetHeight = 160;
+            @Configurable
+            public int PatternPreviewWidgetWidth = 160;
+            @Configurable
+            public int PatternPreviewWidgetX = 0;
+            @Configurable
+            public int PatternPreviewWidgetY = 0;
+            @Configurable
+            public int PatternPreviewWidgetSceneX = 3;
+            @Configurable
+            public int PatternPreviewWidgetSceneY = 3;
+            @Configurable
+            public int PatternPreviewWidgetSceneHeight = 150;
+            @Configurable
+            public int PatternPreviewWidgetSceneWidget = 150;
+            @Configurable
+            public int PatternPreviewWidgetImageX = 3;
+            @Configurable
+            public int PatternPreviewWidgetImageY = 3;
+            @Configurable
+            public int PatternPreviewWidgetImageWidth = 160;
+            @Configurable
+            public int PatternPreviewWidgetImageHeight = 10;
+            @Configurable
+            public int PatternPreviewWidgetImageTextureWidth = 170;
+            @Configurable
+            public int PatternPreviewWidgetSlotX = 138;
+            @Configurable
+            public int PatternPreviewWidgetSlotY = 12;
+            @Configurable
+            public double PatternPreviewWidgetSceneSpeed = 0.2;
+        }
+
+        @Configurable
+        public PatternPreviewWidgetConfigs patternPreviewWidgetConfigs = new PatternPreviewWidgetConfigs();
         @Configurable
         @Configurable.Comment({ "Whether or not to display all temperatures in Celsius instead of Kelvin" })
         public boolean temperaturesInCelsius = false;
