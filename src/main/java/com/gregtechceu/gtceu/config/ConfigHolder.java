@@ -818,7 +818,7 @@ public class ConfigHolder {
             @Configurable
             public int PatternPreviewWidgetSlotY = 12;
             @Configurable
-            public double PatternPreviewWidgetSceneSpeed = 0.2;
+            public float PatternPreviewWidgetSceneSpeed = 1.0f;
         }
 
         @Configurable

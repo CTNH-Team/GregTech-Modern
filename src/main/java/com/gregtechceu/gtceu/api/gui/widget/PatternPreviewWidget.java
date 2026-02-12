@@ -136,31 +136,39 @@ public class PatternPreviewWidget extends WidgetGroup {
                     }
                     return false;
                 } else if (this.dragging && button == 1) {// 右键情况下
-                    var eyePos = this.renderer.getEyePos();
-                    var deltax = dragX *
-                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var deltay = dragY *
-                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var nx = deltax * cos(Math.toRadians(this.rotationYaw)) +
-                            deltay * sin(Math.toRadians(this.rotationYaw));
-                    var nz = -deltax * sin(Math.toRadians(this.rotationYaw)) +
-                            deltay * cos(Math.toRadians(this.rotationYaw));
-                    eyePos.x += (float) nx;
-                    eyePos.z += (float) nz;
-                    var lookAt = this.renderer.getLookAt();
-                    deltax = dragX *
-                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    deltay = dragY *
-                            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
-                    var lnx = deltax * cos(Math.toRadians(this.rotationYaw)) +
-                            deltay * sin(Math.toRadians(this.rotationYaw));
-                    var lnz = -deltax * sin(Math.toRadians(this.rotationYaw)) +
-                            deltay * cos(Math.toRadians(this.rotationYaw));
-                    lookAt.x += (float) lnx;
-                    lookAt.z += (float) lnz;
-                    if (this.renderer != null) {
-                        this.renderer.setCameraLookAt(eyePos, lookAt, this.renderer.getWorldUp());
-                    }
+                    if (this.renderer == null) return false;
+
+                    Vector3f eyePos = new Vector3f(this.renderer.getEyePos());
+                    Vector3f lookAt = new Vector3f(this.renderer.getLookAt());
+                    Vector3f worldUp = new Vector3f(this.renderer.getWorldUp());
+
+                    float speed = ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSceneSpeed;
+
+                    // 建议与 zoom 绑定（体验提升非常明显）
+                    speed *= (float) this.camZoom();
+
+                    // forward = lookAt - eyePos
+                    Vector3f forward = new Vector3f(lookAt).sub(eyePos).normalize();
+
+                    // right = forward × worldUp
+                    Vector3f right = new Vector3f(forward).cross(worldUp).normalize();
+
+                    // camera up = right × forward
+                    Vector3f up = new Vector3f(right).cross(forward).normalize();
+
+                    // 移动向量
+                    Vector3f move = new Vector3f();
+
+                    move.add(new Vector3f(right).mul((float) (-dragX /getSizeWidth() * speed)));
+                    move.add(new Vector3f(up).mul((float) (dragY / getSizeHeight() * speed)));
+
+                    eyePos.add(move);
+                    lookAt.add(move);
+
+                    this.center.add(move);
+
+                    this.renderer.setCameraLookAt(eyePos, lookAt, worldUp);
+
                     return false;
 
                 } else {
