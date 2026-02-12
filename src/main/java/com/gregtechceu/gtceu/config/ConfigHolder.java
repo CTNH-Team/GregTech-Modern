@@ -772,6 +772,14 @@ public class ConfigHolder {
             @Configurable
             public int PatternPreviewWidgetButtonALLWidgetHeight = 18;
             @Configurable
+            public int PatternPreviewWidgetButtonHighLightX = 138;
+            @Configurable
+            public int PatternPreviewWidgetButtonHighLightY = 70;
+            @Configurable
+            public int PatternPreviewWidgetButtonHighLightWidth = 18;
+            @Configurable
+            public int PatternPreviewWidgetButtonHighLightHeight = 18;
+            @Configurable
             public int PatternPreviewWidgetSrollableWidgetGroupX = 3;
             @Configurable
             public int PatternPreviewWidgetSrollableWidgetGroupY = 132;

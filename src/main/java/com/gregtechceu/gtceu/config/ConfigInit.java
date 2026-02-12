@@ -1,6 +1,7 @@
 package com.gregtechceu.gtceu.config;
 
 public class ConfigInit {
+
     public static void reloadConfig() {
         if (ConfigHolder.INSTANCE.client.widgetScale == ConfigHolder.ClientConfigs.WidgetScale.MEIDUM) {
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetX = 138;
@@ -11,6 +12,10 @@ public class ConfigInit {
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetY = 50;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetWidth = 18;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetHeight = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightHeight = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightWidth = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX = 138;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY = 50;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupX = 3;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupY = 132;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupWidth = 154;
@@ -39,6 +44,10 @@ public class ConfigInit {
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetY = 50;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetWidth = 18;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetHeight = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightHeight = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightWidth = 18;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX = 178;
+            ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY = 70;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupX = 3;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupY = 180;
             ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetSrollableWidgetGroupWidth = 195;
