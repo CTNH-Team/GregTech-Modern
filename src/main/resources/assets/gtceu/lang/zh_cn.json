@@ -1744,6 +1744,7 @@
     "config.gtceu.option.bronzeBoilerMaxTemperature": "青铜锅炉-最高温度",
     "config.gtceu.option.buttonAnchor": "按钮位置",
     "config.gtceu.option.casingsPerCraft": "每次合成机械方块数量",
+    "config.gtceu.option.chancedOutputExpectedThreshold": "概率产出转为固定期望的并行阈值",
     "config.gtceu.option.cleanMultiblocks": "多方块结构是否洁净",
     "config.gtceu.option.client": "客户端",
     "config.gtceu.option.coloredTieredMachineOutline": "彩色电力机器轮廓",
