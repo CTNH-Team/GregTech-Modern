@@ -1,16 +1,22 @@
 package com.gregtechceu.gtceu.integration.xei.widgets;
 
 import com.gregtechceu.gtceu.api.GTValues;
+import com.gregtechceu.gtceu.api.capability.recipe.FluidRecipeCapability;
+import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
 import com.gregtechceu.gtceu.api.data.chemical.material.Material;
 import com.gregtechceu.gtceu.api.data.chemical.material.info.MaterialFlags;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.OreProperty;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.PropertyKey;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
+import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.chance.logic.ChanceLogic;
 import com.gregtechceu.gtceu.api.recipe.content.Content;
+import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
 import com.gregtechceu.gtceu.common.data.GTMachines;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
+import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.integration.xei.entry.fluid.FluidEntryList;
 import com.gregtechceu.gtceu.integration.xei.entry.fluid.FluidStackList;
 import com.gregtechceu.gtceu.integration.xei.entry.fluid.FluidTagList;
@@ -31,6 +37,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GTOreByProduct {
@@ -286,7 +293,277 @@ public class GTOreByProduct {
         } else {
             addEmptyOutputs(6);
         }
+
+        applyRuntimeRecipeOverrides(material);
     }
+
+    private void applyRuntimeRecipeOverrides(Material material) {
+        String name = material.getName();
+
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.MACERATOR_RECIPES,
+                recipeInputCandidates(material, ORES, TagPrefix.rawOre),
+                recipeOutputCandidates(material, TagPrefix.crushed, TagPrefix.gem),
+                "macerate_" + name + "_ore_to_crushed_ore"), 1, 2, false);
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.MACERATOR_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushed),
+                recipeOutputCandidates(material, TagPrefix.dustImpure),
+                "macerate_" + name + "_crushed_ore_to_impure_dust"), 3, 2, false);
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.CENTRIFUGE_RECIPES,
+                recipeInputCandidates(material, TagPrefix.dustImpure),
+                recipeOutputCandidates(material, TagPrefix.dust),
+                "centrifuge_" + name + "_dirty_dust_to_dust"), 5, 2, false);
+
+        GTRecipe washer = findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.ORE_WASHER_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushed),
+                recipeOutputCandidates(material, TagPrefix.crushedPurified, TagPrefix.dust),
+                "wash_" + name + "_crushed_ore_to_purified_ore",
+                "wash_" + name + "_crushed_ore_to_purified_ore_distilled",
+                "wash_" + name + "_crushed_ore_to_purified_ore_fast");
+        applyMainAndByproducts(washer, 7, 2, false);
+        applyFluidInput(washer, 0);
+
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.THERMAL_CENTRIFUGE_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushed, TagPrefix.crushedPurified),
+                recipeOutputCandidates(material, TagPrefix.crushedRefined, TagPrefix.dust),
+                "centrifuge_" + name + "_crushed_ore_to_refined_ore",
+                "centrifuge_" + name + "_purified_ore_to_refined_ore"), 9, 2, false);
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.MACERATOR_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushedRefined),
+                recipeOutputCandidates(material, TagPrefix.dust),
+                "macerate_" + name + "_refined_ore_to_dust"), 11, 2, false);
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.MACERATOR_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushedPurified),
+                recipeOutputCandidates(material, TagPrefix.dustPure),
+                "macerate_" + name + "_crushed_ore_to_dust"), 13, 2, false);
+        applyMainAndByproducts(findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.CENTRIFUGE_RECIPES,
+                recipeInputCandidates(material, TagPrefix.dustPure),
+                recipeOutputCandidates(material, TagPrefix.dust),
+                "centrifuge_" + name + "_pure_dust_to_dust"), 15, 2, false);
+
+        GTRecipe chemBath = findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.CHEMICAL_BATH_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushed),
+                recipeOutputCandidates(material, TagPrefix.crushedPurified, TagPrefix.dust),
+                "bathe_" + name + "_crushed_ore_to_purified_ore");
+        hasChemBath = chemBath != null;
+        setMachineInput(13, hasChemBath ? GTMachines.CHEMICAL_BATH[GTValues.LV].asStack() : ItemStack.EMPTY);
+        applyMainAndByproducts(chemBath, 23, 2, true);
+        applyFluidInput(chemBath, 1);
+
+        GTRecipe separator = findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.ELECTROMAGNETIC_SEPARATOR_RECIPES,
+                recipeInputCandidates(material, TagPrefix.dustPure),
+                recipeOutputCandidates(material, TagPrefix.dust),
+                "separate_" + name + "_pure_dust_to_dust");
+        hasSeparator = separator != null;
+        setMachineInput(14,
+                hasSeparator ? GTMachines.ELECTROMAGNETIC_SEPARATOR[GTValues.LV].asStack() : ItemStack.EMPTY);
+        applyMainAndByproducts(separator, 25, 3, true);
+
+        GTRecipe sifter = findFirstRecipeByIdOrInputOutput(
+                GTRecipeTypes.SIFTER_RECIPES,
+                recipeInputCandidates(material, TagPrefix.crushedPurified),
+                recipeOutputCandidates(material, TagPrefix.gemExquisite, TagPrefix.gemFlawless, TagPrefix.gem,
+                        TagPrefix.dustPure, TagPrefix.gemFlawed, TagPrefix.gemChipped),
+                "sift_" + name + "_purified_ore_to_gems");
+        hasSifter = sifter != null;
+        setMachineInput(15, hasSifter ? GTMachines.SIFTER[GTValues.LV].asStack() : ItemStack.EMPTY);
+        applyMainAndByproducts(sifter, 28, 6, true);
+    }
+
+    private GTRecipe findFirstRecipeByIdOrInputOutput(GTRecipeType type, List<ItemStack> inputCandidates,
+                                                      List<ItemStack> outputCandidates, String... paths) {
+        for (String path : paths) {
+            for (var category : type.getCategories()) {
+                for (GTRecipe recipe : type.getRecipesInCategory(category)) {
+                    if (recipe.getId() != null && path.equals(recipe.getId().getPath())) {
+                        return recipe;
+                    }
+                }
+            }
+        }
+        if (inputCandidates.isEmpty()) return null;
+
+        for (var category : type.getCategories()) {
+            for (GTRecipe recipe : type.getRecipesInCategory(category)) {
+                if (matchesAnyInput(recipe, inputCandidates) && matchesAnyOutput(recipe, outputCandidates)) {
+                    return recipe;
+                }
+            }
+        }
+        return null;
+    }
+
+    private List<ItemStack> recipeInputCandidates(Material material, TagPrefix... prefixes) {
+        List<ItemStack> candidates = new ArrayList<>();
+        for (TagPrefix prefix : prefixes) {
+            addCandidate(candidates, ChemicalHelper.get(prefix, material));
+        }
+        return candidates;
+    }
+
+    private List<ItemStack> recipeInputCandidates(Material material, List<TagPrefix> dynamicPrefixes,
+                                                  TagPrefix... extraPrefixes) {
+        List<ItemStack> candidates = new ArrayList<>();
+        for (TagPrefix prefix : dynamicPrefixes) {
+            addCandidate(candidates, ChemicalHelper.get(prefix, material));
+        }
+        for (TagPrefix prefix : extraPrefixes) {
+            addCandidate(candidates, ChemicalHelper.get(prefix, material));
+        }
+        return candidates;
+    }
+
+    private List<ItemStack> recipeOutputCandidates(Material material, TagPrefix... prefixes) {
+        List<ItemStack> candidates = new ArrayList<>();
+        for (TagPrefix prefix : prefixes) {
+            addCandidate(candidates, ChemicalHelper.get(prefix, material));
+        }
+        return candidates;
+    }
+
+    private void addCandidate(List<ItemStack> candidates, ItemStack stack) {
+        if (!stack.isEmpty()) {
+            candidates.add(stack);
+        }
+    }
+
+    private boolean matchesAnyInput(GTRecipe recipe, List<ItemStack> candidates) {
+        for (Content content : recipe.getInputContents(ItemRecipeCapability.CAP)) {
+            var ingredient = ItemRecipeCapability.CAP.of(content.content);
+            for (ItemStack candidate : candidates) {
+                if (ingredient.test(candidate)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean matchesAnyOutput(GTRecipe recipe, List<ItemStack> candidates) {
+        if (candidates.isEmpty()) {
+            return true;
+        }
+        for (Content content : recipe.getOutputContents(ItemRecipeCapability.CAP)) {
+            var ingredient = ItemRecipeCapability.CAP.of(content.content);
+            for (ItemStack candidate : candidates) {
+                if (ingredient.test(candidate)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void applyMainAndByproducts(GTRecipe recipe, int outputStartIndex, int outputCount,
+                                        boolean clearWhenMissing) {
+        if (recipe == null) {
+            if (clearWhenMissing) {
+                clearOutputRange(outputStartIndex, outputCount);
+            }
+            return;
+        }
+
+        var itemOutputs = extractDisplayOutputs(recipe);
+        for (int i = 0; i < outputCount; i++) {
+            int outputIndex = outputStartIndex + i;
+            if (i < itemOutputs.size()) {
+                RecipeDisplayOutput output = itemOutputs.get(i);
+                this.itemOutputs.set(outputIndex, output.stack());
+                setChanceForOutput(outputIndex, output.chanceContent());
+            } else {
+                this.itemOutputs.set(outputIndex, ItemStack.EMPTY);
+                setChanceForOutput(outputIndex, null);
+            }
+        }
+    }
+
+    private List<RecipeDisplayOutput> extractDisplayOutputs(GTRecipe recipe) {
+        List<RecipeDisplayOutput> guaranteed = new ArrayList<>();
+        List<RecipeDisplayOutput> chanced = new ArrayList<>();
+
+        for (Content content : recipe.getOutputContents(ItemRecipeCapability.CAP)) {
+            var ingredient = ItemRecipeCapability.CAP.of(content.content);
+            ItemStack[] stacks = ingredient.getItems();
+            ItemStack stack = Arrays.stream(stacks)
+                    .filter(s -> !s.isEmpty())
+                    .findFirst()
+                    .map(ItemStack::copy)
+                    .orElse(ItemStack.EMPTY);
+            if (stack.isEmpty()) continue;
+
+            RecipeDisplayOutput output = new RecipeDisplayOutput(stack, content.isChanced() ? content : null);
+            if (content.isChanced()) {
+                chanced.add(output);
+            } else {
+                guaranteed.add(output);
+            }
+        }
+
+        List<RecipeDisplayOutput> result = new ArrayList<>();
+        if (!guaranteed.isEmpty()) {
+            result.add(guaranteed.get(0));
+        }
+        result.addAll(chanced);
+        if (guaranteed.size() > 1) {
+            result.addAll(guaranteed.subList(1, guaranteed.size()));
+        }
+        return result;
+    }
+
+    private void applyFluidInput(GTRecipe recipe, int fluidInputSlot) {
+        if (fluidInputSlot < 0 || fluidInputSlot >= fluidInputs.size()) return;
+        if (recipe == null) {
+            fluidInputs.set(fluidInputSlot, new FluidStackList());
+            return;
+        }
+
+        var fluidContents = recipe.getInputContents(FluidRecipeCapability.CAP);
+        if (fluidContents.isEmpty()) {
+            fluidInputs.set(fluidInputSlot, new FluidStackList());
+            return;
+        }
+
+        var ingredient = (FluidIngredient) FluidRecipeCapability.CAP.of(fluidContents.get(0).content);
+        var stacks = ingredient.getStacks();
+        if (stacks.length == 0) {
+            fluidInputs.set(fluidInputSlot, new FluidStackList());
+        } else {
+            fluidInputs.set(fluidInputSlot, FluidStackList.of(Arrays.asList(stacks)));
+        }
+    }
+
+    private void setMachineInput(int inputIndex, ItemStack stack) {
+        if (inputIndex < 0 || inputIndex >= itemInputs.size()) return;
+        itemInputs.set(inputIndex, ItemStackList.of(stack));
+    }
+
+    private void clearOutputRange(int startIndex, int count) {
+        for (int i = 0; i < count; i++) {
+            int outputIndex = startIndex + i;
+            itemOutputs.set(outputIndex, ItemStack.EMPTY);
+            setChanceForOutput(outputIndex, null);
+        }
+    }
+
+    private void setChanceForOutput(int outputIndex, Content content) {
+        int absoluteSlot = itemInputs.size() + outputIndex;
+        if (content != null && content.isChanced()) {
+            chances.put(absoluteSlot, content);
+        } else {
+            chances.remove(absoluteSlot);
+        }
+    }
+
+    private record RecipeDisplayOutput(ItemStack stack, Content chanceContent) {}
 
     public void getTooltip(int slotIndex, List<Component> tooltips) {
         if (chances.containsKey(slotIndex)) {
