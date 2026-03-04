@@ -2,6 +2,7 @@ tasks.register('slimJar', Jar) {
     dependsOn("classes")
     archiveClassifier = "dev-slim"
     from sourceSets.main.output
+    from("LICENSE")
 }
 
 tasks.jar {
