@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      MODULE_NAME: CTNH-Core
+      MODULE_NAME: GregTech-Modern
 
     steps:
       - name: Checkout
