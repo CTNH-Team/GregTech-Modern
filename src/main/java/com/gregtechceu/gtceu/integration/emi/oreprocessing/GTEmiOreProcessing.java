@@ -33,11 +33,6 @@ public class GTEmiOreProcessing extends ModularEmiRecipe<GTOreByProductWidget> {
     }
 
     @Override
-    public List<EmiStack> getOutputs() {
-        return super.getOutputs().stream().distinct().toList();
-    }
-
-    @Override
     public boolean supportsRecipeTree() {
         return false;
     }
