@@ -8,10 +8,7 @@ import com.lowdragmc.lowdraglib.emi.ModularEmiRecipe;
 import net.minecraft.resources.ResourceLocation;
 
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
-import dev.emi.emi.api.stack.EmiStack;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public class GTEmiOreProcessing extends ModularEmiRecipe<GTOreByProductWidget> {
 
