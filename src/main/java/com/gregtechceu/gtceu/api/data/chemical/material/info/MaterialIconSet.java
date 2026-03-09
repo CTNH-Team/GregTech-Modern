@@ -1,10 +1,10 @@
 package com.gregtechceu.gtceu.api.data.chemical.material.info;
 
-import com.google.gson.JsonObject;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.integration.kjs.GTRegistryInfo;
 
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

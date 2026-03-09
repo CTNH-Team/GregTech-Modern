@@ -1,13 +1,15 @@
 package com.gregtechceu.gtceu.client.model;
 
+import net.minecraft.resources.ResourceLocation;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.minecraft.resources.ResourceLocation;
 
 import java.util.Map;
 import java.util.function.Supplier;
 
 public class ExtendedModelWithLoader implements Supplier<JsonElement> {
+
     private final ResourceLocation parent;
     private final JsonObject extra;
 

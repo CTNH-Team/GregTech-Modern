@@ -24,11 +24,11 @@ public class TagPrefixItemRenderer {
     public static void reinitModels() {
         for (TagPrefixItemRenderer model : MODELS) {
             ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(model.item);
-            if(model.iconSet.extraModel != null){
+            if (model.iconSet.extraModel != null) {
                 GTDynamicResourcePack.addItemModel(itemId,
-                        new ExtendedModelWithLoader(model.type.getItemModelPath(model.iconSet, true), model.iconSet.extraModel));
-            }
-            else {
+                        new ExtendedModelWithLoader(model.type.getItemModelPath(model.iconSet, true),
+                                model.iconSet.extraModel));
+            } else {
                 GTDynamicResourcePack.addItemModel(itemId,
                         new DelegatedModel(model.type.getItemModelPath(model.iconSet, true)));
             }
