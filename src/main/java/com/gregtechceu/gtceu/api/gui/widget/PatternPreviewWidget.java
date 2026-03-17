@@ -55,6 +55,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.shedaniel.rei.impl.client.gui.screen.AbstractDisplayViewingScreen;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
+import org.lwjgl.opengl.GL11;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -83,7 +84,6 @@ public class PatternPreviewWidget extends WidgetGroup {
     private SlotWidget[] candidates;
 
     protected PatternPreviewWidget(MultiblockMachineDefinition controllerDefinition) {
-        // ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonPWidgetX = 1;
         super(ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetX,
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetY,
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetWidth,
@@ -151,7 +151,8 @@ public class PatternPreviewWidget extends WidgetGroup {
                         ColorPattern.T_GRAY.rectTexture(),
                         new TextTexture("1").setSupplier(() -> "P:" + index)),
                 (x) -> setPage((index + 1 >= patterns.length) ? 0 : index + 1))
-                .setHoverBorderTexture(1, -1));
+                .setHoverBorderTexture(1, -1)
+                .appendHoverTooltips(Component.translatable("gtceu.gui.switchlevel")));
 
         addWidget(new ButtonWidget(
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonALLWidgetX,
@@ -162,7 +163,8 @@ public class PatternPreviewWidget extends WidgetGroup {
                         ColorPattern.T_GRAY.rectTexture(),
                         new TextTexture("1").setSupplier(() -> layer >= 0 ? "L:" + layer : "ALL")),
                 cd -> updateLayer())
-                .setHoverBorderTexture(1, -1));
+                .setHoverBorderTexture(1, -1)
+                .appendHoverTooltips(Component.translatable("gtceu.gui.showlayer")));
         addWidget(new ButtonWidget(
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightX,
                 ConfigHolder.INSTANCE.client.patternPreviewWidgetConfigs.PatternPreviewWidgetButtonHighLightY,
@@ -171,7 +173,9 @@ public class PatternPreviewWidget extends WidgetGroup {
                 new GuiTextureGroup(
                         ColorPattern.T_GRAY.rectTexture(),
                         new TextTexture("1").setSupplier(() -> isHighLight ? "ON" : "OFF")),
-                cd -> updateHighLight()).setHoverBorderTexture(1, -1));
+                cd -> updateHighLight())
+                .setHoverBorderTexture(1, -1)
+                .appendHoverTooltips(Component.translatable("gtceu.gui.highlight")));
         setPage(0);
     }
 
@@ -299,7 +303,7 @@ public class PatternPreviewWidget extends WidgetGroup {
 
                 TraceabilityPredicate p = predicateMap.get(pos);
                 if (p == null) continue;
-                if (selectedPosFace != null && pos == selectedPosFace.pos) return;
+                // if (selectedPosFace != null && pos == selectedPosFace.pos) return;
                 int color = 0;
                 if (!colorCaches.containsKey(pos)) {
                     if (predicateMap.containsKey(pos)) {
@@ -357,7 +361,8 @@ public class PatternPreviewWidget extends WidgetGroup {
                 } else {
                     color = colorCaches.get(pos);
                 }
-                appendWire(builder, pos, color);
+                appendCube(builder, pos, color);
+
                 vertexCount += 24;
             }
 
@@ -371,109 +376,37 @@ public class PatternPreviewWidget extends WidgetGroup {
             // rendered.release();
         }
 
-        private void appendWire(BufferBuilder b, BlockPos pos, int rgba) {
+        private void appendCube(BufferBuilder b, BlockPos pos, int rgba) {
             float r = ((rgba >> 24) & 255) / 255f;
             float g = ((rgba >> 16) & 255) / 255f;
             float bl = ((rgba >> 8) & 255) / 255f;
-            float a = (rgba & 255) / 255f;
+            float a = (rgba & 255) / 255f * 0.6f;
 
             float x = pos.getX();
             float y = pos.getY();
             float z = pos.getZ();
 
-            float x2 = x + 1.0f;
-            float y2 = y + 1.0f;
-            float z2 = z + 1.0f;
+            float x2 = x + 1;
+            float y2 = y + 1;
+            float z2 = z + 1;
 
-            // bottom
-            appendEdgeX(b, x, x2, y, z, r, g, bl, a);
-            appendEdgeZ(b, z, z2, x2, y, r, g, bl, a);
-            appendEdgeX(b, x, x2, y, z2, r, g, bl, a);
-            appendEdgeZ(b, z, z2, x, y, r, g, bl, a);
+            // front
+            addQuad(b, x, y, z, x2, y, z, x2, y2, z, x, y2, z, r, g, bl, a);
+
+            // back
+            addQuad(b, x2, y, z2, x, y, z2, x, y2, z2, x2, y2, z2, r, g, bl, a);
+
+            // left
+            addQuad(b, x, y, z2, x, y, z, x, y2, z, x, y2, z2, r, g, bl, a);
+
+            // right
+            addQuad(b, x2, y, z, x2, y, z2, x2, y2, z2, x2, y2, z, r, g, bl, a);
 
             // top
-            appendEdgeX(b, x, x2, y2, z, r, g, bl, a);
-            appendEdgeZ(b, z, z2, x2, y2, r, g, bl, a);
-            appendEdgeX(b, x, x2, y2, z2, r, g, bl, a);
-            appendEdgeZ(b, z, z2, x, y2, r, g, bl, a);
+            addQuad(b, x, y2, z, x2, y2, z, x2, y2, z2, x, y2, z2, r, g, bl, a);
 
-            // vertical
-            appendEdgeY(b, y, y2, x, z, r, g, bl, a);
-            appendEdgeY(b, y, y2, x2, z, r, g, bl, a);
-            appendEdgeY(b, y, y2, x2, z2, r, g, bl, a);
-            appendEdgeY(b, y, y2, x, z2, r, g, bl, a);
-        }
-
-        private void appendEdgeX(BufferBuilder b,
-                                 float x1, float x2, float y, float z,
-                                 float r, float g, float bl, float a) {
-            float w = LINE_HALF_WIDTH;
-
-            // Quad in XY plane (expand in Y)
-            addQuad(
-                    b,
-                    x1, y - w, z,
-                    x2, y - w, z,
-                    x2, y + w, z,
-                    x1, y + w, z,
-                    r, g, bl, a);
-
-            // Quad in XZ plane (expand in Z)
-            addQuad(
-                    b,
-                    x1, y, z - w,
-                    x2, y, z - w,
-                    x2, y, z + w,
-                    x1, y, z + w,
-                    r, g, bl, a);
-        }
-
-        private void appendEdgeY(BufferBuilder b,
-                                 float y1, float y2, float x, float z,
-                                 float r, float g, float bl, float a) {
-            float w = LINE_HALF_WIDTH;
-
-            // Quad in XY plane (expand in X)
-            addQuad(
-                    b,
-                    x - w, y1, z,
-                    x + w, y1, z,
-                    x + w, y2, z,
-                    x - w, y2, z,
-                    r, g, bl, a);
-
-            // Quad in YZ plane (expand in Z)
-            addQuad(
-                    b,
-                    x, y1, z - w,
-                    x, y1, z + w,
-                    x, y2, z + w,
-                    x, y2, z - w,
-                    r, g, bl, a);
-        }
-
-        private void appendEdgeZ(BufferBuilder b,
-                                 float z1, float z2, float x, float y,
-                                 float r, float g, float bl, float a) {
-            float w = LINE_HALF_WIDTH;
-
-            // Quad in XZ plane (expand in X)
-            addQuad(
-                    b,
-                    x - w, y, z1,
-                    x + w, y, z1,
-                    x + w, y, z2,
-                    x - w, y, z2,
-                    r, g, bl, a);
-
-            // Quad in YZ plane (expand in Y)
-            addQuad(
-                    b,
-                    x, y - w, z1,
-                    x, y + w, z1,
-                    x, y + w, z2,
-                    x, y - w, z2,
-                    r, g, bl, a);
+            // bottom
+            addQuad(b, x, y, z2, x2, y, z2, x2, y, z, x, y, z, r, g, bl, a);
         }
 
         private void addQuad(BufferBuilder b,
@@ -498,19 +431,29 @@ public class PatternPreviewWidget extends WidgetGroup {
             if (highlightVbo == null) return;
 
             RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthFunc(GL11.GL_LEQUAL);
+
+            RenderSystem.depthMask(false);
+            GL11.glDepthRange(0.0, 0.01);
+
             RenderSystem.setShader(GameRenderer::getPositionColorShader);
-            RenderSystem.disableDepthTest();
-            RenderSystem.disableCull();
+
             highlightVbo.bind();
 
             highlightVbo.drawWithShader(
                     RenderSystem.getModelViewMatrix(),
                     RenderSystem.getProjectionMatrix(),
                     RenderSystem.getShader());
-            RenderSystem.enableCull();
-            RenderSystem.enableDepthTest();
-            RenderSystem.disableBlend();
+
             VertexBuffer.unbind();
+
+            GL11.glDepthRange(0.0, 1.0);
+            RenderSystem.depthMask(true);
+
+            RenderSystem.disableBlend();
         }
 
         @Override
