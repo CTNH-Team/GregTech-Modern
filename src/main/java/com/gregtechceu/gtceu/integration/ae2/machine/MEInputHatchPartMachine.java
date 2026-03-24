@@ -1,155 +1,151 @@
 package com.gregtechceu.gtceu.integration.ae2.machine;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNodeListener;
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
-import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.AEFluidConfigWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEFluidList;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEFluidSlot;
-import com.gregtechceu.gtceu.utils.GTMath;
-
-import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
-import com.lowdragmc.lowdraglib.gui.widget.Widget;
-import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
+import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
-import com.lowdragmc.lowdraglib.utils.Position;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
 
-import appeng.api.config.Actionable;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.MEStorage;
-
-import javax.annotation.ParametersAreNonnullByDefault;
-
-@ParametersAreNonnullByDefault
-@MethodsReturnNonnullByDefault
-public class MEInputHatchPartMachine extends MEHatchPartMachine
-                                     implements IDataStickInteractable, IMachineLife, IHasCircuitSlot {
+public class MEInputHatchPartMachine extends MEHatchPartMachine implements IDataStickInteractable {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
-            MEInputHatchPartMachine.class, MEHatchPartMachine.MANAGED_FIELD_HOLDER);
+            MEInputHatchPartMachine.class,
+            MEHatchPartMachine.MANAGED_FIELD_HOLDER
+    );
 
-    protected ExportOnlyAEFluidList aeFluidHandler;
+    @Persisted
+    protected final GenericStackHandler configStacks;
 
-    public MEInputHatchPartMachine(IMachineBlockEntity holder, Object... args) {
-        super(holder, IO.IN, args);
-    }
-
-    /////////////////////////////////
-    // ***** Machine LifeCycle ****//
-    /////////////////////////////////
-
-    @Override
-    public void onMachineRemoved() {
-        flushInventory();
+    public MEInputHatchPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
+        super(holder, tier, IO.IN, -1, slots, args);
+        this.configStacks = new GenericStackHandler(slots);
     }
 
     @Override
     protected NotifiableFluidTank createTank(int initialCapacity, int slots, Object... args) {
-        this.aeFluidHandler = new ExportOnlyAEFluidList(this, slots);
-        return aeFluidHandler;
+        return new NotifiableFluidTank(this, slots, Integer.MAX_VALUE, IO.IN, IO.NONE);
     }
 
     @Override
-    public ManagedFieldHolder getFieldHolder() {
-        return MANAGED_FIELD_HOLDER;
+    protected void updateTankSubscription(Direction newFacing) {
+        IManagedGridNode node = nodeHost.getMainNode();
+        if (isWorkingEnabled() && node.isActive()) {
+            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
+        } else if (autoIOSubs != null) {
+            autoIOSubs.unsubscribe();
+            autoIOSubs = null;
+        }
     }
-
-    /////////////////////////////////
-    // ********** Sync ME *********//
-    /////////////////////////////////
 
     @Override
     protected void autoIO() {
-        if (!this.isWorkingEnabled()) return;
-        if (!this.shouldSyncME()) return;
+        IGrid grid = nodeHost.getMainNode().getGrid();
+        if (grid == null) return;
 
-        if (this.updateMEStatus()) {
-            this.syncME();
-            this.updateTankSubscription();
-        }
-    }
+        int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
+        if (self().getOffsetTimer() % updateInterval != 0) return;
 
-    protected void syncME() {
-        MEStorage networkInv = this.getMainNode().getGrid().getStorageService().getInventory();
-        for (ExportOnlyAEFluidSlot aeTank : this.aeFluidHandler.getInventory()) {
-            // Try to clear the wrong fluid
-            GenericStack exceedFluid = aeTank.exceedStack();
-            if (exceedFluid != null) {
-                int total = GTMath.saturatedCast(exceedFluid.amount());
-                int inserted = GTMath
-                        .saturatedCast(networkInv.insert(exceedFluid.what(), exceedFluid.amount(), Actionable.MODULATE,
-                                this.actionSource));
-                if (inserted > 0) {
-                    aeTank.drain(inserted, IFluidHandler.FluidAction.EXECUTE);
-                    continue;
-                } else {
-                    aeTank.drain(total, IFluidHandler.FluidAction.EXECUTE);
-                }
+        MEStorage networkInv = grid.getStorageService().getInventory();
+        FluidTank[] tanks = tank.getStorages();
+
+        for (int i = 0; i < configStacks.getSlots(); i++) {
+            GenericStack configStack = configStacks.getStackInSlot(i);
+            if (configStack == null) continue;
+            AEFluidKey configKey = (AEFluidKey) configStack.what();
+            long configAmount = configStack.amount();
+
+            FluidTank tank = tanks[i];
+            // Ensure config amount does not exceed tank capacity
+            if (configAmount > tank.getCapacity()) {
+                throw new IllegalArgumentException("Config amount exceeds tank capacity!");
             }
-            // Fill it
-            GenericStack reqFluid = aeTank.requestStack();
-            if (reqFluid != null) {
-                long extracted = networkInv.extract(reqFluid.what(), reqFluid.amount(), Actionable.MODULATE,
-                        this.actionSource);
-                if (extracted > 0) {
-                    aeTank.addStack(new GenericStack(reqFluid.what(), extracted));
-                }
-            }
-        }
-    }
 
-    protected void flushInventory() {
-        var grid = getMainNode().getGrid();
-        if (grid != null) {
-            for (var aeSlot : aeFluidHandler.getInventory()) {
-                GenericStack stock = aeSlot.getStock();
-                if (stock != null) {
-                    grid.getStorageService().getInventory().insert(stock.what(), stock.amount(), Actionable.MODULATE,
-                            actionSource);
-                }
+            // Ensure fluid in tank matches the config key
+            if (!tank.isEmpty() && !configKey.matches(tank.getFluid())) continue;
+            // Ensure tank has enough space
+            int actualAmount = tank.getFluidAmount();
+            if (actualAmount >= configAmount) continue;
+
+            FluidStack requestedStack = configKey.toStack(Math.toIntExact(configAmount - actualAmount));
+            int inserted = tank.fill(
+                    requestedStack,
+                    IFluidHandler.FluidAction.SIMULATE
+            );
+            if (inserted <= 0) continue;
+
+            int extracted = Math.toIntExact(
+                    networkInv.extract(configKey, inserted, Actionable.MODULATE, actionSource)
+            );
+            if (extracted > 0) {
+                requestedStack.setAmount(extracted);
+                tank.fill(requestedStack, IFluidHandler.FluidAction.EXECUTE);
             }
         }
     }
-
-    ///////////////////////////////
-    // ********** GUI ***********//
-    ///////////////////////////////
 
     @Override
-    public Widget createUIWidget() {
-        WidgetGroup group = new WidgetGroup(new Position(0, 0));
-        // ME Network status
-        group.addWidget(new LabelWidget(3, 0, () -> this.isOnline ?
-                "gtceu.gui.me_network.online" :
-                "gtceu.gui.me_network.offline"));
-
-        // Config slots
-        group.addWidget(new AEFluidConfigWidget(3, 10, this.aeFluidHandler));
-
-        return group;
+    public boolean swapIO() {
+        return false;
     }
 
-    ////////////////////////////////
-    // ******* Interaction *******//
-    ////////////////////////////////
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateTankSubscription();
+    }
+
+    @Override
+    public void onMachineRemoved() {
+        nodeHost.getMainNode().ifPresent(grid -> {
+            for (var storage : tank.getStorages()) {
+                FluidStack stack = storage.getFluid();
+                if (stack.isEmpty()) continue;
+                grid.getStorageService().getInventory().insert(
+                        AEFluidKey.of(stack), stack.getAmount(), Actionable.MODULATE, actionSource
+                );
+            }
+        });
+        super.onMachineRemoved();
+    }
+
+//    @Override
+//    public Widget createUIWidget() {
+//        WidgetGroup group = new WidgetGroup(new Position(0, 0));
+//        // ME Network status
+//        group.addWidget(new LabelWidget(3, 0, () -> this.isOnline ?
+//                "gtceu.gui.me_network.online" :
+//                "gtceu.gui.me_network.offline"));
+//
+//        // Config slots
+//        group.addWidget(new AEFluidConfigWidget(3, 10, this.aeFluidHandler));
+//        return group;
+//    }
 
     @Override
     public final InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
         if (!isRemote()) {
             CompoundTag tag = new CompoundTag();
-            tag.put("MEInputHatch", writeConfigToTag());
+            tag.put("MEInputHatch", writeConfig());
             dataStick.setTag(tag);
             dataStick.setHoverName(Component.translatable("gtceu.machine.me.fluid_import.data_stick.name"));
             player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
@@ -163,52 +159,34 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine
         if (tag == null || !tag.contains("MEInputHatch")) {
             return InteractionResult.PASS;
         }
-
         if (!isRemote()) {
-            readConfigFromTag(tag.getCompound("MEInputHatch"));
-            this.updateTankSubscription();
+            readConfig(tag.getCompound("MEInputHatch"));
             player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
         }
         return InteractionResult.sidedSuccess(isRemote());
     }
 
-    ////////////////////////////////
-    // ****** Configuration ******//
-    ////////////////////////////////
-
-    protected CompoundTag writeConfigToTag() {
+    protected CompoundTag writeConfig() {
         CompoundTag tag = new CompoundTag();
-        CompoundTag configStacks = new CompoundTag();
-        tag.put("ConfigStacks", configStacks);
-        for (int i = 0; i < CONFIG_SIZE; i++) {
-            var slot = this.aeFluidHandler.getInventory()[i];
-            GenericStack config = slot.getConfig();
-            if (config == null) {
-                continue;
-            }
-            CompoundTag stackTag = GenericStack.writeTag(config);
-            configStacks.put(Integer.toString(i), stackTag);
-        }
-        tag.putByte("GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0)));
+        tag.put("ConfigStacks", configStacks.serializeNBT());
+        tag.putByte(
+                "GhostCircuit",
+                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
+        );
         return tag;
     }
 
-    protected void readConfigFromTag(CompoundTag tag) {
+    protected void readConfig(CompoundTag tag) {
         if (tag.contains("ConfigStacks")) {
-            CompoundTag configStacks = tag.getCompound("ConfigStacks");
-            for (int i = 0; i < CONFIG_SIZE; i++) {
-                String key = Integer.toString(i);
-                if (configStacks.contains(key)) {
-                    CompoundTag configTag = configStacks.getCompound(key);
-                    this.aeFluidHandler.getInventory()[i].setConfig(GenericStack.readTag(configTag));
-                } else {
-                    this.aeFluidHandler.getInventory()[i].setConfig(null);
-                }
-            }
+            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
         }
         if (tag.contains("GhostCircuit")) {
             circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
         }
+    }
+
+    @Override
+    public ManagedFieldHolder getFieldHolder() {
+        return MANAGED_FIELD_HOLDER;
     }
 }

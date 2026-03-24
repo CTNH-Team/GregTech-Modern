@@ -1,154 +1,172 @@
 package com.gregtechceu.gtceu.integration.ae2.machine;
 
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNodeListener;
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
-import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.AEItemConfigWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEItemList;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEItemSlot;
-import com.gregtechceu.gtceu.utils.GTMath;
-
-import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
-import com.lowdragmc.lowdraglib.gui.widget.Widget;
-import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
+import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
-import com.lowdragmc.lowdraglib.utils.Position;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.api.config.Actionable;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.MEStorage;
+public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStickInteractable {
 
-import javax.annotation.ParametersAreNonnullByDefault;
+    protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
+            MEInputBusPartMachine.class,
+            MEBusPartMachine.MANAGED_FIELD_HOLDER
+    );
 
-@ParametersAreNonnullByDefault
-@MethodsReturnNonnullByDefault
-public class MEInputBusPartMachine extends MEBusPartMachine
-                                   implements IDataStickInteractable, IMachineLife, IHasCircuitSlot {
+    @Persisted
+    protected final GenericStackHandler configStacks;
+    protected final int slots;
 
-    protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(MEInputBusPartMachine.class,
-            MEBusPartMachine.MANAGED_FIELD_HOLDER);
-    protected final static int CONFIG_SIZE = 16;
-
-    protected ExportOnlyAEItemList aeItemHandler;
-
-    public MEInputBusPartMachine(IMachineBlockEntity holder, Object... args) {
-        super(holder, IO.IN, args);
-    }
-
-    /////////////////////////////////
-    // ***** Machine LifeCycle ****//
-    /////////////////////////////////
-
-    @Override
-    public void onMachineRemoved() {
-        flushInventory();
+    public MEInputBusPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
+        super(holder, tier, IO.IN, args);
+        this.configStacks = new GenericStackHandler(slots);
+        this.slots = slots;
     }
 
     @Override
     protected NotifiableItemStackHandler createInventory(Object... args) {
-        this.aeItemHandler = new ExportOnlyAEItemList(this, CONFIG_SIZE);
-        return this.aeItemHandler;
+        return new NotifiableItemStackHandler(
+                this,
+                getInventorySize(),
+                IO.IN,
+                IO.NONE,
+                slots -> new CustomItemStackHandler(slots) {
+                    @Override
+                    public int getSlotLimit(int slot) {
+                        return Integer.MAX_VALUE;
+                    }
+
+                    @Override
+                    protected int getStackLimit(int slot, ItemStack stack) {
+                        return Integer.MAX_VALUE;
+                    }
+                }
+        );
     }
 
     @Override
-    public ManagedFieldHolder getFieldHolder() {
-        return MANAGED_FIELD_HOLDER;
+    protected void updateInventorySubscription(Direction newFacing) {
+        IManagedGridNode node = nodeHost.getMainNode();
+        if (isWorkingEnabled() && node.isActive()) {
+            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
+            return;
+        }
+        if (autoIOSubs != null) {
+            autoIOSubs.unsubscribe();
+            autoIOSubs = null;
+        }
     }
-
-    /////////////////////////////////
-    // ********** Sync ME *********//
-    /////////////////////////////////
 
     @Override
-    public void autoIO() {
-        if (!this.isWorkingEnabled()) return;
-        if (!this.shouldSyncME()) return;
-
-        if (this.updateMEStatus()) {
-            this.syncME();
-            this.updateInventorySubscription();
-        }
+    protected int getInventorySize() {
+        return slots;
     }
-
-    protected void syncME() {
-        MEStorage networkInv = this.getMainNode().getGrid().getStorageService().getInventory();
-        for (ExportOnlyAEItemSlot aeSlot : this.aeItemHandler.getInventory()) {
-            // Try to clear the wrong item
-            GenericStack exceedItem = aeSlot.exceedStack();
-            if (exceedItem != null) {
-                long total = exceedItem.amount();
-                long inserted = networkInv.insert(exceedItem.what(), exceedItem.amount(), Actionable.MODULATE,
-                        this.actionSource);
-                if (inserted > 0) {
-                    aeSlot.extractItem(0, GTMath.saturatedCast(inserted), false);
-                    continue;
-                } else {
-                    aeSlot.extractItem(0, GTMath.saturatedCast(total), false);
-                }
-            }
-            // Fill it
-            GenericStack reqItem = aeSlot.requestStack();
-            if (reqItem != null) {
-                long extracted = networkInv.extract(reqItem.what(), reqItem.amount(), Actionable.MODULATE,
-                        this.actionSource);
-                if (extracted != 0) {
-                    aeSlot.addStack(new GenericStack(reqItem.what(), extracted));
-                }
-            }
-        }
-    }
-
-    protected void flushInventory() {
-        var grid = getMainNode().getGrid();
-        if (grid != null) {
-            for (var aeSlot : aeItemHandler.getInventory()) {
-                GenericStack stock = aeSlot.getStock();
-                if (stock != null) {
-                    grid.getStorageService().getInventory().insert(stock.what(), stock.amount(), Actionable.MODULATE,
-                            actionSource);
-                }
-            }
-        }
-    }
-
-    ///////////////////////////////
-    // ********** GUI ***********//
-    ///////////////////////////////
 
     @Override
-    public Widget createUIWidget() {
-        WidgetGroup group = new WidgetGroup(new Position(0, 0));
-        // ME Network status
-        group.addWidget(new LabelWidget(3, 0, () -> this.isOnline ?
-                "gtceu.gui.me_network.online" :
-                "gtceu.gui.me_network.offline"));
-
-        // Config slots
-        group.addWidget(new AEItemConfigWidget(3, 10, this.aeItemHandler));
-
-        return group;
+    public boolean swapIO() {
+        return false;
     }
 
-    ////////////////////////////////
-    // ******* Interaction *******//
-    ////////////////////////////////
+    @Override
+    protected void autoIO() {
+        IGrid grid = nodeHost.getMainNode().getGrid();
+        if (grid == null) return;
+
+        int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
+        if (getOffsetTimer() % updateInterval != 0) return;
+
+        MEStorage networkInv = grid.getStorageService().getInventory();
+        NotifiableItemStackHandler inventory = getInventory();
+
+        for (int i = 0; i < configStacks.getSlots(); i++) {
+            GenericStack configStack = configStacks.getStackInSlot(i);
+            if (configStack == null) continue;
+            AEItemKey configKey = (AEItemKey) configStack.what();
+            long configAmount = configStack.amount();
+
+            // Ensure config amount does not exceed slot limit
+            if (configAmount > inventory.getSlotLimit(i)) {
+                throw new IllegalArgumentException("Config amount exceeds slot capacity!");
+            }
+
+            // Ensure item in slot matches the config key
+            ItemStack stackInSlot = inventory.getStackInSlot(i);
+            if (!stackInSlot.isEmpty() && !configKey.matches(stackInSlot)) continue;
+            // Ensure slot has enough space
+            int actualAmount = stackInSlot.getCount();
+            if (actualAmount >= configAmount) continue;
+
+            ItemStack requestedStack = configKey.toStack(Math.toIntExact(configAmount - actualAmount));
+            int inserted = requestedStack.getCount() - inventory.insertItem(i, requestedStack, true).getCount();
+            if (inserted <= 0) continue;
+
+            int extracted = Math.toIntExact(
+                    networkInv.extract(configKey, inserted, Actionable.MODULATE, actionSource)
+            );
+            if (extracted > 0) {
+                requestedStack.setCount(extracted);
+                inventory.insertItem(i, requestedStack, false);
+            }
+        }
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateInventorySubscription();
+    }
+
+    @Override
+    public void onMachineRemoved() {
+        nodeHost.getMainNode().ifPresent(grid -> {
+            var networkInv = grid.getStorageService().getInventory();
+            NotifiableItemStackHandler inventory = getInventory();
+            for (int i = 0; i < inventory.getSlots(); i++) {
+                ItemStack stack = inventory.getStackInSlot(i);
+                if (stack.isEmpty()) continue;
+                networkInv.insert(AEItemKey.of(stack), stack.getCount(), Actionable.MODULATE, actionSource);
+            }
+        });
+        super.onMachineRemoved();
+    }
+
+//    @Override
+//    public Widget createUIWidget() {
+//        WidgetGroup group = new WidgetGroup(new Position(0, 0));
+//        // ME Network status
+//        group.addWidget(new LabelWidget(3, 0, () -> this.isOnline ?
+//                "gtceu.gui.me_network.online" :
+//                "gtceu.gui.me_network.offline"));
+//
+//        // Config slots
+//        group.addWidget(new AEItemConfigWidget(3, 10, this.aeItemHandler));
+//
+//        return group;
+//    }
 
     @Override
     public final InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
         if (!isRemote()) {
             CompoundTag tag = new CompoundTag();
-            tag.put("MEInputBus", writeConfigToTag());
+            tag.put("MEInputBus", writeConfig());
             dataStick.setTag(tag);
             dataStick.setHoverName(Component.translatable("gtceu.machine.me.item_import.data_stick.name"));
             player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
@@ -162,50 +180,27 @@ public class MEInputBusPartMachine extends MEBusPartMachine
         if (tag == null || !tag.contains("MEInputBus")) {
             return InteractionResult.PASS;
         }
-
         if (!isRemote()) {
-            readConfigFromTag(tag.getCompound("MEInputBus"));
-            this.updateInventorySubscription();
+            readConfig(tag.getCompound("MEInputBus"));
             player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
         }
         return InteractionResult.sidedSuccess(isRemote());
     }
 
-    ////////////////////////////////
-    // ****** Configuration ******//
-    ////////////////////////////////
-
-    protected CompoundTag writeConfigToTag() {
+    protected CompoundTag writeConfig() {
         CompoundTag tag = new CompoundTag();
-        CompoundTag configStacks = new CompoundTag();
-        tag.put("ConfigStacks", configStacks);
-        for (int i = 0; i < CONFIG_SIZE; i++) {
-            var slot = this.aeItemHandler.getInventory()[i];
-            GenericStack config = slot.getConfig();
-            if (config == null) {
-                continue;
-            }
-            CompoundTag stackTag = GenericStack.writeTag(config);
-            configStacks.put(Integer.toString(i), stackTag);
-        }
-        tag.putByte("GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0)));
+        tag.put("ConfigStacks", configStacks.serializeNBT());
+        tag.putByte(
+                "GhostCircuit",
+                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
+        );
         tag.putBoolean("DistinctBuses", isDistinct());
         return tag;
     }
 
-    protected void readConfigFromTag(CompoundTag tag) {
+    protected void readConfig(CompoundTag tag) {
         if (tag.contains("ConfigStacks")) {
-            CompoundTag configStacks = tag.getCompound("ConfigStacks");
-            for (int i = 0; i < CONFIG_SIZE; i++) {
-                String key = Integer.toString(i);
-                if (configStacks.contains(key)) {
-                    CompoundTag configTag = configStacks.getCompound(key);
-                    this.aeItemHandler.getInventory()[i].setConfig(GenericStack.readTag(configTag));
-                } else {
-                    this.aeItemHandler.getInventory()[i].setConfig(null);
-                }
-            }
+            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
         }
         if (tag.contains("GhostCircuit")) {
             circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
@@ -213,5 +208,10 @@ public class MEInputBusPartMachine extends MEBusPartMachine
         if (tag.contains("DistinctBuses")) {
             setDistinct(tag.getBoolean("DistinctBuses"));
         }
+    }
+
+    @Override
+    public ManagedFieldHolder getFieldHolder() {
+        return MANAGED_FIELD_HOLDER;
     }
 }
