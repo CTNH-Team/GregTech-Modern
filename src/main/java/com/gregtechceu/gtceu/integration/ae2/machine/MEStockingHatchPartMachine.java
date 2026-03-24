@@ -1,62 +1,60 @@
 package com.gregtechceu.gtceu.integration.ae2.machine;
 
-import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
+import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNodeListener;
+import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.IStackWatcher;
+import appeng.api.networking.storage.IStorageWatcherNode;
+import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.MEStorage;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.fancy.TabsWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.fancyconfigurator.AutoStockingFancyConfigurator;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
+import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.ae2.machine.feature.multiblock.IMEStockingPart;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEFluidList;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEFluidSlot;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAESlot;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlotList;
-import com.gregtechceu.gtceu.integration.ae2.utils.AEUtil;
-
+import com.gregtechceu.gtceu.integration.ae2.machine.feature.IGridConnectedMachine;
+import com.gregtechceu.gtceu.integration.ae2.machine.trait.GridNodeHost;
+import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.gregtechceu.gtceu.utils.GTMath;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
-
-import net.minecraft.MethodsReturnNonnullByDefault;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import lombok.Getter;
+import lombok.Setter;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.fluids.FluidStack;
-
-import appeng.api.config.Actionable;
-import appeng.api.networking.IGrid;
-import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
-import appeng.api.storage.MEStorage;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import lombok.Getter;
-import lombok.Setter;
+import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnknownNullability;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.PriorityQueue;
-import java.util.function.Predicate;
 
-import javax.annotation.ParametersAreNonnullByDefault;
-
-@ParametersAreNonnullByDefault
-@MethodsReturnNonnullByDefault
-public class MEStockingHatchPartMachine extends MEInputHatchPartMachine implements IMEStockingPart {
+public class MEStockingHatchPartMachine extends MEHatchPartMachine implements IDataStickInteractable {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
-            MEStockingHatchPartMachine.class, MEInputHatchPartMachine.MANAGED_FIELD_HOLDER);
+            MEStockingHatchPartMachine.class,
+            MEHatchPartMachine.MANAGED_FIELD_HOLDER
+    );
 
-    private static final int CONFIG_SIZE = 16;
+    protected final int slots;
 
     @DescSynced
     @Persisted
@@ -69,201 +67,129 @@ public class MEStockingHatchPartMachine extends MEInputHatchPartMachine implemen
     @DropSaved
     private int minStackSize = 1;
 
-    @Getter
-    @Setter
+    private @UnknownNullability IStackWatcher storageWatcher;
+
     @Persisted
-    @DropSaved
-    private int ticksPerCycle = 40;
+    protected final GenericStackHandler configStacks;
 
-    @Setter
-    private Predicate<GenericStack> autoPullTest;
-
-    public MEStockingHatchPartMachine(IMachineBlockEntity holder, Object... args) {
-        super(holder, args);
-        this.autoPullTest = $ -> false;
+    public MEStockingHatchPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
+        super(holder, tier, IO.IN, -1, slots, args);
+        this.slots = slots;
+        this.configStacks = new GenericStackHandler(slots) {
+            @Override
+            public void setStackInSlot(int slot, @Nullable GenericStack stack) {
+                GenericStack oldStack = getStackInSlot(slot);
+                super.setStackInSlot(slot, stack);
+                if (storageWatcher != null) {
+                    if (oldStack != null) {
+                        storageWatcher.remove(oldStack.what());
+                    }
+                    if (stack != null) {
+                        storageWatcher.add(stack.what());
+                    }
+                }
+                tank.onContentsChanged();
+            }
+        };
     }
 
-    /////////////////////////////////
-    // ***** Machine LifeCycle ****//
-    /////////////////////////////////
-
     @Override
-    public void addedToController(IMultiController controller) {
-        super.addedToController(controller);
-        IMEStockingPart.super.addedToController(controller);
-    }
+    protected GridNodeHost createNodeHost() {
+        GridNodeHost nodeHost = super.createNodeHost();
+        nodeHost.getMainNode().addService(IStorageWatcherNode.class, new IStorageWatcherNode() {
+            @Override
+            public void updateWatcher(IStackWatcher newWatcher) {
+                storageWatcher = newWatcher;
+                for (int i = 0; i < configStacks.getSlots(); i++) {
+                    GenericStack stack = configStacks.getStackInSlot(i);
+                    if (stack != null) {
+                        storageWatcher.add(stack.what());
+                    }
+                }
+            }
 
-    @Override
-    public void removedFromController(IMultiController controller) {
-        IMEStockingPart.super.removedFromController(controller);
-        super.removedFromController(controller);
+            @Override
+            public void onStackChange(AEKey what, long amount) {
+                tank.onContentsChanged();
+            }
+        });
+        return nodeHost;
     }
 
     @Override
     protected NotifiableFluidTank createTank(int initialCapacity, int slots, Object... args) {
-        this.aeFluidHandler = new ExportOnlyAEStockingFluidList(this, CONFIG_SIZE);
-        return this.aeFluidHandler;
+        var storages = new ArrayList<CustomFluidTank>(slots);
+        for (int i = 0; i < slots; i++) {
+            storages.add(new MEStorageBackedFluidStorage(i));
+        }
+        return new NotifiableFluidTank(this, storages, IO.IN, IO.NONE);
     }
 
     @Override
-    public ManagedFieldHolder getFieldHolder() {
-        return MANAGED_FIELD_HOLDER;
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateTankSubscription();
     }
 
-    /////////////////////////////////
-    // ********** Sync ME *********//
-    /////////////////////////////////
-
     @Override
-    public void autoIO() {
-        super.autoIO();
-        if (ticksPerCycle == 0) ticksPerCycle = ConfigHolder.INSTANCE.compat.ae2.updateIntervals; // Emergency Check to
-                                                                                                  // Avoid Crash loops.
-        if (getOffsetTimer() % ticksPerCycle == 0) {
-            if (autoPull) {
-                refreshList();
-            }
-            syncME();
+    protected void updateTankSubscription(Direction newFacing) {
+        IManagedGridNode node = nodeHost.getMainNode();
+        if (isWorkingEnabled() && node.isActive() && isAutoPull()) {
+            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
+            return;
+        }
+        if (autoIOSubs != null) {
+            autoIOSubs.unsubscribe();
+            autoIOSubs = null;
         }
     }
 
     @Override
-    protected void syncME() {
-        MEStorage networkInv = this.getMainNode().getGrid().getStorageService().getInventory();
-        for (ExportOnlyAEFluidSlot slot : aeFluidHandler.getInventory()) {
-            var config = slot.getConfig();
-            if (config != null) {
-                // Try to fill the slot
-                var key = config.what();
-                long extracted = networkInv.extract(key, Long.MAX_VALUE, Actionable.SIMULATE, actionSource);
-                if (extracted >= minStackSize) {
-                    slot.setStock(new GenericStack(key, extracted));
-                    continue;
-                }
+    protected void autoIO() {
+        IGrid grid = nodeHost.getMainNode().getGrid();
+        if (grid == null) return;
+
+        int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
+        if (getOffsetTimer() % updateInterval != 0) return;
+
+        KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
+        var topFluids = new PriorityQueue<>(Comparator.comparingLong(Object2LongMap.Entry<AEKey>::getLongValue));
+
+        for (var entry : cachedInv) {
+            AEKey key = entry.getKey();
+            long amount = entry.getLongValue();
+
+            if (!(key instanceof AEFluidKey)) continue;
+            if (amount < minStackSize) continue;
+
+            if (topFluids.size() < configStacks.getSlots()) {
+                topFluids.offer(entry);
+            } else if (amount > topFluids.peek().getLongValue()) {
+                topFluids.poll();
+                topFluids.offer(entry);
             }
-            slot.setStock(null);
         }
+
+        for (int i = 0; i < configStacks.getSlots(); i++) {
+            configStacks.setStackInSlot(i, null);
+        }
+
+        for (int i = 0; i < configStacks.getSlots(); i++) {
+            var entry = topFluids.poll();
+            if (entry == null) break;
+            configStacks.setStackInSlot(configStacks.getSlots() - i - 1, new GenericStack(entry.getKey(), 1));
+        }
+    }
+
+    public void setAutoPull(boolean autoPull) {
+        this.autoPull = autoPull;
+        updateTankSubscription();
     }
 
     @Override
     public void attachSideTabs(TabsWidget sideTabs) {
-        sideTabs.setMainTab(this); // removes the cover configurator, it's pointless and clashes with layout.
+        sideTabs.setMainTab(this);
     }
-
-    @Override
-    protected void flushInventory() {
-        // no-op, nothing to send back to the network
-    }
-
-    @Override
-    public IConfigurableSlotList getSlotList() {
-        return aeFluidHandler;
-    }
-
-    @Override
-    public boolean testConfiguredInOtherPart(@Nullable GenericStack config) {
-        if (config == null) return false;
-        if (!isFormed()) return false;
-
-        for (IMultiController controller : getControllers()) {
-            for (IMultiPart part : controller.getParts()) {
-                if (part instanceof MEStockingHatchPartMachine hatch) {
-                    if (hatch == this) continue;
-                    if (hatch.aeFluidHandler.hasStackInConfig(config, false)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public void setAutoPull(boolean autoPull) {
-        this.autoPull = autoPull;
-        if (!isRemote()) {
-            if (!this.autoPull) {
-                this.aeFluidHandler.clearInventory(0);
-            } else if (updateMEStatus()) {
-                this.refreshList();
-                updateTankSubscription();
-            }
-        }
-    }
-
-    private void refreshList() {
-        IGrid grid = this.getMainNode().getGrid();
-        if (grid == null) {
-            aeFluidHandler.clearInventory(0);
-            return;
-        }
-
-        MEStorage networkStorage = grid.getStorageService().getInventory();
-        var counter = networkStorage.getAvailableStacks();
-
-        // Use a PriorityQueue to sort the stacks on size, take the first CONFIG_SIZE
-        // biggest stacks.
-        PriorityQueue<Object2LongMap.Entry<AEKey>> topFluids = new PriorityQueue<>(
-                Comparator.comparingLong(Object2LongMap.Entry<AEKey>::getLongValue));
-
-        for (Object2LongMap.Entry<AEKey> entry : counter) {
-            long amount = entry.getLongValue();
-            AEKey what = entry.getKey();
-
-            if (amount <= 0) continue;
-            if (!(what instanceof AEFluidKey fluidKey)) continue;
-
-            long request = networkStorage.extract(what, amount, Actionable.SIMULATE, actionSource);
-            if (request == 0) continue;
-
-            // Ensure that it is valid to configure with this stack
-            if (autoPullTest != null && !autoPullTest.test(new GenericStack(fluidKey, amount))) continue;
-            if (amount >= minStackSize) {
-                if (topFluids.size() < CONFIG_SIZE) {
-                    topFluids.offer(entry);
-                } else if (amount > topFluids.peek().getLongValue()) {
-                    topFluids.poll();
-                    topFluids.offer(entry);
-                }
-            }
-        }
-
-        // Now, topFluids is a PQ with CONFIG_SIZE highest amount fluids in the system.
-        int index;
-        int fluidAmount = topFluids.size();
-        for (index = 0; index < CONFIG_SIZE; index++) {
-            if (topFluids.isEmpty()) break;
-            Object2LongMap.Entry<AEKey> entry = topFluids.poll();
-            AEKey what = entry.getKey();
-            long amount = entry.getLongValue();
-
-            // If we get here, the fluid has already been checked by the PQ.
-            long request = networkStorage.extract(what, amount, Actionable.SIMULATE, actionSource);
-
-            // Since we want our fluids to be displayed from highest to lowest, but poll() returns
-            // the lowest first, we fill in the slots starting at fluidAmount-1
-            var slot = this.aeFluidHandler.getInventory()[fluidAmount - index - 1];
-            slot.setConfig(new GenericStack(what, 1));
-            slot.setStock(new GenericStack(what, request));
-        }
-
-        aeFluidHandler.clearInventory(index);
-    }
-
-    ///////////////////////////////
-    // ********** GUI ***********//
-    ///////////////////////////////
-
-    @Override
-    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
-        IMEStockingPart.super.attachConfigurators(configuratorPanel);
-        super.attachConfigurators(configuratorPanel);
-        configuratorPanel.attachConfigurators(new AutoStockingFancyConfigurator(this));
-    }
-
-    ////////////////////////////////
-    // ******* Interaction *******//
-    ////////////////////////////////
 
     @Override
     protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide,
@@ -281,111 +207,181 @@ public class MEStockingHatchPartMachine extends MEInputHatchPartMachine implemen
         return InteractionResult.sidedSuccess(isRemote());
     }
 
-    ////////////////////////////////
-    // ****** Configuration ******//
-    ////////////////////////////////
+    @Override
+    public InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
+        if (!isRemote()) {
+            CompoundTag tag = new CompoundTag();
+            tag.put("MEInputHatch", writeConfig());
+            dataStick.setTag(tag);
+            dataStick.setHoverName(Component.translatable("gtceu.machine.me.fluid_import.data_stick.name"));
+            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
+        }
+        return InteractionResult.SUCCESS;
+    }
 
     @Override
-    protected CompoundTag writeConfigToTag() {
-        if (!autoPull) {
-            CompoundTag tag = super.writeConfigToTag();
-            tag.putBoolean("AutoPull", false);
-            return tag;
+    public InteractionResult onDataStickUse(Player player, ItemStack dataStick) {
+        CompoundTag tag = dataStick.getTag();
+        if (tag == null || !tag.contains("MEInputHatch")) {
+            return InteractionResult.PASS;
         }
-        // if in auto-pull, no need to write actual configured slots, but still need to write the ghost circuit
+        if (!isRemote()) {
+            readConfig(tag.getCompound("MEInputHatch"));
+            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
+        }
+        return InteractionResult.sidedSuccess(isRemote());
+    }
+
+    protected CompoundTag writeConfig() {
         CompoundTag tag = new CompoundTag();
-        tag.putBoolean("AutoPull", true);
-        tag.putByte("GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0)));
+        tag.putBoolean("AutoPull", autoPull);
+        if (!autoPull) {
+            tag.put("ConfigStacks", configStacks.serializeNBT());
+        }
+        tag.putByte(
+                "GhostCircuit",
+                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
+        );
         return tag;
     }
 
-    @Override
-    protected void readConfigFromTag(CompoundTag tag) {
-        if (tag.getBoolean("AutoPull")) {
-            // if being set to auto-pull, no need to read the configured slots
-            this.setAutoPull(true);
-            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
-            return;
+    protected void readConfig(CompoundTag tag) {
+        setAutoPull(tag.getBoolean("AutoPull"));
+        if (!autoPull && tag.contains("ConfigStacks")) {
+            var oldStacks = captureConfiguredKeys();
+            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
+            syncStorageWatcher(oldStacks);
+            tank.onContentsChanged();
         }
-        // set auto pull first to avoid issues with clearing the config after reading from the data stick
-        this.setAutoPull(false);
-        super.readConfigFromTag(tag);
+        if (tag.contains("GhostCircuit")) {
+            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
+        }
     }
 
-    private class ExportOnlyAEStockingFluidList extends ExportOnlyAEFluidList {
+    @Override
+    public ManagedFieldHolder getFieldHolder() {
+        return MANAGED_FIELD_HOLDER;
+    }
 
-        public ExportOnlyAEStockingFluidList(MetaMachine holder, int slots) {
-            super(holder, slots, ExportOnlyAEStockingFluidSlot::new);
+    private @Nullable AEFluidKey getConfiguredKey(int slot) {
+        GenericStack configuredStack = configStacks.getStackInSlot(slot);
+        if (configuredStack == null) return null;
+
+        assert configuredStack.what() instanceof AEFluidKey;
+        return (AEFluidKey) configuredStack.what();
+    }
+
+    private @Nullable IGrid getActiveGrid() {
+        IManagedGridNode gridNode = nodeHost.getMainNode();
+        if (!gridNode.isActive()) return null;
+        return gridNode.getGrid();
+    }
+
+    private GenericStack[] captureConfiguredKeys() {
+        GenericStack[] stacks = new GenericStack[configStacks.getSlots()];
+        for (int i = 0; i < stacks.length; i++) {
+            stacks[i] = configStacks.getStackInSlot(i);
         }
+        return stacks;
+    }
 
-        @Override
-        public boolean isAutoPull() {
-            return autoPull;
-        }
+    private void syncStorageWatcher(GenericStack[] oldStacks) {
+        if (storageWatcher == null) return;
 
-        @Override
-        public boolean isStocking() {
-            return true;
-        }
-
-        @Override
-        public boolean hasStackInConfig(GenericStack stack, boolean checkExternal) {
-            boolean inThisHatch = super.hasStackInConfig(stack, false);
-            if (inThisHatch) return true;
-            if (checkExternal) {
-                return testConfiguredInOtherPart(stack);
+        for (GenericStack stack : oldStacks) {
+            if (stack != null) {
+                storageWatcher.remove(stack.what());
             }
+        }
+        for (int i = 0; i < configStacks.getSlots(); i++) {
+            GenericStack stack = configStacks.getStackInSlot(i);
+            if (stack != null) {
+                storageWatcher.add(stack.what());
+            }
+        }
+    }
+
+    private final class MEStorageBackedFluidStorage extends CustomFluidTank {
+
+        private final int slot;
+
+        private MEStorageBackedFluidStorage(int slot) {
+            super(Integer.MAX_VALUE);
+            this.slot = slot;
+        }
+
+        @Override
+        public void setFluid(FluidStack stack) {
+            // no-op
+        }
+
+        @Override
+        public FluidStack getFluid() {
+            IGrid grid = getActiveGrid();
+            if (grid == null) return FluidStack.EMPTY;
+
+            AEFluidKey key = getConfiguredKey(slot);
+            if (key == null) return FluidStack.EMPTY;
+
+            long existing = grid.getStorageService().getCachedInventory().get(key);
+            if (existing <= 0) return FluidStack.EMPTY;
+
+            return key.toStack(GTMath.saturatedCast(existing));
+        }
+
+        @Override
+        public boolean isFluidValid(FluidStack stack) {
+            AEFluidKey key = getConfiguredKey(slot);
+            return key != null && key.matches(stack);
+        }
+
+        @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0;
+        }
+
+        @Override
+        public boolean supportsFill(int tank) {
             return false;
         }
-    }
-
-    private class ExportOnlyAEStockingFluidSlot extends ExportOnlyAEFluidSlot {
-
-        public ExportOnlyAEStockingFluidSlot() {
-            super();
-        }
-
-        public ExportOnlyAEStockingFluidSlot(@Nullable GenericStack config, @Nullable GenericStack stock) {
-            super(config, stock);
-        }
 
         @Override
-        public ExportOnlyAEFluidSlot copy() {
-            return new ExportOnlyAEStockingFluidSlot(
-                    this.config == null ? null : copy(this.config),
-                    this.stock == null ? null : copy(this.stock));
+        public FluidStack drain(FluidStack resource, FluidAction action) {
+            if (resource.isEmpty()) return FluidStack.EMPTY;
+
+            AEFluidKey key = getConfiguredKey(slot);
+            if (key == null || !key.matches(resource)) return FluidStack.EMPTY;
+
+            return extract(key, resource.getAmount(), action);
         }
 
         @Override
         public FluidStack drain(int maxDrain, FluidAction action) {
-            if (this.stock != null && this.config != null) {
-                // Extract the items from the real net to either validate (simulate)
-                // or extract (modulate) when this is called
-                if (!isOnline()) return FluidStack.EMPTY;
-                MEStorage aeNetwork = getMainNode().getGrid().getStorageService().getInventory();
+            if (maxDrain <= 0) return FluidStack.EMPTY;
 
-                Actionable actionable = action.simulate() ? Actionable.SIMULATE : Actionable.MODULATE;
-                var key = config.what();
-                long extracted = aeNetwork.extract(key, maxDrain, actionable, actionSource);
+            AEFluidKey key = getConfiguredKey(slot);
+            if (key == null) return FluidStack.EMPTY;
 
-                if (extracted > 0) {
-                    FluidStack resultStack = key instanceof AEFluidKey fluidKey ?
-                            AEUtil.toFluidStack(fluidKey, extracted) : FluidStack.EMPTY;
-                    if (action.execute()) {
-                        // may as well update the display here
-                        this.stock = ExportOnlyAESlot.copy(stock, stock.amount() - extracted);
-                        if (this.stock.amount() == 0) {
-                            this.stock = null;
-                        }
-                        if (this.onContentsChanged != null) {
-                            this.onContentsChanged.run();
-                        }
-                    }
-                    return resultStack;
-                }
+            return extract(key, maxDrain, action);
+        }
+
+        private FluidStack extract(AEFluidKey key, int amount, FluidAction action) {
+            IGrid grid = getActiveGrid();
+            if (grid == null) return FluidStack.EMPTY;
+
+            MEStorage networkInv = grid.getStorageService().getInventory();
+            long extracted = networkInv.extract(
+                    key,
+                    amount,
+                    action.simulate() ? Actionable.SIMULATE : Actionable.MODULATE,
+                    actionSource
+            );
+            if (extracted <= 0) return FluidStack.EMPTY;
+
+            if (action.execute()) {
+                onContentsChanged();
             }
-            return FluidStack.EMPTY;
+            return key.toStack(Math.toIntExact(extracted));
         }
     }
 }
