@@ -9,12 +9,16 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.gui.GuiTextures;
+import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
+import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfiguratorButton;
 import com.gregtechceu.gtceu.api.gui.fancy.TabsWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.ae2.gui.fancyconfigurator.StockingFancyConfigurator;
 import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
 import com.gregtechceu.gtceu.utils.GTMath;
@@ -32,6 +36,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataStickConfigurable {
 
@@ -112,17 +118,22 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
         sideTabs.setMainTab(this); // removes the cover configurator, it's pointless and clashes with layout.
     }
 
-//    @Override
-//    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
-//        super.attachConfigurators(configuratorPanel);
-//        configuratorPanel.attachConfigurators(new IFancyConfiguratorButton.Toggle(
-//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0, 1, 0.5),
-//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0.5, 1, 0.5),
-//                this::isAutoPull,
-//                (clickData, pressed) -> setAutoPull(pressed))
-//                .setTooltipsSupplier(pressed -> List.of(Component.translatable("gtceu.gui.me_bus.auto_pull_button"))));
-//        configuratorPanel.attachConfigurators(new AutoStockingFancyConfigurator(this));
-//    }
+    @Override
+    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
+        super.attachConfigurators(configuratorPanel);
+        configuratorPanel.attachConfigurators(new IFancyConfiguratorButton.Toggle(
+                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0, 1, 0.5),
+                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0.5, 1, 0.5),
+                this::isAutoPull,
+                (clickData, pressed) -> setAutoPull(pressed))
+                .setTooltipsSupplier(pressed -> List.of(Component.translatable("gtceu.gui.me_bus.auto_pull_button"))));
+        configuratorPanel.attachConfigurators(new StockingFancyConfigurator(
+                "gtceu.gui.title.adv_stocking_config.min_item_count",
+                "gtceu.gui.adv_stocking_config.min_item_count",
+                this::getMinStackSize,
+                this::setMinStackSize)
+        );
+    }
 
     @Override
     protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide, BlockHitResult hitResult) {

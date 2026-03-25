@@ -9,12 +9,16 @@ import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.gui.GuiTextures;
+import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
+import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfiguratorButton;
 import com.gregtechceu.gtceu.api.gui.fancy.TabsWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.ae2.gui.fancyconfigurator.StockingFancyConfigurator;
 import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
 import com.gregtechceu.gtceu.utils.GTMath;
@@ -34,6 +38,7 @@ import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class MEStockingHatchPartMachine extends MEHatchPartMachine implements IDataStickConfigurable {
 
@@ -116,17 +121,22 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
         sideTabs.setMainTab(this);
     }
 
-//    @Override
-//    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
-//        super.attachConfigurators(configuratorPanel);
-//        configuratorPanel.attachConfigurators(new IFancyConfiguratorButton.Toggle(
-//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0, 1, 0.5),
-//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0.5, 1, 0.5),
-//                this::isAutoPull,
-//                (clickData, pressed) -> setAutoPull(pressed))
-//                .setTooltipsSupplier(pressed -> List.of(Component.translatable("gtceu.gui.me_bus.auto_pull_button"))));
-//        configuratorPanel.attachConfigurators(new AutoStockingFancyConfigurator(this));
-//    }
+    @Override
+    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
+        super.attachConfigurators(configuratorPanel);
+        configuratorPanel.attachConfigurators(new IFancyConfiguratorButton.Toggle(
+                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0, 1, 0.5),
+                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0.5, 1, 0.5),
+                this::isAutoPull,
+                (clickData, pressed) -> setAutoPull(pressed))
+                .setTooltipsSupplier(pressed -> List.of(Component.translatable("gtceu.gui.me_bus.auto_pull_button"))));
+        configuratorPanel.attachConfigurators(new StockingFancyConfigurator(
+                "gtceu.gui.title.adv_stocking_config.min_fluid_count",
+                "gtceu.gui.adv_stocking_config.min_fluid_count",
+                this::getMinStackSize,
+                this::setMinStackSize
+        ));
+    }
 
     @Override
     public String getConfigKey() {
