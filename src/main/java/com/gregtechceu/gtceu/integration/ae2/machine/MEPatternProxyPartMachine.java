@@ -8,14 +8,13 @@ import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredIOPartMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
-import com.gregtechceu.gtceu.integration.ae2.machine.trait.ProxySlotRecipeHandler;
+import com.gregtechceu.gtceu.integration.ae2.utils.ProxySlotRecipeHandler;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 
-import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.TickTask;
@@ -33,13 +32,11 @@ import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
-@MethodsReturnNonnullByDefault
-@ParametersAreNonnullByDefault
-public class MEPatternBufferProxyPartMachine extends TieredIOPartMachine
+public class MEPatternProxyPartMachine extends TieredIOPartMachine
                                              implements IMachineLife, IDataStickInteractable {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
-            MEPatternBufferProxyPartMachine.class, TieredIOPartMachine.MANAGED_FIELD_HOLDER);
+            MEPatternProxyPartMachine.class, TieredIOPartMachine.MANAGED_FIELD_HOLDER);
 
     @Getter
     private final ProxySlotRecipeHandler proxySlotRecipeHandler;
@@ -52,7 +49,7 @@ public class MEPatternBufferProxyPartMachine extends TieredIOPartMachine
     private @Nullable MEPatternBufferPartMachine buffer = null;
     private boolean bufferResolved = false;
 
-    public MEPatternBufferProxyPartMachine(IMachineBlockEntity holder) {
+    public MEPatternProxyPartMachine(IMachineBlockEntity holder) {
         super(holder, GTValues.LuV, IO.IN);
         proxySlotRecipeHandler = new ProxySlotRecipeHandler(this, MEPatternBufferPartMachine.MAX_PATTERN_COUNT);
     }

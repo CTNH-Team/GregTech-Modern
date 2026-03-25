@@ -1,4 +1,4 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.list;
+package com.gregtechceu.gtceu.integration.ae2.gui.list;
 
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.client.TooltipsHandler;
@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static com.gregtechceu.gtceu.integration.ae2.gui.widget.slot.AEConfigSlotWidget.drawSelectionOverlay;
+import static com.gregtechceu.gtceu.integration.ae2.gui.slot.AEConfigSlotWidget.drawSelectionOverlay;
 import static com.lowdragmc.lowdraglib.gui.util.DrawerHelper.drawText;
 
 /**

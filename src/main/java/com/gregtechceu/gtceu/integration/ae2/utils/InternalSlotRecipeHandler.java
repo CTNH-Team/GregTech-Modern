@@ -1,4 +1,4 @@
-package com.gregtechceu.gtceu.integration.ae2.machine.trait;
+package com.gregtechceu.gtceu.integration.ae2.utils;
 
 import com.gregtechceu.gtceu.api.capability.recipe.*;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableRecipeHandlerTrait;

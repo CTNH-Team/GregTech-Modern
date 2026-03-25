@@ -1,6 +1,6 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.list;
+package com.gregtechceu.gtceu.integration.ae2.gui.list;
 
-import com.gregtechceu.gtceu.integration.ae2.utils.KeyStorage;
+import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
 
 import com.lowdragmc.lowdraglib.gui.widget.DraggableScrollableWidgetGroup;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
@@ -20,21 +20,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A display only widget for {@link KeyStorage}
+ * A display only widget for {@link AEKeyStorage}
  */
 public abstract class AEListGridWidget extends DraggableScrollableWidgetGroup {
 
-    protected final KeyStorage list;
+    protected final AEKeyStorage list;
     private final int slotAmountY;
     private int slotRowsAmount;
     protected final static int ROW_CHANGE_ID = 2;
     protected final static int CONTENT_CHANGE_ID = 3;
 
     protected final Object2LongMap<AEKey> changeMap = new Object2LongOpenHashMap<>();
-    protected final KeyStorage cached = new KeyStorage();
+    protected final AEKeyStorage cached = new AEKeyStorage();
     protected final List<GenericStack> displayList = new ArrayList<>();
 
-    public AEListGridWidget(int x, int y, int slotsY, KeyStorage internalList) {
+    public AEListGridWidget(int x, int y, int slotsY, AEKeyStorage internalList) {
         super(x, y, 18 + 140, slotsY * 18);
         this.list = internalList;
         this.slotAmountY = slotsY;
@@ -189,7 +189,7 @@ public abstract class AEListGridWidget extends DraggableScrollableWidgetGroup {
 
     public static class Item extends AEListGridWidget {
 
-        public Item(int x, int y, int slotsY, KeyStorage internalList) {
+        public Item(int x, int y, int slotsY, AEKeyStorage internalList) {
             super(x, y, slotsY, internalList);
         }
 
@@ -211,7 +211,7 @@ public abstract class AEListGridWidget extends DraggableScrollableWidgetGroup {
 
     public static class Fluid extends AEListGridWidget {
 
-        public Fluid(int x, int y, int slotsY, KeyStorage internalList) {
+        public Fluid(int x, int y, int slotsY, AEKeyStorage internalList) {
             super(x, y, slotsY, internalList);
         }
 

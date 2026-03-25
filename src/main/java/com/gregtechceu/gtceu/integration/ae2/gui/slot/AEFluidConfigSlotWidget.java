@@ -1,12 +1,10 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.slot;
+package com.gregtechceu.gtceu.integration.ae2.gui.slot;
 
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.misc.IGhostFluidTarget;
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.ConfigWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAEFluidSlot;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAESlot;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlot;
-import com.gregtechceu.gtceu.integration.ae2.utils.AEUtil;
+import com.gregtechceu.gtceu.integration.ae2.gui.ConfigWidget;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableFluidSlot;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableSlot;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTMath;
 
@@ -49,7 +47,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
     public void drawInBackground(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
         super.drawInBackground(graphics, mouseX, mouseY, partialTicks);
         Position position = getPosition();
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         GenericStack config = slot.getConfig();
         GenericStack stock = slot.getStock();
         drawSlots(graphics, mouseX, mouseY, position.x, position.y, parentWidget.isAutoPull());
@@ -148,7 +146,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
     @Override
     public void handleClientAction(int id, FriendlyByteBuf buffer) {
         super.handleClientAction(id, buffer);
-        IConfigurableSlot slot = this.parentWidget.getConfig(this.index);
+        ConfigurableSlot slot = this.parentWidget.getConfig(this.index);
         if (id == REMOVE_ID) {
             slot.setConfig(null);
             this.parentWidget.disableAmount();
@@ -167,7 +165,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
         if (id == AMOUNT_CHANGE_ID) {
             if (slot.getConfig() != null) {
                 int amt = buffer.readInt();
-                slot.setConfig(ExportOnlyAESlot.copy(slot.getConfig(), amt));
+                slot.setConfig(ConfigurableSlot.copy(slot.getConfig(), amt));
                 writeUpdateInfo(AMOUNT_CHANGE_ID, buf -> buf.writeInt(amt));
             }
         }
@@ -186,7 +184,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
     @Override
     public void readUpdateInfo(int id, FriendlyByteBuf buffer) {
         super.readUpdateInfo(id, buffer);
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         if (id == REMOVE_ID) {
             slot.setConfig(null);
         }
@@ -198,7 +196,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
         if (id == AMOUNT_CHANGE_ID) {
             if (slot.getConfig() != null) {
                 int amt = buffer.readInt();
-                slot.setConfig(ExportOnlyAESlot.copy(slot.getConfig(), amt));
+                slot.setConfig(ConfigurableSlot.copy(slot.getConfig(), amt));
             }
         }
         if (id == PICK_UP_ID) {
@@ -212,7 +210,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
                 if (key.hasTag()) {
                     stack.setTag(key.getTag().copy());
                 }
-                GenericStack stack1 = ExportOnlyAESlot.copy(slot.getStock(),
+                GenericStack stack1 = ConfigurableSlot.copy(slot.getStock(),
                         Math.max(0, (slot.getStock().amount() - stack.getAmount())));
                 slot.setStock(stack1.amount() == 0 ? null : stack1);
             }
@@ -244,7 +242,7 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
     public boolean mouseWheelMove(double mouseX, double mouseY, double wheelDelta) {
         // Only allow the amount scrolling if not stocking, as amount is useless for stocking
         if (parentWidget.isStocking()) return false;
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         Rect2i rectangle = toRectangleBox();
         rectangle.setHeight(rectangle.getHeight() / 2);
         if (slot.getConfig() == null || wheelDelta == 0 || !rectangle.contains((int) mouseX, (int) mouseY)) {
@@ -270,8 +268,8 @@ public class AEFluidConfigSlotWidget extends AEConfigSlotWidget implements IGhos
     }
 
     private int tryClickContainer(boolean isShiftKeyDown) {
-        ExportOnlyAEFluidSlot fluidTank = this.parentWidget
-                .getConfig(this.index) instanceof ExportOnlyAEFluidSlot fluid ? fluid : null;
+        ConfigurableFluidSlot fluidTank = this.parentWidget
+                .getConfig(this.index) instanceof ConfigurableFluidSlot fluid ? fluid : null;
         if (fluidTank == null) return -1;
         Player player = gui.entityPlayer;
         ItemStack currentStack = gui.getModularUIContainer().getCarried();

@@ -1,4 +1,4 @@
-package com.gregtechceu.gtceu.integration.ae2.machine.trait;
+package com.gregtechceu.gtceu.integration.ae2.utils;
 
 import com.gregtechceu.gtceu.api.capability.recipe.*;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
@@ -9,8 +9,8 @@ import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
 import com.gregtechceu.gtceu.integration.ae2.machine.MEPatternBufferPartMachine;
-import com.gregtechceu.gtceu.integration.ae2.machine.MEPatternBufferProxyPartMachine;
-import com.gregtechceu.gtceu.integration.ae2.machine.trait.InternalSlotRecipeHandler.SlotRHL;
+import com.gregtechceu.gtceu.integration.ae2.machine.MEPatternProxyPartMachine;
+import com.gregtechceu.gtceu.integration.ae2.utils.InternalSlotRecipeHandler.SlotRHL;
 
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 
@@ -28,7 +28,7 @@ public final class ProxySlotRecipeHandler {
     @Getter
     private final List<RecipeHandlerList> proxySlotHandlers;
 
-    public ProxySlotRecipeHandler(MEPatternBufferProxyPartMachine machine, int slots) {
+    public ProxySlotRecipeHandler(MEPatternProxyPartMachine machine, int slots) {
         proxySlotHandlers = new ArrayList<>(slots);
         for (int i = 0; i < slots; ++i) {
             proxySlotHandlers.add(new ProxyRHL(machine));
@@ -58,7 +58,7 @@ public final class ProxySlotRecipeHandler {
         private final ProxyFluidRecipeHandler sharedFluid;
         private final ProxyFluidRecipeHandler slotFluid;
 
-        public ProxyRHL(MEPatternBufferProxyPartMachine machine) {
+        public ProxyRHL(MEPatternProxyPartMachine machine) {
             super(IO.IN);
             circuit = new ProxyItemRecipeHandler(machine);
             sharedItem = new ProxyItemRecipeHandler(machine);

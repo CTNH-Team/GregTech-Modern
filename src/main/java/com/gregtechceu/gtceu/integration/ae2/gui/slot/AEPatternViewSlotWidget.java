@@ -1,4 +1,4 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.slot;
+package com.gregtechceu.gtceu.integration.ae2.gui.slot;
 
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 

@@ -1,7 +1,7 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget;
+package com.gregtechceu.gtceu.integration.ae2.gui;
 
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlot;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableSlot;
 
 import com.lowdragmc.lowdraglib.gui.widget.TextFieldWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
@@ -47,7 +47,7 @@ public class AmountSetWidget extends Widget {
         if (this.index < 0) {
             return "0";
         }
-        IConfigurableSlot slot = this.parentWidget.getConfig(this.index);
+        ConfigurableSlot slot = this.parentWidget.getConfig(this.index);
         if (slot.getConfig() != null) {
             return String.valueOf(slot.getConfig().amount());
         }
@@ -60,7 +60,7 @@ public class AmountSetWidget extends Widget {
             if (this.index < 0) {
                 return;
             }
-            IConfigurableSlot slot = this.parentWidget.getConfig(this.index);
+            ConfigurableSlot slot = this.parentWidget.getConfig(this.index);
             if (newAmount > 0 && slot.getConfig() != null) {
                 slot.setConfig(new GenericStack(slot.getConfig().what(), newAmount));
             }

@@ -56,7 +56,7 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
     @Getter
     @Setter
     @Persisted
-    private int minStackSize = 1;
+    private int minStackSize = 1; //TODO make configurable
 
     @Persisted
     protected final StockingConfigHandler configHandler;

@@ -1,10 +1,9 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.slot;
+package com.gregtechceu.gtceu.integration.ae2.gui.slot;
 
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.misc.IGhostItemTarget;
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.ConfigWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.ExportOnlyAESlot;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlot;
+import com.gregtechceu.gtceu.integration.ae2.gui.ConfigWidget;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableSlot;
 
 import com.lowdragmc.lowdraglib.gui.util.TextFormattingUtil;
 import com.lowdragmc.lowdraglib.utils.Position;
@@ -35,7 +34,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
     public void drawInBackground(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
         super.drawInBackground(graphics, mouseX, mouseY, partialTicks);
         Position position = getPosition();
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         GenericStack config = slot.getConfig();
         GenericStack stock = slot.getStock();
         drawSlots(graphics, mouseX, mouseY, position.x, position.y, parentWidget.isAutoPull());
@@ -127,7 +126,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
     @Override
     public void handleClientAction(int id, FriendlyByteBuf buffer) {
         super.handleClientAction(id, buffer);
-        IConfigurableSlot slot = this.parentWidget.getConfig(this.index);
+        ConfigurableSlot slot = this.parentWidget.getConfig(this.index);
         if (id == REMOVE_ID) {
             slot.setConfig(null);
             this.parentWidget.disableAmount();
@@ -159,7 +158,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
                     stack.setTag(key.getTag().copy());
                 }
                 this.gui.getModularUIContainer().setCarried(stack);
-                GenericStack stack1 = ExportOnlyAESlot.copy(slot.getStock(),
+                GenericStack stack1 = ConfigurableSlot.copy(slot.getStock(),
                         Math.max(0, (slot.getStock().amount() - stack.getCount())));
                 slot.setStock(stack1.amount() == 0 ? null : stack1);
                 writeUpdateInfo(PICK_UP_ID, buf -> {});
@@ -171,7 +170,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
     @Override
     public void readUpdateInfo(int id, FriendlyByteBuf buffer) {
         super.readUpdateInfo(id, buffer);
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         if (id == REMOVE_ID) {
             slot.setConfig(null);
         }
@@ -193,7 +192,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
                     stack.setTag(key.getTag().copy());
                 }
                 this.gui.getModularUIContainer().setCarried(stack);
-                GenericStack stack1 = ExportOnlyAESlot.copy(slot.getStock(),
+                GenericStack stack1 = ConfigurableSlot.copy(slot.getStock(),
                         Math.max(0, (slot.getStock().amount() - stack.getCount())));
                 slot.setStock(stack1.amount() == 0 ? null : stack1);
             }
@@ -219,7 +218,7 @@ public class AEItemConfigSlotWidget extends AEConfigSlotWidget implements IGhost
     public boolean mouseWheelMove(double mouseX, double mouseY, double wheelDelta) {
         // Only allow the amount scrolling if not stocking, as amount is useless for stocking
         if (parentWidget.isStocking()) return false;
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         Rect2i rectangle = toRectangleBox();
         rectangle.setHeight(rectangle.getHeight() / 2);
         if (slot.getConfig() == null || wheelDelta == 0 || !rectangle.contains((int) mouseX, (int) mouseY)) {

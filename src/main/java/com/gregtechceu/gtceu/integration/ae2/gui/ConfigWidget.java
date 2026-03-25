@@ -1,7 +1,7 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget;
+package com.gregtechceu.gtceu.integration.ae2.gui;
 
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.slot.AEConfigSlotWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlot;
+import com.gregtechceu.gtceu.integration.ae2.gui.slot.AEConfigSlotWidget;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableSlot;
 
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
@@ -19,17 +19,17 @@ import lombok.Getter;
 
 public abstract class ConfigWidget extends WidgetGroup {
 
-    protected final IConfigurableSlot[] config;
-    protected IConfigurableSlot[] cached;
-    protected Int2ObjectMap<IConfigurableSlot> changeMap = new Int2ObjectOpenHashMap<>();
-    protected IConfigurableSlot[] displayList;
+    protected final ConfigurableSlot[] config;
+    protected ConfigurableSlot[] cached;
+    protected Int2ObjectMap<ConfigurableSlot> changeMap = new Int2ObjectOpenHashMap<>();
+    protected ConfigurableSlot[] displayList;
     protected AmountSetWidget amountSetWidget;
     protected final static int UPDATE_ID = 1000;
 
     @Getter
     protected final boolean isStocking;
 
-    public ConfigWidget(int x, int y, IConfigurableSlot[] config, boolean isStocking) {
+    public ConfigWidget(int x, int y, ConfigurableSlot[] config, boolean isStocking) {
         super(new Position(x, y), new Size(config.length / 2 * 18, 18 * 4 + 2));
         this.isStocking = isStocking;
         this.config = config;
@@ -95,8 +95,8 @@ public abstract class ConfigWidget extends WidgetGroup {
         super.detectAndSendChanges();
         this.changeMap.clear();
         for (int index = 0; index < this.config.length; index++) {
-            IConfigurableSlot newSlot = this.config[index];
-            IConfigurableSlot oldSlot = this.cached[index];
+            ConfigurableSlot newSlot = this.config[index];
+            ConfigurableSlot oldSlot = this.cached[index];
             GenericStack nConfig = newSlot.getConfig();
             GenericStack nStock = newSlot.getStock();
             GenericStack oConfig = oldSlot.getConfig();
@@ -139,7 +139,7 @@ public abstract class ConfigWidget extends WidgetGroup {
             int size = buffer.readVarInt();
             for (int i = 0; i < size; i++) {
                 int index = buffer.readVarInt();
-                IConfigurableSlot slot = this.displayList[index];
+                ConfigurableSlot slot = this.displayList[index];
                 if (buffer.readBoolean()) {
                     slot.setConfig(GenericStack.readBuffer(buffer));
                 } else {
@@ -154,11 +154,11 @@ public abstract class ConfigWidget extends WidgetGroup {
         }
     }
 
-    public final IConfigurableSlot getConfig(int index) {
+    public final ConfigurableSlot getConfig(int index) {
         return this.config[index];
     }
 
-    public final IConfigurableSlot getDisplay(int index) {
+    public final ConfigurableSlot getDisplay(int index) {
         return this.displayList[index];
     }
 

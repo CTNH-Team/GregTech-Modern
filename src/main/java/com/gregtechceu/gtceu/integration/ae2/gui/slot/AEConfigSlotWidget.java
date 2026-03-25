@@ -1,7 +1,7 @@
-package com.gregtechceu.gtceu.integration.ae2.gui.widget.slot;
+package com.gregtechceu.gtceu.integration.ae2.gui.slot;
 
-import com.gregtechceu.gtceu.integration.ae2.gui.widget.ConfigWidget;
-import com.gregtechceu.gtceu.integration.ae2.slot.IConfigurableSlot;
+import com.gregtechceu.gtceu.integration.ae2.gui.ConfigWidget;
+import com.gregtechceu.gtceu.integration.ae2.slot.ConfigurableSlot;
 
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.utils.Position;
@@ -43,7 +43,7 @@ public class AEConfigSlotWidget extends Widget {
     @Override
     public void drawInForeground(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
         super.drawInForeground(graphics, mouseX, mouseY, partialTicks);
-        IConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
+        ConfigurableSlot slot = this.parentWidget.getDisplay(this.index);
         if (slot.getConfig() == null) {
             if (mouseOverConfig(mouseX, mouseY)) {
                 List<Component> hoverStringList = new ArrayList<>();
