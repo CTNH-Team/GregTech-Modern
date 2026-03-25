@@ -9,24 +9,24 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
 
-public class MEInputHatchPartMachine extends MEHatchPartMachine implements IDataStickInteractable {
+public class MEInputHatchPartMachine extends MEHatchPartMachine implements IDataStickConfigurable {
+
+    static final String CONFIG_KEY = "MEInputHatch";
+    static final Component CONFIG_NAME = Component.translatable("gtceu.machine.me.fluid_import.data_stick.name");
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
             MEInputHatchPartMachine.class,
@@ -137,47 +137,25 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
 //    }
 
     @Override
-    public final InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
-        if (!isRemote()) {
-            CompoundTag tag = new CompoundTag();
-            tag.put("MEInputHatch", writeConfig());
-            dataStick.setTag(tag);
-            dataStick.setHoverName(Component.translatable("gtceu.machine.me.fluid_import.data_stick.name"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
-        }
-        return InteractionResult.SUCCESS;
+    public String getConfigKey() {
+        return CONFIG_KEY;
     }
 
     @Override
-    public final InteractionResult onDataStickUse(Player player, ItemStack dataStick) {
-        CompoundTag tag = dataStick.getTag();
-        if (tag == null || !tag.contains("MEInputHatch")) {
-            return InteractionResult.PASS;
-        }
-        if (!isRemote()) {
-            readConfig(tag.getCompound("MEInputHatch"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
-        }
-        return InteractionResult.sidedSuccess(isRemote());
+    public Component getConfigName() {
+        return CONFIG_NAME;
     }
 
-    protected CompoundTag writeConfig() {
-        CompoundTag tag = new CompoundTag();
-        tag.put("ConfigHandler", configHandler.serializeNBT());
-        tag.putByte(
-                "GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
-        );
-        return tag;
+    @Override
+    public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeConfigHandler(tag, configHandler);
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
     }
 
-    protected void readConfig(CompoundTag tag) {
-        if (tag.contains("ConfigHandler")) {
-            configHandler.deserializeNBT(tag.getCompound("ConfigHandler"));
-        }
-        if (tag.contains("GhostCircuit")) {
-            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
-        }
+    @Override
+    public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readConfigHandler(tag, configHandler);
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
     }
 
     @Override

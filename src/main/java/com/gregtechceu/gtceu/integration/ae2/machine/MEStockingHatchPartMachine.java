@@ -4,30 +4,23 @@ import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
-import appeng.api.networking.IStackWatcher;
 import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.stacks.AEFluidKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.fancy.TabsWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.ae2.machine.feature.IGridConnectedMachine;
-import com.gregtechceu.gtceu.integration.ae2.machine.trait.GridNodeHost;
-import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
+import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
 import com.gregtechceu.gtceu.utils.GTMath;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
-import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.core.Direction;
@@ -36,84 +29,36 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.PriorityQueue;
 
-public class MEStockingHatchPartMachine extends MEHatchPartMachine implements IDataStickInteractable {
+public class MEStockingHatchPartMachine extends MEHatchPartMachine implements IDataStickConfigurable {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
             MEStockingHatchPartMachine.class,
             MEHatchPartMachine.MANAGED_FIELD_HOLDER
     );
 
-    protected final int slots;
-
+    @Getter
     @DescSynced
     @Persisted
-    @Getter
     private boolean autoPull;
 
     @Getter
     @Setter
     @Persisted
-    @DropSaved
     private int minStackSize = 1;
 
-    private @UnknownNullability IStackWatcher storageWatcher;
-
     @Persisted
-    protected final GenericStackHandler configStacks;
+    protected final StockingConfigHandler configHandler;
 
     public MEStockingHatchPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
         super(holder, tier, IO.IN, -1, slots, args);
-        this.slots = slots;
-        this.configStacks = new GenericStackHandler(slots) {
-            @Override
-            public void setStackInSlot(int slot, @Nullable GenericStack stack) {
-                GenericStack oldStack = getStackInSlot(slot);
-                super.setStackInSlot(slot, stack);
-                if (storageWatcher != null) {
-                    if (oldStack != null) {
-                        storageWatcher.remove(oldStack.what());
-                    }
-                    if (stack != null) {
-                        storageWatcher.add(stack.what());
-                    }
-                }
-                tank.onContentsChanged();
-            }
-        };
-    }
-
-    @Override
-    protected GridNodeHost createNodeHost() {
-        GridNodeHost nodeHost = super.createNodeHost();
-        nodeHost.getMainNode().addService(IStorageWatcherNode.class, new IStorageWatcherNode() {
-            @Override
-            public void updateWatcher(IStackWatcher newWatcher) {
-                storageWatcher = newWatcher;
-                for (int i = 0; i < configStacks.getSlots(); i++) {
-                    GenericStack stack = configStacks.getStackInSlot(i);
-                    if (stack != null) {
-                        storageWatcher.add(stack.what());
-                    }
-                }
-            }
-
-            @Override
-            public void onStackChange(AEKey what, long amount) {
-                tank.onContentsChanged();
-            }
-        });
-        return nodeHost;
+        this.configHandler = new StockingConfigHandler(slots, tank::onContentsChanged);
+        nodeHost.getMainNode().addService(IStorageWatcherNode.class, configHandler);
     }
 
     @Override
@@ -132,16 +77,9 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
     }
 
     @Override
-    protected void updateTankSubscription(Direction newFacing) {
+    protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
-        if (isWorkingEnabled() && node.isActive() && isAutoPull()) {
-            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
-            return;
-        }
-        if (autoIOSubs != null) {
-            autoIOSubs.unsubscribe();
-            autoIOSubs = null;
-        }
+        return isWorkingEnabled() && node.isActive() && isAutoPull();
     }
 
     @Override
@@ -153,32 +91,7 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
         if (getOffsetTimer() % updateInterval != 0) return;
 
         KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
-        var topFluids = new PriorityQueue<>(Comparator.comparingLong(Object2LongMap.Entry<AEKey>::getLongValue));
-
-        for (var entry : cachedInv) {
-            AEKey key = entry.getKey();
-            long amount = entry.getLongValue();
-
-            if (!(key instanceof AEFluidKey)) continue;
-            if (amount < minStackSize) continue;
-
-            if (topFluids.size() < configStacks.getSlots()) {
-                topFluids.offer(entry);
-            } else if (amount > topFluids.peek().getLongValue()) {
-                topFluids.poll();
-                topFluids.offer(entry);
-            }
-        }
-
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            configStacks.setStackInSlot(i, null);
-        }
-
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            var entry = topFluids.poll();
-            if (entry == null) break;
-            configStacks.setStackInSlot(configStacks.getSlots() - i - 1, new GenericStack(entry.getKey(), 1));
-        }
+        configHandler.autoPull(cachedInv, (key, amount) -> amount >= minStackSize && key instanceof AEFluidKey);
     }
 
     public void setAutoPull(boolean autoPull) {
@@ -187,118 +100,66 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
     }
 
     @Override
+    protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide, BlockHitResult hitResult) {
+        if (!isRemote()) {
+            setAutoPull(!autoPull);
+            playerIn.sendSystemMessage(autoPull
+                    ? Component.translatable("gtceu.machine.me.stocking_auto_pull_enabled")
+                    : Component.translatable("gtceu.machine.me.stocking_auto_pull_disabled")
+            );
+        }
+        return InteractionResult.sidedSuccess(isRemote());
+    }
+
+    @Override
     public void attachSideTabs(TabsWidget sideTabs) {
         sideTabs.setMainTab(this);
     }
 
+//    @Override
+//    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
+//        super.attachConfigurators(configuratorPanel);
+//        configuratorPanel.attachConfigurators(new IFancyConfiguratorButton.Toggle(
+//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0, 1, 0.5),
+//                GuiTextures.BUTTON_AUTO_PULL.getSubTexture(0, 0.5, 1, 0.5),
+//                this::isAutoPull,
+//                (clickData, pressed) -> setAutoPull(pressed))
+//                .setTooltipsSupplier(pressed -> List.of(Component.translatable("gtceu.gui.me_bus.auto_pull_button"))));
+//        configuratorPanel.attachConfigurators(new AutoStockingFancyConfigurator(this));
+//    }
+
     @Override
-    protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide,
-                                                   BlockHitResult hitResult) {
-        if (!isRemote()) {
-            setAutoPull(!autoPull);
-            if (autoPull) {
-                playerIn.sendSystemMessage(
-                        Component.translatable("gtceu.machine.me.stocking_auto_pull_enabled"));
-            } else {
-                playerIn.sendSystemMessage(
-                        Component.translatable("gtceu.machine.me.stocking_auto_pull_disabled"));
-            }
-        }
-        return InteractionResult.sidedSuccess(isRemote());
+    public String getConfigKey() {
+        return MEInputHatchPartMachine.CONFIG_KEY;
     }
 
     @Override
-    public InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
-        if (!isRemote()) {
-            CompoundTag tag = new CompoundTag();
-            tag.put("MEInputHatch", writeConfig());
-            dataStick.setTag(tag);
-            dataStick.setHoverName(Component.translatable("gtceu.machine.me.fluid_import.data_stick.name"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
-        }
-        return InteractionResult.SUCCESS;
+    public Component getConfigName() {
+        return MEInputHatchPartMachine.CONFIG_NAME;
     }
 
     @Override
-    public InteractionResult onDataStickUse(Player player, ItemStack dataStick) {
-        CompoundTag tag = dataStick.getTag();
-        if (tag == null || !tag.contains("MEInputHatch")) {
-            return InteractionResult.PASS;
-        }
-        if (!isRemote()) {
-            readConfig(tag.getCompound("MEInputHatch"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
-        }
-        return InteractionResult.sidedSuccess(isRemote());
-    }
-
-    protected CompoundTag writeConfig() {
-        CompoundTag tag = new CompoundTag();
-        tag.putBoolean("AutoPull", autoPull);
+    public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeAutoPull(tag, autoPull);
         if (!autoPull) {
-            tag.put("ConfigStacks", configStacks.serializeNBT());
+            MEConfigUtil.writeConfigHandler(tag, configHandler);
         }
-        tag.putByte(
-                "GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
-        );
-        return tag;
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
     }
 
-    protected void readConfig(CompoundTag tag) {
-        setAutoPull(tag.getBoolean("AutoPull"));
-        if (!autoPull && tag.contains("ConfigStacks")) {
-            var oldStacks = captureConfiguredKeys();
-            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
-            syncStorageWatcher(oldStacks);
+    @Override
+    public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readAutoPull(tag, this::setAutoPull);
+        if (!autoPull) {
+            MEConfigUtil.readConfigHandler(tag, configHandler);
             tank.onContentsChanged();
         }
-        if (tag.contains("GhostCircuit")) {
-            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
-        }
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
     }
 
     @Override
     public ManagedFieldHolder getFieldHolder() {
         return MANAGED_FIELD_HOLDER;
-    }
-
-    private @Nullable AEFluidKey getConfiguredKey(int slot) {
-        GenericStack configuredStack = configStacks.getStackInSlot(slot);
-        if (configuredStack == null) return null;
-
-        assert configuredStack.what() instanceof AEFluidKey;
-        return (AEFluidKey) configuredStack.what();
-    }
-
-    private @Nullable IGrid getActiveGrid() {
-        IManagedGridNode gridNode = nodeHost.getMainNode();
-        if (!gridNode.isActive()) return null;
-        return gridNode.getGrid();
-    }
-
-    private GenericStack[] captureConfiguredKeys() {
-        GenericStack[] stacks = new GenericStack[configStacks.getSlots()];
-        for (int i = 0; i < stacks.length; i++) {
-            stacks[i] = configStacks.getStackInSlot(i);
-        }
-        return stacks;
-    }
-
-    private void syncStorageWatcher(GenericStack[] oldStacks) {
-        if (storageWatcher == null) return;
-
-        for (GenericStack stack : oldStacks) {
-            if (stack != null) {
-                storageWatcher.remove(stack.what());
-            }
-        }
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            GenericStack stack = configStacks.getStackInSlot(i);
-            if (stack != null) {
-                storageWatcher.add(stack.what());
-            }
-        }
     }
 
     private final class MEStorageBackedFluidStorage extends CustomFluidTank {
@@ -317,13 +178,14 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
         @Override
         public FluidStack getFluid() {
-            IGrid grid = getActiveGrid();
-            if (grid == null) return FluidStack.EMPTY;
+            IManagedGridNode mainNode = nodeHost.getMainNode();
+            if (!mainNode.isActive()) return FluidStack.EMPTY;
+            assert mainNode.getGrid() != null;
 
-            AEFluidKey key = getConfiguredKey(slot);
+            AEFluidKey key = getFluidKey(slot);
             if (key == null) return FluidStack.EMPTY;
 
-            long existing = grid.getStorageService().getCachedInventory().get(key);
+            long existing = mainNode.getGrid().getStorageService().getCachedInventory().get(key);
             if (existing <= 0) return FluidStack.EMPTY;
 
             return key.toStack(GTMath.saturatedCast(existing));
@@ -331,13 +193,8 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
         @Override
         public boolean isFluidValid(FluidStack stack) {
-            AEFluidKey key = getConfiguredKey(slot);
+            AEFluidKey key = getFluidKey(slot);
             return key != null && key.matches(stack);
-        }
-
-        @Override
-        public int fill(FluidStack resource, FluidAction action) {
-            return 0;
         }
 
         @Override
@@ -346,10 +203,15 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
         }
 
         @Override
+        public int fill(FluidStack resource, FluidAction action) {
+            return 0;
+        }
+
+        @Override
         public FluidStack drain(FluidStack resource, FluidAction action) {
             if (resource.isEmpty()) return FluidStack.EMPTY;
 
-            AEFluidKey key = getConfiguredKey(slot);
+            AEFluidKey key = getFluidKey(slot);
             if (key == null || !key.matches(resource)) return FluidStack.EMPTY;
 
             return extract(key, resource.getAmount(), action);
@@ -359,17 +221,18 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
         public FluidStack drain(int maxDrain, FluidAction action) {
             if (maxDrain <= 0) return FluidStack.EMPTY;
 
-            AEFluidKey key = getConfiguredKey(slot);
+            AEFluidKey key = getFluidKey(slot);
             if (key == null) return FluidStack.EMPTY;
 
             return extract(key, maxDrain, action);
         }
 
         private FluidStack extract(AEFluidKey key, int amount, FluidAction action) {
-            IGrid grid = getActiveGrid();
-            if (grid == null) return FluidStack.EMPTY;
+            IManagedGridNode mainNode = nodeHost.getMainNode();
+            if (!mainNode.isActive()) return FluidStack.EMPTY;
+            assert mainNode.getGrid() != null;
 
-            MEStorage networkInv = grid.getStorageService().getInventory();
+            MEStorage networkInv = mainNode.getGrid().getStorageService().getInventory();
             long extracted = networkInv.extract(
                     key,
                     amount,
@@ -378,10 +241,12 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
             );
             if (extracted <= 0) return FluidStack.EMPTY;
 
-            if (action.execute()) {
-                onContentsChanged();
-            }
+            // do not call onContentsChanged() here, as it will be called by IStorageWatcherNode
             return key.toStack(Math.toIntExact(extracted));
+        }
+
+        private @Nullable AEFluidKey getFluidKey(int slot) {
+            return (AEFluidKey) configHandler.getKeyInSlot(slot);
         }
     }
 }

@@ -4,29 +4,23 @@ import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
-import appeng.api.networking.IStackWatcher;
 import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.AEKey;
-import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.fancy.TabsWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.ae2.machine.feature.IGridConnectedMachine;
-import com.gregtechceu.gtceu.integration.ae2.machine.trait.GridNodeHost;
-import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
+import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
 import com.gregtechceu.gtceu.utils.GTMath;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
-import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
-import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.core.Direction;
@@ -38,74 +32,34 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.UnknownNullability;
 
-import java.util.Comparator;
-import java.util.PriorityQueue;
-
-public class MEStockingBusPartMachine extends MEBusPartMachine {
+public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataStickConfigurable {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
             MEStockingBusPartMachine.class,
             MEBusPartMachine.MANAGED_FIELD_HOLDER
     );
 
-    protected final int slots;
+    private final int slots;
 
+    @Getter
     @DescSynced
     @Persisted
-    @Getter
     private boolean autoPull;
 
     @Getter
     @Setter
     @Persisted
-    @DropSaved
     private int minStackSize = 1;
 
-    private @UnknownNullability IStackWatcher storageWatcher;
-    private final GenericStackHandler configStacks;
+    @Persisted
+    protected final StockingConfigHandler configHandler;
 
     public MEStockingBusPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
         super(holder, tier, IO.IN, args);
         this.slots = slots;
-        this.configStacks = new GenericStackHandler(slots) {
-            @Override
-            public void setStackInSlot(int slot, @Nullable GenericStack stack) {
-                GenericStack oldStack = getStackInSlot(slot);
-                super.setStackInSlot(slot, stack);
-                if (storageWatcher == null) return;
-                if (oldStack != null) {
-                    storageWatcher.remove(oldStack.what());
-                }
-                if (stack != null) {
-                    storageWatcher.add(stack.what());
-                }
-            }
-        };
-    }
-
-    @Override
-    protected GridNodeHost createNodeHost() {
-        GridNodeHost nodeHost = super.createNodeHost();
-        nodeHost.getMainNode().addService(IStorageWatcherNode.class, new IStorageWatcherNode() {
-            @Override
-            public void updateWatcher(IStackWatcher newWatcher) {
-                storageWatcher = newWatcher;
-                for (int i = 0; i < configStacks.getSlots(); i++) {
-                    GenericStack stack = configStacks.getStackInSlot(i);
-                    if (stack != null) {
-                        storageWatcher.add(stack.what());
-                    }
-                }
-            }
-
-            @Override
-            public void onStackChange(AEKey what, long amount) {
-                getInventory().onContentsChanged();
-            }
-        });
-        return nodeHost;
+        this.configHandler = new StockingConfigHandler(slots, () -> getInventory().onContentsChanged());
+        nodeHost.getMainNode().addService(IStorageWatcherNode.class, configHandler);
     }
 
     @Override
@@ -126,16 +80,9 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
     }
 
     @Override
-    protected void updateInventorySubscription(Direction newFacing) {
+    protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
-        if (isWorkingEnabled() && node.isActive() && isAutoPull()) {
-            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
-            return;
-        }
-        if (autoIOSubs != null) {
-            autoIOSubs.unsubscribe();
-            autoIOSubs = null;
-        }
+        return isWorkingEnabled() && node.isActive() && isAutoPull();
     }
 
     @Override
@@ -146,42 +93,8 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
         int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
         if (getOffsetTimer() % updateInterval != 0) return;
 
-        // Refresh the configuration list in auto-pull mode.
-        // Sets the config to the configStacks size items with the highest amount in the ME system.
         KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
-
-        // Use a PriorityQueue to sort the stacks on size, take the first configStacks size
-        // biggest stacks.
-        var topItems = new PriorityQueue<>(Comparator.comparingLong(Object2LongMap.Entry<AEKey>::getLongValue));
-
-        for (var entry : cachedInv) {
-            AEKey key = entry.getKey();
-            long amount = entry.getLongValue();
-
-            if (!(key instanceof AEItemKey)) continue;
-
-            if (amount >= minStackSize) {
-                if (topItems.size() < configStacks.getSlots()) {
-                    topItems.offer(entry);
-                } else if (amount > topItems.peek().getLongValue()) {
-                    topItems.poll();
-                    topItems.offer(entry);
-                }
-            }
-        }
-
-        // Now, topItems is a PQ with configStacks size highest amount items in the system.
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            var entry = topItems.poll();
-            if (entry == null) {
-                configStacks.setStackInSlot(i, null);
-                continue;
-            }
-            AEKey what = entry.getKey();
-            // Since we want our items to be displayed from highest to lowest, but poll() returns
-            // the lowest first, we fill in the slots starting at itemAmount-1
-            configStacks.setStackInSlot(configStacks.getSlots() - i - 1, new GenericStack(what, 1));
-        }
+        configHandler.autoPull(cachedInv, (key, amount) -> amount >= minStackSize && key instanceof AEItemKey);
     }
 
     @Override
@@ -215,39 +128,41 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
     protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide, BlockHitResult hitResult) {
         if (!isRemote()) {
             setAutoPull(!autoPull);
-            if (autoPull) {
-                playerIn.sendSystemMessage(
-                        Component.translatable("gtceu.machine.me.stocking_auto_pull_enabled"));
-            } else {
-                playerIn.sendSystemMessage(
-                        Component.translatable("gtceu.machine.me.stocking_auto_pull_disabled"));
-            }
+            playerIn.sendSystemMessage(autoPull
+                    ? Component.translatable("gtceu.machine.me.stocking_auto_pull_enabled")
+                    : Component.translatable("gtceu.machine.me.stocking_auto_pull_disabled")
+            );
         }
         return InteractionResult.sidedSuccess(isRemote());
     }
 
-    protected CompoundTag writeConfig() {
-        if (!autoPull) {
-
-        }
-        // if in auto-pull, no need to write actual configured slots, but still need to write the ghost circuit
-        CompoundTag tag = new CompoundTag();
-        tag.putBoolean("AutoPull", true);
-        tag.putByte("GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0)));
-        return tag;
+    @Override
+    public String getConfigKey() {
+        return MEInputBusPartMachine.CONFIG_KEY;
     }
 
-    protected void readConfig(CompoundTag tag) {
-        if (tag.getBoolean("AutoPull")) {
-            // if being set to auto-pull, no need to read the configured slots
-            this.setAutoPull(true);
-            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
-            return;
-        }
-        // set auto pull first to avoid issues with clearing the config after reading from the data stick
-        this.setAutoPull(false);
+    @Override
+    public Component getConfigName() {
+        return MEInputBusPartMachine.CONFIG_NAME;
+    }
 
+    @Override
+    public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeAutoPull(tag, autoPull);
+        if (!autoPull) {
+            MEConfigUtil.writeConfigHandler(tag, configHandler);
+        }
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
+    }
+
+    @Override
+    public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readAutoPull(tag, this::setAutoPull);
+        if (!autoPull) {
+            MEConfigUtil.readConfigHandler(tag, configHandler);
+            getInventory().onContentsChanged();
+        }
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
     }
 
     @Override
@@ -263,7 +178,7 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            AEItemKey key = getConfiguredKey(slot);
+            AEItemKey key = getItemKey(slot);
             return key != null && key.matches(stack);
         }
 
@@ -271,13 +186,14 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
         public ItemStack getStackInSlot(int slot) {
             validateSlotIndex(slot);
 
-            IGrid grid = getActiveGrid();
-            if (grid == null) return ItemStack.EMPTY;
+            IManagedGridNode mainNode = nodeHost.getMainNode();
+            if (!mainNode.isActive()) return ItemStack.EMPTY;
+            assert mainNode.getGrid() != null;
 
-            AEItemKey key = getConfiguredKey(slot);
+            AEItemKey key = getItemKey(slot);
             if (key == null) return ItemStack.EMPTY;
 
-            KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
+            KeyCounter cachedInv = mainNode.getGrid().getStorageService().getCachedInventory();
             long existing = cachedInv.get(key);
 
             return key.toStack(GTMath.saturatedCast(existing));
@@ -294,15 +210,14 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
 
             validateSlotIndex(slot);
 
-            IGrid grid = getActiveGrid();
-            if (grid == null) return ItemStack.EMPTY;
+            IManagedGridNode mainNode = nodeHost.getMainNode();
+            if (!mainNode.isActive()) return ItemStack.EMPTY;
+            assert mainNode.getGrid() != null;
 
-            AEItemKey key = getConfiguredKey(slot);
+            AEItemKey key = getItemKey(slot);
             if (key == null) return ItemStack.EMPTY;
 
-            // Extract the items from the real net to either validate (simulate)
-            // or extract (modulate) when this is called
-            MEStorage networkInv = grid.getStorageService().getInventory();
+            MEStorage networkInv = mainNode.getGrid().getStorageService().getInventory();
             long extracted = networkInv.extract(
                     key,
                     amount,
@@ -310,22 +225,12 @@ public class MEStockingBusPartMachine extends MEBusPartMachine {
                     actionSource
             );
 
+            // do not call onContentsChanged() here, as it will be called by IStorageWatcherNode
             return key.toStack(Math.toIntExact(extracted));
         }
 
-        private @Nullable AEItemKey getConfiguredKey(int slot) {
-            GenericStack configuredStack = configStacks.getStackInSlot(slot);
-            if (configuredStack == null) return null;
-
-            assert configuredStack.what() instanceof AEItemKey;
-            return (AEItemKey) configuredStack.what();
-        }
-
-        private @Nullable IGrid getActiveGrid() {
-            IManagedGridNode gridNode = nodeHost.getMainNode();
-            if (!gridNode.isActive()) return null;
-
-            return gridNode.getGrid();
+        private @Nullable AEItemKey getItemKey(int slot) {
+            return (AEItemKey) configHandler.getKeyInSlot(slot);
         }
     }
 }

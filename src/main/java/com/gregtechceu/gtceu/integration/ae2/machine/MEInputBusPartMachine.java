@@ -9,22 +9,23 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.IDataStickInteractable;
+import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
+import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStickInteractable {
+public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStickConfigurable {
+
+    static final String CONFIG_KEY = "MEInputBus";
+    static final Component CONFIG_NAME = Component.translatable("gtceu.machine.me.item_import.data_stick.name");
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
             MEInputBusPartMachine.class,
@@ -156,51 +157,27 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
 //    }
 
     @Override
-    public final InteractionResult onDataStickShiftUse(Player player, ItemStack dataStick) {
-        if (!isRemote()) {
-            CompoundTag tag = new CompoundTag();
-            tag.put("MEInputBus", writeConfig());
-            dataStick.setTag(tag);
-            dataStick.setHoverName(Component.translatable("gtceu.machine.me.item_import.data_stick.name"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_copy_settings"));
-        }
-        return InteractionResult.SUCCESS;
+    public String getConfigKey() {
+        return CONFIG_KEY;
     }
 
     @Override
-    public final InteractionResult onDataStickUse(Player player, ItemStack dataStick) {
-        CompoundTag tag = dataStick.getTag();
-        if (tag == null || !tag.contains("MEInputBus")) {
-            return InteractionResult.PASS;
-        }
-        if (!isRemote()) {
-            readConfig(tag.getCompound("MEInputBus"));
-            player.sendSystemMessage(Component.translatable("gtceu.machine.me.import_paste_settings"));
-        }
-        return InteractionResult.sidedSuccess(isRemote());
+    public Component getConfigName() {
+        return CONFIG_NAME;
     }
 
-    protected CompoundTag writeConfig() {
-        CompoundTag tag = new CompoundTag();
-        tag.put("ConfigHandler", configHandler.serializeNBT());
-        tag.putByte(
-                "GhostCircuit",
-                (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
-        );
-        tag.putBoolean("DistinctBuses", isDistinct());
-        return tag;
+    @Override
+    public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeConfigHandler(tag, configHandler);
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.writeDistinctBuses(tag, isDistinct());
     }
 
-    protected void readConfig(CompoundTag tag) {
-        if (tag.contains("ConfigHandler")) {
-            configHandler.deserializeNBT(tag.getCompound("ConfigHandler"));
-        }
-        if (tag.contains("GhostCircuit")) {
-            circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));
-        }
-        if (tag.contains("DistinctBuses")) {
-            setDistinct(tag.getBoolean("DistinctBuses"));
-        }
+    @Override
+    public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readConfigHandler(tag, configHandler);
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.readDistinctBuses(tag, this::setDistinct);
     }
 
     @Override
