@@ -32,12 +32,12 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
     );
 
     @Persisted
-    protected final GenericStackHandler configStacks;
+    protected final GenericStackHandler configHandler;
     protected final int slots;
 
     public MEInputBusPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
         super(holder, tier, IO.IN, args);
-        this.configStacks = new GenericStackHandler(slots);
+        this.configHandler = new GenericStackHandler(slots);
         this.slots = slots;
     }
 
@@ -63,16 +63,9 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
     }
 
     @Override
-    protected void updateInventorySubscription(Direction newFacing) {
+    protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
-        if (isWorkingEnabled() && node.isActive()) {
-            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
-            return;
-        }
-        if (autoIOSubs != null) {
-            autoIOSubs.unsubscribe();
-            autoIOSubs = null;
-        }
+        return isWorkingEnabled() && node.isActive();
     }
 
     @Override
@@ -96,8 +89,8 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
         MEStorage networkInv = grid.getStorageService().getInventory();
         NotifiableItemStackHandler inventory = getInventory();
 
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            GenericStack configStack = configStacks.getStackInSlot(i);
+        for (int i = 0; i < configHandler.getSlots(); i++) {
+            GenericStack configStack = configHandler.getStackInSlot(i);
             if (configStack == null) continue;
             AEItemKey configKey = (AEItemKey) configStack.what();
             long configAmount = configStack.amount();
@@ -189,7 +182,7 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
 
     protected CompoundTag writeConfig() {
         CompoundTag tag = new CompoundTag();
-        tag.put("ConfigStacks", configStacks.serializeNBT());
+        tag.put("ConfigHandler", configHandler.serializeNBT());
         tag.putByte(
                 "GhostCircuit",
                 (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
@@ -199,8 +192,8 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
     }
 
     protected void readConfig(CompoundTag tag) {
-        if (tag.contains("ConfigStacks")) {
-            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
+        if (tag.contains("ConfigHandler")) {
+            configHandler.deserializeNBT(tag.getCompound("ConfigHandler"));
         }
         if (tag.contains("GhostCircuit")) {
             circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));

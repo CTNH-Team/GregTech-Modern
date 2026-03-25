@@ -10,6 +10,7 @@ import com.gregtechceu.gtceu.common.machine.multiblock.part.FluidHatchPartMachin
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.machine.feature.IGridConnectedMachine;
 import com.gregtechceu.gtceu.integration.ae2.machine.trait.GridNodeHost;
+import com.gregtechceu.gtceu.utils.GTTransferUtils;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import net.minecraft.core.Direction;
 import org.jetbrains.annotations.Nullable;
@@ -40,6 +41,21 @@ public abstract class MEHatchPartMachine extends FluidHatchPartMachine implement
                         hasFrontFacing() ? EnumSet.of(getFrontFacing()) : EnumSet.allOf(Direction.class)
                 );
         return host;
+    }
+
+    protected boolean shouldUpdateSubscription(Direction newFacing) {
+        return isWorkingEnabled() && ((io.support(IO.OUT) && !tank.isEmpty()) || io.support(IO.IN)) &&
+                GTTransferUtils.hasAdjacentFluidHandler(getLevel(), getPos(), newFacing);
+    }
+
+    @Override
+    protected void updateTankSubscription(Direction newFacing) {
+        if (shouldUpdateSubscription(newFacing)) {
+            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
+        } else if (autoIOSubs != null) {
+            autoIOSubs.unsubscribe();
+            autoIOSubs = null;
+        }
     }
 
     @Override

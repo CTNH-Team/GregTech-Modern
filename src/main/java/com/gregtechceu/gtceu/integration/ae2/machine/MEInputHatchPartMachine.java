@@ -34,11 +34,11 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
     );
 
     @Persisted
-    protected final GenericStackHandler configStacks;
+    protected final GenericStackHandler configHandler;
 
     public MEInputHatchPartMachine(IMachineBlockEntity holder, int tier, int slots, Object... args) {
         super(holder, tier, IO.IN, -1, slots, args);
-        this.configStacks = new GenericStackHandler(slots);
+        this.configHandler = new GenericStackHandler(slots);
     }
 
     @Override
@@ -47,14 +47,9 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
     }
 
     @Override
-    protected void updateTankSubscription(Direction newFacing) {
+    protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
-        if (isWorkingEnabled() && node.isActive()) {
-            autoIOSubs = subscribeServerTick(autoIOSubs, this::autoIO);
-        } else if (autoIOSubs != null) {
-            autoIOSubs.unsubscribe();
-            autoIOSubs = null;
-        }
+        return isWorkingEnabled() && node.isActive();
     }
 
     @Override
@@ -68,8 +63,8 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
         MEStorage networkInv = grid.getStorageService().getInventory();
         FluidTank[] tanks = tank.getStorages();
 
-        for (int i = 0; i < configStacks.getSlots(); i++) {
-            GenericStack configStack = configStacks.getStackInSlot(i);
+        for (int i = 0; i < configHandler.getSlots(); i++) {
+            GenericStack configStack = configHandler.getStackInSlot(i);
             if (configStack == null) continue;
             AEFluidKey configKey = (AEFluidKey) configStack.what();
             long configAmount = configStack.amount();
@@ -168,7 +163,7 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
 
     protected CompoundTag writeConfig() {
         CompoundTag tag = new CompoundTag();
-        tag.put("ConfigStacks", configStacks.serializeNBT());
+        tag.put("ConfigHandler", configHandler.serializeNBT());
         tag.putByte(
                 "GhostCircuit",
                 (byte) IntCircuitBehaviour.getCircuitConfiguration(circuitInventory.getStackInSlot(0))
@@ -177,8 +172,8 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
     }
 
     protected void readConfig(CompoundTag tag) {
-        if (tag.contains("ConfigStacks")) {
-            configStacks.deserializeNBT(tag.getCompound("ConfigStacks"));
+        if (tag.contains("ConfigHandler")) {
+            configHandler.deserializeNBT(tag.getCompound("ConfigHandler"));
         }
         if (tag.contains("GhostCircuit")) {
             circuitInventory.setStackInSlot(0, IntCircuitBehaviour.stack(tag.getByte("GhostCircuit")));

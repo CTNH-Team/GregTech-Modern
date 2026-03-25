@@ -1,5 +1,6 @@
 package com.gregtechceu.gtceu.integration.ae2.utils;
 
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import com.lowdragmc.lowdraglib.syncdata.IContentChangeAware;
 import com.lowdragmc.lowdraglib.syncdata.ITagSerializable;
@@ -35,10 +36,19 @@ public class GenericStackHandler implements ITagSerializable<CompoundTag>, ICont
         return stacks[slot];
     }
 
+    public @Nullable AEKey getKeyInSlot(int slot) {
+        GenericStack stack = getStackInSlot(slot);
+        return stack != null ? stack.what() : null;
+    }
+
     public void setStackInSlot(int slot, @Nullable GenericStack stack) {
         validateSlotIndex(slot);
         stacks[slot] = stack;
         onContentsChanged(slot);
+    }
+
+    public void setKeyInSlot(int slot, @Nullable AEKey key) {
+        setStackInSlot(slot, key != null ? new GenericStack(key, 1) : null);
     }
 
     protected void validateSlotIndex(int slot) {
