@@ -150,21 +150,23 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
     @Override
     public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
         MEConfigUtil.writeAutoPull(tag, autoPull);
         if (!autoPull) {
             MEConfigUtil.writeConfigHandler(tag, configHandler);
         }
-        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.writeMinStackSize(tag, minStackSize);
     }
 
     @Override
     public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
         MEConfigUtil.readAutoPull(tag, this::setAutoPull);
         if (!autoPull) {
             MEConfigUtil.readConfigHandler(tag, configHandler);
             tank.onContentsChanged();
         }
-        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.readMinStackSize(tag, this::setMinStackSize);
     }
 
     @Override
@@ -235,6 +237,16 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
             if (key == null) return FluidStack.EMPTY;
 
             return extract(key, maxDrain, action);
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return getFluid().isEmpty();
+        }
+
+        @Override
+        public int getSpace() {
+            return Math.max(0, capacity - getFluid().getAmount());
         }
 
         private FluidStack extract(AEFluidKey key, int amount, FluidAction action) {

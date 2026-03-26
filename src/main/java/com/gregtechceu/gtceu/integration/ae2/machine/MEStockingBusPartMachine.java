@@ -56,7 +56,7 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
     @Getter
     @Setter
     @Persisted
-    private int minStackSize = 1; //TODO make configurable
+    private int minStackSize = 1;
 
     @Persisted
     protected final StockingConfigHandler configHandler;
@@ -159,21 +159,23 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
 
     @Override
     public void writeConfig(CompoundTag tag) {
+        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
         MEConfigUtil.writeAutoPull(tag, autoPull);
         if (!autoPull) {
             MEConfigUtil.writeConfigHandler(tag, configHandler);
         }
-        MEConfigUtil.writeGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.writeMinStackSize(tag, minStackSize);
     }
 
     @Override
     public void readConfig(CompoundTag tag) {
+        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
         MEConfigUtil.readAutoPull(tag, this::setAutoPull);
         if (!autoPull) {
             MEConfigUtil.readConfigHandler(tag, configHandler);
             getInventory().onContentsChanged();
         }
-        MEConfigUtil.readGhostCircuit(tag, circuitInventory);
+        MEConfigUtil.readMinStackSize(tag, this::setMinStackSize);
     }
 
     @Override
