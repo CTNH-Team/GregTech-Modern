@@ -7,6 +7,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import net.minecraft.nbt.CompoundTag;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
@@ -17,7 +18,7 @@ import java.util.PriorityQueue;
 public class StockingConfigHandler extends GenericStackHandler implements IStorageWatcherNode {
 
     private @UnknownNullability IStackWatcher storageWatcher;
-    private final Runnable changeListener;
+    private Runnable changeListener;
 
     public StockingConfigHandler(int size, Runnable changeListener) {
         super(size);
@@ -44,19 +45,18 @@ public class StockingConfigHandler extends GenericStackHandler implements IStora
 
         super.setStackInSlot(slot, newStack);
 
-        // Notify the listener that the configuration has been updated
+        // Notify listener
         changeListener.run();
 
+        // Update watcher
         if (storageWatcher == null) {
             return;
         }
 
-        // Remove watcher entry for the previous stack
         if (oldKey != null) {
             storageWatcher.remove(oldKey);
         }
 
-        // Register watcher entry for the new stack
         if (newKey != null) {
             storageWatcher.add(newKey);
         }
@@ -69,17 +69,17 @@ public class StockingConfigHandler extends GenericStackHandler implements IStora
     }
 
     /**
-     * Auto-refresh the configuration list by selecting the keys with the highest amounts from the ME system.
-     * Only keys passing the provided filter are considered.
+     * Refresh configuration with Top-K keys (by amount) from the ME storage.
+     * Only keys matching the filter are considered.
      *
-     * @param source The ME system to pull keys from
-     * @param filter A predicate to filter which keys should be included
+     * @param source ME storage source
+     * @param filter key filter
      */
-    public void autoPull(KeyCounter source, StackFilter filter) {
+    public void autoPull(KeyCounter source, Filter filter) {
         int slots = getSlots();
         if (slots == 0) return;
 
-        // Top K algorithm: Use a Min-heap to keep the top 'slotCount' entries with the highest amount
+        // Top-K via PriorityQueue: keep the highest 'slotCount' entries by amount
         var topEntries = new PriorityQueue<>(Comparator.comparingLong(Object2LongMap.Entry<AEKey>::getLongValue));
 
         for (var entry : source) {
@@ -90,16 +90,30 @@ public class StockingConfigHandler extends GenericStackHandler implements IStora
                 continue;
             }
 
-            topEntries.offer(entry);
-            if (topEntries.size() > slots) {
+            assert topEntries.peek() != null;
+            if (topEntries.size() < slots) {
+                // If the heap is not full, add the entry
+                topEntries.offer(entry);
+            } else if (topEntries.peek().getLongValue() < amount) {
+                // If the heap is full but the current entry has a higher amount, replace the smallest entry
                 topEntries.poll();
+                topEntries.offer(entry);
             }
         }
 
-        // Fill configuration slots from highest to lowest amount
+        // Suppress listener; batch updates with a single notification
+        Runnable original = this.changeListener;
+        MutableBoolean changed = new MutableBoolean(false);
+        this.changeListener = changed::setTrue;
+        // Fill slots from highest to lowest
         for (int i = slots - 1; !topEntries.isEmpty(); i--) {
             var entry = topEntries.poll();
             setKeyInSlot(i, entry.getKey());
+        }
+        // Restore listener and emit once if changed
+        this.changeListener = original;
+        if (changed.booleanValue()) {
+            changeListener.run();
         }
     }
 
@@ -114,7 +128,7 @@ public class StockingConfigHandler extends GenericStackHandler implements IStora
         }
     }
 
-    public interface StackFilter {
+    public interface Filter {
         boolean test(AEKey key, long amount);
     }
 }
