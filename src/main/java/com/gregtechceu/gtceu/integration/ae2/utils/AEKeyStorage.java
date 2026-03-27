@@ -6,10 +6,8 @@ import appeng.api.stacks.AEKey;
 import appeng.api.storage.MEStorage;
 import com.lowdragmc.lowdraglib.syncdata.IContentChangeAware;
 import com.lowdragmc.lowdraglib.syncdata.ITagSerializable;
-import it.unimi.dsi.fastutil.ints.IntCollection;
-import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.nbt.CompoundTag;
@@ -22,29 +20,47 @@ import java.util.stream.Stream;
  * Storage for AE2 keys with associated amounts.
  * Supports serialization, change tracking, and inventory operations.
  */
-public class AEKeyStorage implements Iterable<Object2IntMap.Entry<AEKey>>, ITagSerializable<ListTag>, IContentChangeAware {
+public class AEKeyStorage implements Iterable<Object2LongMap.Entry<AEKey>>, ITagSerializable<ListTag>, IContentChangeAware {
 
-    private final Object2IntMap<AEKey> storage = new Object2IntLinkedOpenHashMap<>();
+    private final Object2LongMap<AEKey> storage = new Object2LongOpenHashMap<>();
 
     @Getter
     @Setter
     private Runnable onContentsChanged = () -> {
     };
 
-    public void add(AEKey key, int amount) {
-        if (amount <= 0) return;
-        storage.mergeInt(key, amount, Integer::sum);
-        onContentsChanged.run();
-    }
+    /**
+     * Adds a specified amount of an {@link AEKey} to the storage.
+     * The stored amount will not exceed {@link Long#MAX_VALUE}.
+     *
+     * @param key    The key to add.
+     * @param amount The quantity to add (ignored if <= 0).
+     * @return The actual amount added to the storage.
+     */
+    public long add(AEKey key, int amount, boolean simulate) {
+        if (amount <= 0) return 0;
 
-    public int get(AEKey key) {
-        return storage.getInt(key);
-    }
-
-    public void remove(AEKey key) {
-        if (storage.removeInt(key) != 0) {
+        long existing = storage.getLong(key);
+        long inserted = Math.min(amount, Long.MAX_VALUE - existing);
+        if (inserted > 0 && !simulate) {
+            storage.put(key, existing + inserted);
+            // Notify that the storage contents have changed
             onContentsChanged.run();
         }
+        return inserted;
+    }
+
+    public long get(AEKey key) {
+        return storage.getLong(key);
+    }
+
+    public long remove(AEKey key, boolean simulate) {
+        long amount = storage.getLong(key);
+        if (amount != 0 && !simulate) {
+            storage.removeLong(key);
+            onContentsChanged.run();
+        }
+        return amount;
     }
 
     public void clear() {
@@ -62,16 +78,13 @@ public class AEKeyStorage implements Iterable<Object2IntMap.Entry<AEKey>>, ITagS
         return storage.size();
     }
 
-    public ObjectSet<AEKey> keySet() {
-        return storage.keySet();
+    public Stream<Object2LongMap.Entry<AEKey>> stream() {
+        return storage.object2LongEntrySet().stream();
     }
 
-    public IntCollection values() {
-        return storage.values();
-    }
-
-    public Stream<Object2IntMap.Entry<AEKey>> stream() {
-        return storage.object2IntEntrySet().stream();
+    @Override
+    public Iterator<Object2LongMap.Entry<AEKey>> iterator() {
+        return storage.object2LongEntrySet().iterator();
     }
 
     /**
@@ -81,17 +94,16 @@ public class AEKeyStorage implements Iterable<Object2IntMap.Entry<AEKey>>, ITagS
     public void transferTo(MEStorage inventory, IActionSource source) {
         if (storage.isEmpty()) return;
 
-        var it = storage.object2IntEntrySet().iterator();
         boolean changed = false;
 
-        while (it.hasNext()) {
+        for (var it = iterator(); it.hasNext(); ) {
             var entry = it.next();
-            int transferred = Math.toIntExact(
-                    inventory.insert(entry.getKey(), entry.getIntValue(), Actionable.MODULATE, source)
-            );
-            if (transferred > 0) {
+            AEKey key = entry.getKey();
+            long amount = entry.getLongValue();
+            long inserted = inventory.insert(key, amount, Actionable.MODULATE, source);
+            if (inserted > 0) {
                 changed = true;
-                int remaining = entry.getIntValue() - transferred;
+                long remaining = amount - inserted;
                 if (remaining <= 0) {
                     it.remove();
                 } else {
@@ -100,23 +112,16 @@ public class AEKeyStorage implements Iterable<Object2IntMap.Entry<AEKey>>, ITagS
             }
         }
 
-        if (changed) {
-            onContentsChanged.run();
-        }
-    }
-
-    @Override
-    public Iterator<Object2IntMap.Entry<AEKey>> iterator() {
-        return storage.object2IntEntrySet().iterator();
+        if (changed) onContentsChanged.run();
     }
 
     @Override
     public ListTag serializeNBT() {
         var list = new ListTag();
-        for (var entry : storage.object2IntEntrySet()) {
+        for (var entry : storage.object2LongEntrySet()) {
             var tag = new CompoundTag();
             tag.put("key", entry.getKey().toTagGeneric());
-            tag.putInt("amount", entry.getIntValue());
+            tag.putLong("amount", entry.getLongValue());
             list.add(tag);
         }
         return list;

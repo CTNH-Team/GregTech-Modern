@@ -46,7 +46,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition ITEM_EXPORT_BUS_ME = REGISTRATE
-            .machine("me_output_bus", MEOutputBusPartMachine::new)
+            .machine("me_output_bus", be -> new MEOutputBusPartMachine(be, EV))
             .langValue("ME Output Bus")
             .tier(EV)
             .rotationState(RotationState.ALL)
@@ -90,7 +90,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition FLUID_EXPORT_HATCH_ME = REGISTRATE
-            .machine("me_output_hatch", MEOutputHatchPartMachine::new)
+            .machine("me_output_hatch", be -> new MEOutputHatchPartMachine(be, EV))
             .langValue("ME Output Hatch")
             .tier(EV)
             .rotationState(RotationState.ALL)
