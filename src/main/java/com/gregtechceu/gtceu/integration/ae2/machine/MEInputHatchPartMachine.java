@@ -54,11 +54,11 @@ public class MEInputHatchPartMachine extends MEHatchPartMachine implements IData
 
     @Override
     protected void autoIO() {
-        IGrid grid = nodeHost.getMainNode().getGrid();
-        if (grid == null) return;
-
         int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
         if (self().getOffsetTimer() % updateInterval != 0) return;
+
+        IGrid grid = nodeHost.getMainNode().getGrid();
+        if (grid == null) return;
 
         MEStorage networkInv = grid.getStorageService().getInventory();
         FluidTank[] tanks = tank.getStorages();

@@ -89,11 +89,11 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
     @Override
     protected void autoIO() {
-        IGrid grid = nodeHost.getMainNode().getGrid();
-        if (grid == null) return;
-
         int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
         if (getOffsetTimer() % updateInterval != 0) return;
+
+        IGrid grid = nodeHost.getMainNode().getGrid();
+        if (grid == null) return;
 
         KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
         configHandler.autoPull(cachedInv, (key, amount) -> amount >= minStackSize && key instanceof AEFluidKey);
