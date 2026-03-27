@@ -16,7 +16,7 @@ import static com.gregtechceu.gtceu.common.registry.GTRegistration.REGISTRATE;
 public class GTAEMachines {
 
     public final static MachineDefinition ITEM_IMPORT_BUS_ME = REGISTRATE
-            .machine("me_input_bus", MEInputBusPartMachine::new)
+            .machine("me_input_bus", be -> new MEInputBusPartMachine(be, EV, 16))
             .langValue("ME Input Bus")
             .tier(EV)
             .rotationState(RotationState.ALL)
@@ -30,7 +30,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition STOCKING_IMPORT_BUS_ME = REGISTRATE
-            .machine("me_stocking_input_bus", MEStockingBusPartMachine::new)
+            .machine("me_stocking_input_bus", be -> new MEStockingBusPartMachine(be, LuV, 16))
             .langValue("ME Stocking Input Bus")
             .tier(LuV)
             .rotationState(RotationState.ALL)
@@ -46,7 +46,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition ITEM_EXPORT_BUS_ME = REGISTRATE
-            .machine("me_output_bus", MEOutputBusPartMachine::new)
+            .machine("me_output_bus", be -> new MEOutputBusPartMachine(be, EV))
             .langValue("ME Output Bus")
             .tier(EV)
             .rotationState(RotationState.ALL)
@@ -60,7 +60,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition FLUID_IMPORT_HATCH_ME = REGISTRATE
-            .machine("me_input_hatch", MEInputHatchPartMachine::new)
+            .machine("me_input_hatch", be -> new MEInputHatchPartMachine(be, EV, 16))
             .langValue("ME Input Hatch")
             .tier(EV)
             .rotationState(RotationState.ALL)
@@ -74,7 +74,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition STOCKING_IMPORT_HATCH_ME = REGISTRATE
-            .machine("me_stocking_input_hatch", MEStockingHatchPartMachine::new)
+            .machine("me_stocking_input_hatch", be -> new MEStockingHatchPartMachine(be, LuV, 16))
             .langValue("ME Stocking Input Hatch")
             .tier(LuV)
             .rotationState(RotationState.ALL)
@@ -90,7 +90,7 @@ public class GTAEMachines {
             .register();
 
     public final static MachineDefinition FLUID_EXPORT_HATCH_ME = REGISTRATE
-            .machine("me_output_hatch", MEOutputHatchPartMachine::new)
+            .machine("me_output_hatch", be -> new MEOutputHatchPartMachine(be, EV))
             .langValue("ME Output Hatch")
             .tier(EV)
             .rotationState(RotationState.ALL)
@@ -118,7 +118,7 @@ public class GTAEMachines {
                     Component.translatable("gtceu.part_sharing.enabled"))
             .register();
     public static final MachineDefinition ME_PATTERN_BUFFER_PROXY = REGISTRATE
-            .machine("me_pattern_buffer_proxy", MEPatternBufferProxyPartMachine::new)
+            .machine("me_pattern_buffer_proxy", MEPatternProxyPartMachine::new)
             .tier(LuV)
             .rotationState(RotationState.ALL)
             .abilities(PartAbility.IMPORT_ITEMS, PartAbility.IMPORT_FLUIDS, PartAbility.EXPORT_FLUIDS,

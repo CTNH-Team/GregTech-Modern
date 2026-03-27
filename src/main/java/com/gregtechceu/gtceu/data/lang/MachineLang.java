@@ -810,10 +810,6 @@ public class MachineLang {
                 "Minimum Item Stack Size for Automated Pulling");
         provider.add("gtceu.gui.adv_stocking_config.min_fluid_count",
                 "Minimum Fluid Stack Size for Automated Pulling");
-        provider.add("gtceu.gui.title.adv_stocking_config.ticks_per_cycle",
-                "Ticks Per Cycle");
-        provider.add("gtceu.gui.adv_stocking_config.ticks_per_cycle",
-                "Delay between item list updates");
         provider.add("gtceu.gui.adv_stocking_config.title",
                 "Configure Automatic Stocking");
 

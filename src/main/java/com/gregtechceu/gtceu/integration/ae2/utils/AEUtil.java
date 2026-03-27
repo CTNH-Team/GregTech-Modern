@@ -1,58 +1,70 @@
 package com.gregtechceu.gtceu.integration.ae2.utils;
 
-import com.gregtechceu.gtceu.utils.GTMath;
-
-import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.fluids.FluidStack;
-
-import appeng.api.stacks.AEFluidKey;
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEItemKey;
-import appeng.api.stacks.GenericStack;
-import org.jetbrains.annotations.Nullable;
+import appeng.api.stacks.AEKey;
+import appeng.api.storage.MEStorage;
+import com.gregtechceu.gtceu.utils.GTMath;
+import lombok.experimental.UtilityClass;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 
-import java.util.Objects;
-
-import static com.gregtechceu.gtceu.utils.GTMath.split;
-
+@UtilityClass
 public class AEUtil {
 
-    public static @Nullable GenericStack fromFluidStack(FluidStack stack) {
-        if (stack == null || stack.isEmpty()) return null;
-        var key = AEFluidKey.of(stack.getFluid(), stack.getTag());
-        return new GenericStack(key, stack.getAmount());
-    }
+    /**
+     * Transfers AEKeyStorage entries to a MEStorage.
+     *
+     * @param from   The {@link AEKeyStorage} to transfer from.
+     * @param to     The {@link MEStorage} to transfer to.
+     * @param source The action source for the transfer.
+     * @param notify Whether to notify the {@link AEKeyStorage} of changes.
+     */
+    public void transferTo(AEKeyStorage from, MEStorage to, IActionSource source, boolean notify) {
+        if (from.isEmpty()) return;
 
-    public static FluidStack toFluidStack(GenericStack stack) {
-        var key = stack.what();
-        if (key instanceof AEFluidKey fluidKey) {
-            return toFluidStack(fluidKey, stack.amount());
+        boolean changed = false;
+
+        for (var it = from.iterator(); it.hasNext(); ) {
+            var entry = it.next();
+            AEKey key = entry.getKey();
+            long amount = entry.getLongValue();
+            long inserted = to.insert(key, amount, Actionable.MODULATE, source);
+            if (inserted > 0) {
+                changed = true;
+                long remaining = amount - inserted;
+                if (remaining <= 0) {
+                    it.remove();
+                } else {
+                    entry.setValue(remaining);
+                }
+            }
         }
-        return FluidStack.EMPTY;
-    }
 
-    public static FluidStack toFluidStack(AEFluidKey key, long amount) {
-        return key.toStack(GTMath.saturatedCast(amount));
-    }
-
-    public static ItemStack[] toItemStacks(GenericStack stack) {
-        var key = stack.what();
-        if (key instanceof AEItemKey itemKey) {
-            return toItemStacks(itemKey, stack.amount());
+        if (changed && notify) {
+            from.getOnContentsChanged().run();
         }
-        return new ItemStack[0];
     }
 
-    public static ItemStack[] toItemStacks(AEItemKey key, long amount) {
-        var ints = split(amount);
-        var itemStacks = new ItemStack[ints.length];
-        for (int i = 0; i < ints.length; i++) {
-            itemStacks[i] = key.toStack(ints[i]);
+    public void dropAllItems(Level level, BlockPos pos, AEKeyStorage storage) {
+        for (var iterator = storage.iterator(); iterator.hasNext(); ) {
+            var entry = iterator.next();
+            var key = entry.getKey();
+
+            if (!(key instanceof AEItemKey itemKey)) {
+                continue;
+            }
+
+            long count = entry.getLongValue();
+            var stacks = GTMath.splitStacks(itemKey.toStack(), count);
+
+            for (var stack : stacks) {
+                Block.popResource(level, pos, stack);
+            }
+
+            iterator.remove();
         }
-        return itemStacks;
-    }
-
-    public static boolean matches(AEFluidKey key, FluidStack stack) {
-        return !stack.isEmpty() && key.getFluid().isSame(stack.getFluid()) &&
-                Objects.equals(key.getTag(), stack.getTag());
     }
 }
