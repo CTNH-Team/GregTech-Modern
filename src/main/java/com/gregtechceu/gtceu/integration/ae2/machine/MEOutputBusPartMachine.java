@@ -7,7 +7,7 @@ import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.integration.ae2.gui.list.AEListGridWidget;
-import com.gregtechceu.gtceu.integration.ae2.machine.trait.KeyStorageBakedHandler;
+import com.gregtechceu.gtceu.integration.ae2.machine.trait.KeyStorageBackedHandler;
 import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
@@ -34,7 +34,7 @@ public class MEOutputBusPartMachine extends MEBusPartMachine {
 
     @Override
     protected NotifiableItemStackHandler createInventory(Object... args) {
-        return new KeyStorageBakedHandler(this, (AEKeyStorage) args[args.length - 1]);
+        return new KeyStorageBackedHandler(this, (AEKeyStorage) args[args.length - 1]);
     }
 
     @Override

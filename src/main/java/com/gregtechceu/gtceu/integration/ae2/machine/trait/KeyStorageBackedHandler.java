@@ -1,17 +1,18 @@
 package com.gregtechceu.gtceu.integration.ae2.machine.trait;
 
-import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
+import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
-import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderFluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.SizedIngredient;
 import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
 import com.gregtechceu.gtceu.utils.GTMath;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
-import net.minecraftforge.fluids.FluidStack;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,60 +20,70 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-public class KeyStorageBakedTank extends NotifiableFluidTank {
+public class KeyStorageBackedHandler extends NotifiableItemStackHandler {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(
-            KeyStorageBakedTank.class,
-            NotifiableFluidTank.MANAGED_FIELD_HOLDER
+            KeyStorageBackedHandler.class,
+            NotifiableItemStackHandler.MANAGED_FIELD_HOLDER
     );
 
     protected final AEKeyStorage keyStorage;
 
-    public KeyStorageBakedTank(MetaMachine machine, AEKeyStorage keyStorage) {
-        super(machine, 0, 0, IO.OUT, IO.NONE);
+    public KeyStorageBackedHandler(MetaMachine machine, AEKeyStorage keyStorage) {
+        super(machine, 0, IO.OUT, IO.NONE);
         this.keyStorage = keyStorage;
         keyStorage.setOnContentsChanged(this::onContentsChanged);
     }
 
-    public static @Nullable List<FluidIngredient> handleRecipe(
+    public static @Nullable List<Ingredient> handleRecipe(
             IO io,
             GTRecipe recipe,
-            List<FluidIngredient> left,
+            List<Ingredient> left,
             boolean simulate,
             IO handlerIO,
             AEKeyStorage storage
     ) {
+        // Only handle the intended IO type
         if (io != handlerIO || (io != IO.IN && io != IO.OUT)) {
             return left.isEmpty() ? null : left;
         }
 
+        // Temporarily suppress keyStorage listener to batch notifications
         Runnable originalListener = storage.getOnContentsChanged();
         MutableBoolean changed = new MutableBoolean(false);
         storage.setOnContentsChanged(changed::setTrue);
 
-        ListIterator<FluidIngredient> it = left.listIterator();
+        ListIterator<Ingredient> it = left.listIterator();
         while (it.hasNext()) {
-            FluidIngredient ingredient = it.next();
+            Ingredient ingredient = it.next();
 
+            // Remove empty ingredients
             if (ingredient.isEmpty()) {
                 it.remove();
                 continue;
             }
 
-            FluidStack output;
+            ItemStack output;
             int amount;
-            if (ingredient instanceof IntProviderFluidIngredient provider) {
-                provider.setFluidStacks(null);
+            // Handle IntProviderIngredient separately
+            if (ingredient instanceof IntProviderIngredient provider) {
+                provider.setItemStacks(null);
                 provider.setSampledCount(-1);
-                output = simulate ? provider.getMaxSizeStack() : getFirstStack(provider.getStacks());
+                output = simulate ? provider.getMaxSizeStack() : getFirstStack(provider.getItems());
+                amount = output.getCount();
             } else {
-                output = getFirstStack(ingredient.getStacks());
+                output = getFirstStack(ingredient.getItems());
+                // Preserve the ingredient amount if it's sized
+                if (ingredient instanceof SizedIngredient si) {
+                    amount = si.getAmount();
+                } else {
+                    amount = output.getCount();
+                }
             }
 
             // Insert into keyStorage and compute remaining amount
-            AEFluidKey key = AEFluidKey.of(output);
+            AEItemKey key = AEItemKey.of(output);
             if (key == null) continue;
-            amount = output.getAmount();
 
             int inserted = Math.toIntExact(storage.add(key, amount, simulate));
             int remaining = amount - inserted;
@@ -82,9 +93,15 @@ public class KeyStorageBakedTank extends NotifiableFluidTank {
                 continue;
             }
 
-            ingredient.setAmount(remaining);
+            // Update ingredient with remaining amount
+            if (ingredient instanceof SizedIngredient si) {
+                si.setAmount(remaining);
+            } else {
+                output.setCount(remaining);
+            }
         }
 
+        // Restore listener and trigger if changes occurred and not simulating
         storage.setOnContentsChanged(originalListener);
         if (changed.booleanValue() && !simulate) {
             originalListener.run();
@@ -93,13 +110,12 @@ public class KeyStorageBakedTank extends NotifiableFluidTank {
         return left.isEmpty() ? null : left;
     }
 
-    private static FluidStack getFirstStack(FluidStack[] stacks) {
-        return (stacks.length == 0) ? FluidStack.EMPTY : stacks[0];
+    private static ItemStack getFirstStack(ItemStack[] items) {
+        return (items.length == 0) ? ItemStack.EMPTY : items[0];
     }
 
     @Override
-    public @Nullable List<FluidIngredient> handleRecipeInner(IO io, GTRecipe recipe, List<FluidIngredient> left,
-                                                             boolean simulate) {
+    public @Nullable List<Ingredient> handleRecipeInner(IO io, GTRecipe recipe, List<Ingredient> left, boolean simulate) {
         return handleRecipe(io, recipe, left, simulate, IO.OUT, keyStorage);
     }
 
@@ -107,9 +123,9 @@ public class KeyStorageBakedTank extends NotifiableFluidTank {
     public List<Object> getContents() {
         List<Object> result = new ArrayList<>(keyStorage.size());
         for (var entry : keyStorage) {
-            AEFluidKey key = (AEFluidKey) entry.getKey();
+            AEItemKey key = (AEItemKey) entry.getKey();
             long amount = entry.getLongValue();
-            result.addAll(GTMath.splitFluidStacks(key.toStack(1), amount));
+            result.addAll(GTMath.splitStacks(key.toStack(), amount));
         }
         return result;
     }
