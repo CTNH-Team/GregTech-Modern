@@ -3,12 +3,14 @@ package com.gregtechceu.gtceu.integration.ae2.machine;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.integration.ae2.gui.list.AEListGridWidget;
 import com.gregtechceu.gtceu.integration.ae2.machine.trait.KeyStorageBackedTank;
 import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
+import com.gregtechceu.gtceu.integration.ae2.utils.AEUtil;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
@@ -50,7 +52,7 @@ public class MEOutputHatchPartMachine extends MEHatchPartMachine {
         IGrid grid = nodeHost.getMainNode().getGrid();
         if (grid == null) return;
 
-        keyStorage.transferTo(grid.getStorageService().getInventory(), actionSource);
+        AEUtil.transferTo(keyStorage, grid.getStorageService().getInventory(), actionSource, true);
     }
 
     @Override
@@ -64,7 +66,8 @@ public class MEOutputHatchPartMachine extends MEHatchPartMachine {
         IManagedGridNode mainNode = nodeHost.getMainNode();
         if (!keyStorage.isEmpty() && mainNode.isActive()) {
             assert mainNode.getGrid() != null;
-            keyStorage.transferTo(mainNode.getGrid().getStorageService().getInventory(), actionSource);
+            MEStorage networkInv = mainNode.getGrid().getStorageService().getInventory();
+            AEUtil.transferTo(keyStorage, networkInv, actionSource, false);
         }
     }
 

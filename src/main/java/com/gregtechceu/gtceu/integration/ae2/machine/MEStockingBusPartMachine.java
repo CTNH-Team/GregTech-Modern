@@ -17,6 +17,7 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
+import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.gui.fancyconfigurator.StockingFancyConfigurator;
 import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
@@ -79,12 +80,6 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
     }
 
     @Override
-    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
-        super.onMainNodeStateChanged(reason);
-        updateInventorySubscription();
-    }
-
-    @Override
     protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
         return isWorkingEnabled() && node.isActive() && isAutoPull();
@@ -99,6 +94,20 @@ public class MEStockingBusPartMachine extends MEBusPartMachine implements IDataS
 
         KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
         configHandler.autoPull(cachedInv, (key, amount) -> amount >= minStackSize && key instanceof AEItemKey);
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateInventorySubscription();
+    }
+
+    @Override
+    public void onMachineRemoved() {
+        // nothing to drop
+        if (!ConfigHolder.INSTANCE.machines.ghostCircuit) {
+            clearInventory(circuitInventory.storage);
+        }
     }
 
     @Override

@@ -1,9 +1,6 @@
 package com.gregtechceu.gtceu.integration.ae2.utils;
 
-import appeng.api.config.Actionable;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
-import appeng.api.storage.MEStorage;
 import com.lowdragmc.lowdraglib.syncdata.IContentChangeAware;
 import com.lowdragmc.lowdraglib.syncdata.ITagSerializable;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
@@ -85,34 +82,6 @@ public class AEKeyStorage implements Iterable<Object2LongMap.Entry<AEKey>>, ITag
     @Override
     public Iterator<Object2LongMap.Entry<AEKey>> iterator() {
         return storage.object2LongEntrySet().iterator();
-    }
-
-    /**
-     * Transfers stored stacks into the given inventory.
-     * Removes fully transferred entries and updates partial transfers.
-     */
-    public void transferTo(MEStorage inventory, IActionSource source) {
-        if (storage.isEmpty()) return;
-
-        boolean changed = false;
-
-        for (var it = iterator(); it.hasNext(); ) {
-            var entry = it.next();
-            AEKey key = entry.getKey();
-            long amount = entry.getLongValue();
-            long inserted = inventory.insert(key, amount, Actionable.MODULATE, source);
-            if (inserted > 0) {
-                changed = true;
-                long remaining = amount - inserted;
-                if (remaining <= 0) {
-                    it.remove();
-                } else {
-                    entry.setValue(remaining);
-                }
-            }
-        }
-
-        if (changed) onContentsChanged.run();
     }
 
     @Override

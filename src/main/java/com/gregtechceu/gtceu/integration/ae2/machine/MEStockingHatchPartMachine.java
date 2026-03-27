@@ -75,12 +75,6 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
     }
 
     @Override
-    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
-        super.onMainNodeStateChanged(reason);
-        updateTankSubscription();
-    }
-
-    @Override
     protected boolean shouldUpdateSubscription(Direction newFacing) {
         IManagedGridNode node = nodeHost.getMainNode();
         return isWorkingEnabled() && node.isActive() && isAutoPull();
@@ -95,6 +89,12 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
         KeyCounter cachedInv = grid.getStorageService().getCachedInventory();
         configHandler.autoPull(cachedInv, (key, amount) -> amount >= minStackSize && key instanceof AEFluidKey);
+    }
+
+    @Override
+    public void onMainNodeStateChanged(IGridNodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        updateTankSubscription();
     }
 
     public void setAutoPull(boolean autoPull) {

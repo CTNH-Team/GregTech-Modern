@@ -3,18 +3,22 @@ package com.gregtechceu.gtceu.integration.ae2.machine;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNodeListener;
 import appeng.api.networking.IManagedGridNode;
+import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.gui.list.AEListGridWidget;
 import com.gregtechceu.gtceu.integration.ae2.machine.trait.KeyStorageBackedHandler;
 import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
+import com.gregtechceu.gtceu.integration.ae2.utils.AEUtil;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 import org.apache.commons.lang3.ArrayUtils;
 
 public class MEOutputBusPartMachine extends MEBusPartMachine {
@@ -50,7 +54,7 @@ public class MEOutputBusPartMachine extends MEBusPartMachine {
         IGrid grid = nodeHost.getMainNode().getGrid();
         if (grid == null) return;
 
-        keyStorage.transferTo(grid.getStorageService().getInventory(), actionSource);
+        AEUtil.transferTo(keyStorage, grid.getStorageService().getInventory(), actionSource, true);
     }
 
     @Override
@@ -64,7 +68,17 @@ public class MEOutputBusPartMachine extends MEBusPartMachine {
         IManagedGridNode mainNode = nodeHost.getMainNode();
         if (!keyStorage.isEmpty() && mainNode.isActive()) {
             assert mainNode.getGrid() != null;
-            keyStorage.transferTo(mainNode.getGrid().getStorageService().getInventory(), actionSource);
+            MEStorage networkInv = mainNode.getGrid().getStorageService().getInventory();
+            AEUtil.transferTo(keyStorage, networkInv, actionSource, false);
+        }
+
+        Level level = getLevel();
+        if (level != null && !level.isClientSide) {
+            AEUtil.dropAllItems(level, getPos(), keyStorage);
+        }
+
+        if (!ConfigHolder.INSTANCE.machines.ghostCircuit) {
+            clearInventory(circuitInventory.storage);
         }
     }
 
