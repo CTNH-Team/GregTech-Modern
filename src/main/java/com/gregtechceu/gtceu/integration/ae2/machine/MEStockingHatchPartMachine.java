@@ -17,7 +17,6 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.gui.fancyconfigurator.StockingFancyConfigurator;
 import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.gregtechceu.gtceu.integration.ae2.utils.StockingConfigHandler;
@@ -89,8 +88,7 @@ public class MEStockingHatchPartMachine extends MEHatchPartMachine implements ID
 
     @Override
     protected void autoIO() {
-        int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
-        if (getOffsetTimer() % updateInterval != 0) return;
+        if (!isMESyncTick()) return;
 
         IGrid grid = nodeHost.getMainNode().getGrid();
         if (grid == null) return;

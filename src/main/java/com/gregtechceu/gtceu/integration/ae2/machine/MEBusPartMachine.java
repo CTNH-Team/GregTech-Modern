@@ -45,6 +45,11 @@ public abstract class MEBusPartMachine extends ItemBusPartMachine implements IGr
         return host;
     }
 
+    protected boolean isMESyncTick() {
+        int interval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
+        return getOffsetTimer() % interval == 0;
+    }
+
     protected boolean shouldUpdateSubscription(Direction newFacing) {
         return isWorkingEnabled() && ((io.support(IO.OUT) && !getInventory().isEmpty()) || io.support(IO.IN)) &&
                 GTTransferUtils.hasAdjacentItemHandler(getLevel(), getPos(), newFacing);

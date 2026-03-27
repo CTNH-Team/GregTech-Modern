@@ -12,7 +12,6 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.feature.IDataStickConfigurable;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.utils.GenericStackHandler;
 import com.gregtechceu.gtceu.integration.ae2.utils.MEConfigUtil;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
@@ -81,8 +80,7 @@ public class MEInputBusPartMachine extends MEBusPartMachine implements IDataStic
 
     @Override
     protected void autoIO() {
-        int updateInterval = ConfigHolder.INSTANCE.compat.ae2.updateIntervals;
-        if (getOffsetTimer() % updateInterval != 0) return;
+        if (!isMESyncTick()) return;
 
         IGrid grid = nodeHost.getMainNode().getGrid();
         if (grid == null) return;
