@@ -1,14 +1,11 @@
 package com.gregtechceu.gtceu.integration.ae2.machine.trait;
 
-import appeng.api.networking.GridHelper;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.IInWorldGridNodeHost;
-import appeng.api.networking.IManagedGridNode;
+import appeng.api.networking.*;
 import appeng.api.util.AECableType;
 import appeng.me.InWorldGridNode;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
-import com.gregtechceu.gtceu.integration.ae2.utils.MachineNodeListener;
+import com.gregtechceu.gtceu.integration.ae2.machine.feature.IGridConnectedMachine;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +19,20 @@ public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
 
     protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = new ManagedFieldHolder(GridNodeHost.class);
 
+    protected static final IGridNodeListener<MetaMachine> NODE_LISTENER = new IGridNodeListener<>() {
+        @Override
+        public void onSaveChanges(MetaMachine nodeOwner, IGridNode node) {
+            nodeOwner.onChanged();
+        }
+
+        @Override
+        public void onStateChanged(MetaMachine nodeOwner, IGridNode node, IGridNodeListener.State state) {
+            if (nodeOwner instanceof IGridConnectedMachine machine) {
+                machine.onMainNodeStateChanged(state);
+            }
+        }
+    };
+
     @Getter
     private final IManagedGridNode mainNode;
 
@@ -30,7 +41,7 @@ public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
 
     public GridNodeHost(MetaMachine machine) {
         super(machine);
-        this.mainNode = GridHelper.createManagedNode(machine, MachineNodeListener.INSTANCE)
+        this.mainNode = GridHelper.createManagedNode(machine, NODE_LISTENER)
                 .setInWorldNode(true)
                 .setVisualRepresentation(machine.getDefinition().getItem());
     }
@@ -85,4 +96,5 @@ public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
     public ManagedFieldHolder getFieldHolder() {
         return MANAGED_FIELD_HOLDER;
     }
+
 }
