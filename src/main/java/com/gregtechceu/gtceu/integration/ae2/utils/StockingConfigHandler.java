@@ -106,7 +106,12 @@ public class StockingConfigHandler extends GenericStackHandler implements IStora
         MutableBoolean changed = new MutableBoolean(false);
         this.changeListener = changed::setTrue;
         // Fill slots from highest to lowest
-        for (int i = slots - 1; !topEntries.isEmpty(); i--) {
+        for (int i = slots - 1; i >= 0; i--) {
+            // Pad with null if no entry available
+            if (i >= topEntries.size()) {
+                setKeyInSlot(i, null);
+                continue;
+            }
             var entry = topEntries.poll();
             setKeyInSlot(i, entry.getKey());
         }
