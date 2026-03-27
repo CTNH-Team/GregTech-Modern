@@ -7,6 +7,7 @@ import appeng.api.storage.MEStorage;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
+import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.gui.list.AEListGridWidget;
 import com.gregtechceu.gtceu.integration.ae2.machine.trait.KeyStorageBackedTank;
 import com.gregtechceu.gtceu.integration.ae2.utils.AEKeyStorage;
@@ -68,6 +69,10 @@ public class MEOutputHatchPartMachine extends MEHatchPartMachine {
             assert mainNode.getGrid() != null;
             MEStorage networkInv = mainNode.getGrid().getStorageService().getInventory();
             AEUtil.transferTo(keyStorage, networkInv, actionSource, false);
+        }
+
+        if (!ConfigHolder.INSTANCE.machines.ghostCircuit) {
+            clearInventory(circuitInventory.storage);
         }
     }
 
