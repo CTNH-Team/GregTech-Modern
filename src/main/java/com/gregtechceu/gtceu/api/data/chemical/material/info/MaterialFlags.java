@@ -320,4 +320,7 @@ public class MaterialFlags {
     public static final MaterialFlag HIGH_SIFTER_OUTPUT = new MaterialFlag.Builder("high_sifter_output")
             .requireProps(PropertyKey.GEM, PropertyKey.ORE)
             .build();
+
+    public static final MaterialFlag CUSTOM_TEXTURE = new MaterialFlag.Builder("custom_texture")
+            .build();
 }

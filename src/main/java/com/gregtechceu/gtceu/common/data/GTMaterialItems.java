@@ -85,18 +85,23 @@ public class GTMaterialItems {
     }
 
     private static void generateMaterialItem(TagPrefix tagPrefix, Material material, GTRegistrate registrate) {
-        MATERIAL_ITEMS_BUILDER.put(tagPrefix, material, registrate
-                .item(tagPrefix.idPattern().formatted(material.getName()),
-                        properties -> tagPrefix.itemConstructor()
-                                .create(material.hasFlag(MaterialFlags.FIRE_RESISTANT) ? properties.fireResistant() :
-                                        properties, tagPrefix, material))
+        var builder = registrate.item(tagPrefix.idPattern().formatted(material.getName()),
+                properties -> tagPrefix.itemConstructor()
+                        .create(material.hasFlag(MaterialFlags.FIRE_RESISTANT) ? properties.fireResistant() :
+                                properties, tagPrefix, material))
                 .setData(ProviderType.LANG, NonNullBiConsumer.noop())
                 .transform(GTItems.unificationItem(tagPrefix, material))
                 .properties(p -> p.stacksTo(tagPrefix.maxStackSize()))
-                .model(NonNullBiConsumer.noop())
-                .color(() -> () -> TagPrefixItem.tintColor(material))
-                .onRegister(GTItems::cauldronInteraction)
-                .register());
+                .onRegister(GTItems::cauldronInteraction);
+
+        if (!material.hasFlag(MaterialFlags.CUSTOM_TEXTURE)) {
+            builder.model(NonNullBiConsumer.noop())
+                    .color(() -> () -> TagPrefixItem.tintColor(material));
+        } else if (material.getCustomModel() != null) {
+            builder.model(material.getCustomModel()::generate);
+        }
+
+        MATERIAL_ITEMS_BUILDER.put(tagPrefix, material, builder.register());
     }
 
     // Material Tools
