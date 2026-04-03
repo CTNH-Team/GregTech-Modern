@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.api.block;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.blockentity.PipeBlockEntity;
 import com.gregtechceu.gtceu.api.data.chemical.material.Material;
+import com.gregtechceu.gtceu.api.data.chemical.material.info.MaterialFlags;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
 import com.gregtechceu.gtceu.api.item.PipeBlockItem;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
@@ -72,7 +73,7 @@ public class MaterialBlock extends Block {
     }
 
     public MaterialBlock(Properties properties, TagPrefix tagPrefix, Material material) {
-        this(properties, tagPrefix, material, true);
+        this(properties, tagPrefix, material, !material.hasFlag(MaterialFlags.CUSTOM_TEXTURE));
     }
 
     @OnlyIn(Dist.CLIENT)

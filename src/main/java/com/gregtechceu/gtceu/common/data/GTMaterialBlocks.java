@@ -5,6 +5,7 @@ import com.gregtechceu.gtceu.api.GTCEuAPI;
 import com.gregtechceu.gtceu.api.block.MaterialBlock;
 import com.gregtechceu.gtceu.api.block.MaterialPipeBlock;
 import com.gregtechceu.gtceu.api.data.chemical.material.Material;
+import com.gregtechceu.gtceu.api.data.chemical.material.info.MaterialFlags;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.PropertyKey;
 import com.gregtechceu.gtceu.api.data.chemical.material.registry.MaterialRegistry;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
@@ -73,22 +74,33 @@ public class GTMaterialBlocks {
     }
 
     private static void registerMaterialBlock(TagPrefix tagPrefix, Material material, GTRegistrate registrate) {
-        MATERIAL_BLOCKS_BUILDER.put(tagPrefix, material, registrate
+        var blockBuilder = registrate
                 .block(tagPrefix.idPattern().formatted(material.getName()),
                         properties -> tagPrefix.blockConstructor().create(properties, tagPrefix, material))
                 .initialProperties(() -> Blocks.IRON_BLOCK)
                 .properties(p -> tagPrefix.blockProperties().properties().apply(p).noLootTable())
                 .transform(GTBlocks.unificationBlock(tagPrefix, material))
                 .addLayer(tagPrefix.blockProperties().renderType())
-                .setData(ProviderType.BLOCKSTATE, NonNullBiConsumer.noop())
                 .setData(ProviderType.LANG, NonNullBiConsumer.noop())
-                .setData(ProviderType.LOOT, NonNullBiConsumer.noop())
-                .color(() -> MaterialBlock::tintedColor)
-                .item((b, p) -> tagPrefix.blockItemConstructor().create(b, p, tagPrefix, material))
-                .model(NonNullBiConsumer.noop())
-                .color(() -> () -> MaterialBlockItem.tintColor(material))
-                .build()
-                .register());
+                .setData(ProviderType.LOOT, NonNullBiConsumer.noop());
+
+        if (!material.hasFlag(MaterialFlags.CUSTOM_TEXTURE)) {
+            blockBuilder.setData(ProviderType.BLOCKSTATE, NonNullBiConsumer.noop())
+                    .color(() -> MaterialBlock::tintedColor);
+        }
+
+        var itemBuilder = blockBuilder
+                .item((b, p) -> tagPrefix.blockItemConstructor().create(b, p, tagPrefix, material));
+
+        if (!material.hasFlag(MaterialFlags.CUSTOM_TEXTURE)) {
+            itemBuilder.model(NonNullBiConsumer.noop())
+                    .color(() -> () -> MaterialBlockItem.tintColor(material));
+        }
+
+        itemBuilder.build();
+
+        // TODO: Allow custom model for each tagPrefix
+        MATERIAL_BLOCKS_BUILDER.put(tagPrefix, material, blockBuilder.register());
     }
 
     // Material Ore Blocks

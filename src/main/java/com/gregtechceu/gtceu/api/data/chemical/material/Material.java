@@ -17,6 +17,7 @@ import com.gregtechceu.gtceu.api.fluids.store.FluidStorageKey;
 import com.gregtechceu.gtceu.api.fluids.store.FluidStorageKeys;
 import com.gregtechceu.gtceu.api.item.tool.MaterialToolTier;
 import com.gregtechceu.gtceu.api.registry.registrate.BuilderBase;
+import com.gregtechceu.gtceu.client.renderer.item.TagPrefixItemRenderer;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.common.data.GTMedicalConditions;
 import com.gregtechceu.gtceu.integration.kjs.helpers.MaterialStackWrapper;
@@ -92,6 +93,10 @@ public class Material implements Comparable<Material> {
     @Setter
     @Getter
     private List<TagKey<Item>> itemTags = new ArrayList<>();
+
+    @Setter
+    @Getter
+    private TagPrefixItemRenderer.MaterialModel customModel;
 
     private String calculateChemicalFormula() {
         if (chemicalFormula != null) return this.chemicalFormula;
@@ -595,6 +600,9 @@ public class Material implements Comparable<Material> {
          *                         "material.<name>" for the Translation Key.
          * @since GTCEu 2.0.0
          */
+
+        private TagPrefixItemRenderer.MaterialModel customModel;
+
         public Builder(ResourceLocation resourceLocation) {
             super(resourceLocation);
             String name = resourceLocation.getPath();
@@ -1833,6 +1841,11 @@ public class Material implements Comparable<Material> {
             return this;
         }
 
+        public Builder customModel(TagPrefixItemRenderer.MaterialModel customModel) {
+            this.customModel = customModel;
+            return this;
+        }
+
         /**
          * Verify the passed information and finalize the Material.
          *
@@ -1870,6 +1883,9 @@ public class Material implements Comparable<Material> {
             if (ignoredTagPrefixes != null) {
                 ignoredTagPrefixes.forEach(p -> p.setIgnored(mat));
             }
+
+            mat.setCustomModel(customModel);
+
             return mat;
         }
 

@@ -10,6 +10,9 @@ import net.minecraft.data.models.model.DelegatedModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 
+import com.tterrag.registrate.providers.DataGenContext;
+import com.tterrag.registrate.providers.RegistrateItemModelProvider;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -45,5 +48,10 @@ public class TagPrefixItemRenderer {
         this.item = item;
         this.type = type;
         this.iconSet = iconSet;
+    }
+
+    public interface MaterialModel {
+
+        void generate(DataGenContext<Item, Item> ctx, RegistrateItemModelProvider prov);
     }
 }
