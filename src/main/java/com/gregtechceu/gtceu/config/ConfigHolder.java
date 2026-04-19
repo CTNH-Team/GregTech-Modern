@@ -154,6 +154,12 @@ public class ConfigHolder {
                 "Default: 1.0f" })
         @Configurable.DecimalRange(min = 0.0f, max = 1.0f)
         public float extractorRecyclingYield = 1.0f;
+
+        @Configurable
+        @Configurable.Comment({ "The threshold of parallels in recipes to switch to deterministic output calculation.",
+                "Default: 500" })
+        @Configurable.Range(min = 1, max = Integer.MAX_VALUE)
+        public int chancedOutputExpectedThreshold = 500;
     }
 
     public static class CompatibilityConfigs {
