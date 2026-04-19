@@ -4,7 +4,6 @@ import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.integration.kjs.GTRegistryInfo;
 
 import com.google.common.base.Preconditions;
-import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,7 +45,6 @@ public class MaterialIconSet {
     public final String name;
     public final int id;
     public final boolean isRootIconset;
-    public JsonObject extraModel = null;
 
     /**
      * This can be null if {@link MaterialIconSet#isRootIconset} is true,
@@ -71,11 +69,6 @@ public class MaterialIconSet {
      */
     public MaterialIconSet(@NotNull String name, @NotNull MaterialIconSet parentIconset) {
         this(name, parentIconset, false);
-    }
-
-    public MaterialIconSet(@NotNull String name, @NotNull MaterialIconSet parentIconset, JsonObject extraModel) {
-        this(name, parentIconset, false);
-        this.extraModel = extraModel;
     }
 
     /**

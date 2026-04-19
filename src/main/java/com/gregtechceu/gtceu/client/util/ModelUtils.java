@@ -3,7 +3,6 @@ package com.gregtechceu.gtceu.client.util;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.client.model.machine.MachineModel;
 import com.gregtechceu.gtceu.client.renderer.cover.ICoverableRenderer;
-import com.gregtechceu.gtceu.config.ConfigInit;
 import com.gregtechceu.gtceu.integration.modernfix.GTModernFixIntegration;
 
 import com.lowdragmc.lowdraglib.client.model.custommodel.CustomBakedModel;
@@ -99,7 +98,6 @@ public class ModelUtils {
             @Override
             public void onResourceManagerReload(@NotNull ResourceManager resourceManager) {
                 EVENT_LISTENERS.removeIf(EventListenerHolder::removeOnReload);
-                ConfigInit.reloadConfig();
             }
         });
     }

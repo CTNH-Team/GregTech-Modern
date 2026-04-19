@@ -9,10 +9,6 @@ import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
 import com.gregtechceu.gtceu.api.recipe.chance.boost.ChanceBoostFunction;
 import com.gregtechceu.gtceu.api.recipe.chance.logic.ChanceLogic;
 import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.config.ConfigHolder;
-
-import net.minecraft.network.chat.Component;
 
 import net.minecraft.network.chat.Component;
 
@@ -75,7 +71,6 @@ public class RecipeRunner {
         ChanceBoostFunction function = recipe.getType().getChanceFunction();
         int recipeTier = RecipeHelper.getPreOCRecipeEuTier(recipe);
         int chanceTier = recipeTier + recipe.ocLevel;
-        int runs = recipe.getTotalRuns();
         for (var entry : entries.entrySet()) {
             RecipeCapability<?> cap = entry.getKey();
             if (!cap.doMatchInRecipe()) continue;
@@ -105,36 +100,16 @@ public class RecipeRunner {
 
             // add chanced contents to the recipe content map
             if (!chancedContents.isEmpty()) {
-                if (io == IO.OUT && logic == ChanceLogic.OR &&
-                        runs >= ConfigHolder.INSTANCE.recipes.chancedOutputExpectedThreshold) {
-                    appendExpectedChancedOutputs(contentList, cap, chancedContents, function, recipeTier, chanceTier,
-                            runs);
-                } else {
-                    var cache = this.chanceCaches.get(cap);
-                    chancedContents = logic.roll(cap, chancedContents, function, recipeTier, chanceTier, cache, runs);
-                    for (Content cont : chancedContents) {
-                        contentList.add(cont.content);
-                    }
+                var cache = this.chanceCaches.get(cap);
+                chancedContents = logic.roll(cap, chancedContents, function, recipeTier, chanceTier, cache,
+                        recipe.getTotalRuns());
+
+                for (Content cont : chancedContents) {
+                    contentList.add(cont.content);
                 }
             }
 
             if (contentList.isEmpty()) recipeContents.remove(cap);
-        }
-    }
-
-    private static <T> void appendExpectedChancedOutputs(List<Object> contentList, RecipeCapability<T> cap,
-                                                         List<Content> chancedContents,
-                                                         ChanceBoostFunction function,
-                                                         int recipeTier, int chanceTier, int runs) {
-        for (Content cont : chancedContents) {
-            int boostedChance = function.getBoostedChance(cont, recipeTier, chanceTier);
-            if (boostedChance <= 0) continue;
-
-            double expectedRuns = (double) runs * boostedChance / cont.maxChance;
-            if (expectedRuns <= 0) continue;
-
-            T scaled = cap.copyWithModifier(cap.of(cont.content), ContentModifier.multiplier(expectedRuns));
-            contentList.add(scaled);
         }
     }
 

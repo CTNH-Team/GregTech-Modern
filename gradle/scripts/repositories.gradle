@@ -10,10 +10,10 @@ repositories {
         }
     }
 
-    // maven { // JEI
-    //     name = "Jared's Maven"
-    //     url = "https://maven.blamejared.com/"
-    // }
+    maven { // JEI
+        name = "Jared's Maven"
+        url = "https://maven.blamejared.com/"
+    }
 
     maven { // JEI mirror, AE2
         name = "ModMaven"
