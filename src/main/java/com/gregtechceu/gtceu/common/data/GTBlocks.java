@@ -1180,15 +1180,23 @@ public class GTBlocks {
             .lang("Brittle Charcoal")
             .exBlockstate(GTModels.cubeAllModel(GTCEu.id("block/misc/brittle_charcoal")))
             .tag(BlockTags.MINEABLE_WITH_SHOVEL)
-            .item((b, p) -> new BlockItem(b, p) {
+            .item((b, p) -> {
+                class BrittleCharcoalItem extends BlockItem {
 
-                @Override
-                public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltipComponents,
-                                            TooltipFlag isAdvanced) {
-                    super.appendHoverText(stack, level, tooltipComponents, isAdvanced);
-                    tooltipComponents.add(1, Component.translatable("tile.gtceu.brittle_charcoal.tooltip.0"));
-                    tooltipComponents.add(2, Component.translatable("tile.gtceu.brittle_charcoal.tooltip.1"));
+                    BrittleCharcoalItem(Block block, Item.Properties properties) {
+                        super(block, properties);
+                    }
+
+                    @Override
+                    public void appendHoverText(ItemStack stack, @Nullable Level level,
+                                                List<Component> tooltipComponents,
+                                                TooltipFlag isAdvanced) {
+                        super.appendHoverText(stack, level, tooltipComponents, isAdvanced);
+                        tooltipComponents.add(1, Component.translatable("tile.gtceu.brittle_charcoal.tooltip.0"));
+                        tooltipComponents.add(2, Component.translatable("tile.gtceu.brittle_charcoal.tooltip.1"));
+                    }
                 }
+                return new BrittleCharcoalItem(b, p);
             })
             .build()
             .register();
