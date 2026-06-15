@@ -48,7 +48,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.FishingHook;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
@@ -256,17 +255,12 @@ public class FisherMachine extends TieredEnergyMachine
                 lootTable = getLevel().getServer().getLootData().getLootTable(BuiltInLootTables.FISHING_FISH);
             }
 
-            class SimulatedFishingHook extends FishingHook {
-
-                SimulatedFishingHook(EntityType<FishingHook> type, Level level) {
-                    super(type, level);
-                }
+            FishingHook simulatedHook = new FishingHook(EntityType.FISHING_BOBBER, getLevel()) {
 
                 public boolean isOpenWaterFishing() {
                     return true;
                 }
-            }
-            FishingHook simulatedHook = new SimulatedFishingHook(EntityType.FISHING_BOBBER, getLevel());
+            };
 
             LootParams lootContext = new LootParams.Builder((ServerLevel) getLevel())
                     .withOptionalParameter(LootContextParams.THIS_ENTITY, simulatedHook)

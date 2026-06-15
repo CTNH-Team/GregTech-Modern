@@ -18,19 +18,12 @@ public class GTParticleTypes {
             .create(Registries.PARTICLE_TYPE, GTCEu.MOD_ID);
 
     public static final RegistryObject<ParticleType<HazardParticleOptions>> HAZARD_PARTICLE = PARTICLE_TYPES
-            .register("hazard", () -> {
-                class HazardParticle extends ParticleType<HazardParticleOptions> {
+            .register("hazard", () -> new ParticleType<>(false, HazardParticleOptions.DESERIALIZER) {
 
-                    HazardParticle() {
-                        super(false, HazardParticleOptions.DESERIALIZER);
-                    }
-
-                    @Override
-                    public Codec<HazardParticleOptions> codec() {
-                        return HazardParticleOptions.CODEC;
-                    }
+                @Override
+                public Codec<HazardParticleOptions> codec() {
+                    return HazardParticleOptions.CODEC;
                 }
-                return new HazardParticle();
             });
     public static final RegistryObject<SimpleParticleType> MUFFLER_PARTICLE = PARTICLE_TYPES
             .register("muffler", () -> new SimpleParticleType(false));
