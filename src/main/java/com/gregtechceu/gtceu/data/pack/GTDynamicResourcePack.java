@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.data.pack;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.addon.AddonFinder;
 import com.gregtechceu.gtceu.api.addon.IGTAddon;
+import com.gregtechceu.gtceu.api.registry.registrate.CustomItemModelRegistry;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
@@ -25,6 +26,7 @@ import net.minecraftforge.client.model.generators.ModelBuilder;
 
 import com.google.common.collect.Sets;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
@@ -50,6 +52,7 @@ import static com.gregtechceu.gtceu.data.pack.GTDynamicDataPack.writeJson;
 
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
+@SuppressWarnings("removal")
 public class GTDynamicResourcePack implements PackResources {
 
     protected static final ObjectSet<String> CLIENT_DOMAINS = new ObjectOpenHashSet<>();
@@ -110,6 +113,18 @@ public class GTDynamicResourcePack implements PackResources {
         if (!loc.getPath().startsWith("item/")) {
             loc = loc.withPrefix("item/");
         }
+
+        if (obj != null && obj.isJsonObject()) {
+            JsonObject modelJson = obj.getAsJsonObject();
+
+            ResourceLocation registryId = loc;
+            if (registryId.getPath().startsWith("item/")) {
+                registryId = new ResourceLocation(registryId.getNamespace(), registryId.getPath().substring(5));
+            }
+
+            CustomItemModelRegistry.modifyOnTheFly(registryId, modelJson);
+        }
+
         addModel(loc, obj);
     }
 

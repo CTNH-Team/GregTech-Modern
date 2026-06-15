@@ -11,6 +11,7 @@ import com.gregtechceu.gtceu.api.item.IComponentItem;
 import com.gregtechceu.gtceu.api.item.IGTTool;
 import com.gregtechceu.gtceu.api.item.LampBlockItem;
 import com.gregtechceu.gtceu.api.item.QuantumTankMachineItem;
+import com.gregtechceu.gtceu.api.registry.registrate.provider.GTModelRules;
 import com.gregtechceu.gtceu.client.model.item.FacadeUnbakedModel;
 import com.gregtechceu.gtceu.client.model.machine.MachineModelLoader;
 import com.gregtechceu.gtceu.client.model.pipe.PipeModel;
@@ -151,6 +152,7 @@ public class ClientProxy extends CommonProxy {
     @SubscribeEvent
     public void onClientSetup(FMLClientSetupEvent event) {
         MachineOwner.init();
+        GTModelRules.init();
         if (ConfigHolder.INSTANCE.compat.minimap.toggle.ftbChunksIntegration &&
                 GTCEu.isModLoaded(GTValues.MODID_FTB_CHUNKS)) {
             FTBChunksPlugin.addEventListeners();
