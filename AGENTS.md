@@ -4,12 +4,14 @@
 `GregTech-Modern` is the vendored GTCEu upstream project used as CTNH's API/runtime dependency and reference implementation. Treat it as upstream code first, local code second.
 
 ## WHERE TO LOOK
+- Mod entry/proxies: `src/main/java/com/gregtechceu/gtceu/GTCEu.java`, `common/CommonProxy.java`, `client/ClientProxy.java`. Upstream Forge mod entry and proxy split.
 - Addon API: `src/main/java/com/gregtechceu/gtceu/api/addon/GTAddon.java`, `IGTAddon.java`. CTNH modules implement addon hooks against these APIs.
 - Material APIs: `src/main/java/com/gregtechceu/gtceu/api/data/chemical/`. Material registries, properties, tag prefixes.
 - Machine APIs: `src/main/java/com/gregtechceu/gtceu/api/machine/`. Machine definitions and behavior base classes.
 - Recipe APIs: `src/main/java/com/gregtechceu/gtceu/api/recipe/`. Recipe types, capabilities, modifiers.
 - Datagen/reference data: `src/main/java/com/gregtechceu/gtceu/data/`, `src/generated/resources`. Upstream-generated resources and providers.
-- Tests: `src/test/java`. Only test suite currently present in the workspace.
+- Forge datagen: `src/main/java/com/gregtechceu/gtceu/forge/DataGenerators.java`. Upstream data-provider entrypoint.
+- Tests/GameTests: `src/test/java`. Only test suite currently present in the workspace; includes recipe, cover, multiblock, AE2 pattern buffer, and GameTest utility coverage.
 - Version catalogs: `gradle/libs.versions.toml`, `gradle/forge.versions.toml`. Root `settings.gradle` imports these catalogs.
 
 ## COMMON GTCEu API QUICK REFERENCE
@@ -30,23 +32,30 @@
 - `MultiblockShapeInfo`: `api/pattern/MultiblockShapeInfo.java`. XEI/preview shape representation; used by multiblock definitions and pattern previews.
 
 ## REGISTRATION ENTRYPOINTS
+- Mod root: `GTCEu.java` exposes mod id, dev-mode helpers, registrate, and nested `Mods` mod-detection helpers.
+- Proxies: `common/CommonProxy.java` initializes config, registries, features, command arguments, effects, particles, and server/common lifecycle hooks; `client/ClientProxy.java` adds client-only setup.
 - Core registries: `api/registry/GTRegistries.java`, `api/registry/GTRegistry.java`, `api/registry/registrate/GTRegistrate.java`.
 - Upstream content registries: `common/data/GTItems.java`, `GTBlocks.java`, `GTMachines.java`, `GTRecipeTypes.java`, `GTMaterials.java`, `GTElements.java`, `GTFluids.java`, `GTCreativeModeTabs.java`, `GTEntityTypes.java`.
 - Machine builders: `api/registry/registrate/MachineBuilder.java`, `MultiblockMachineBuilder.java`.
 - Recipe infrastructure: `api/recipe/GTRecipe.java`, `GTRecipeType.java`, `api/recipe/modifier/`, `api/capability/recipe/`.
 - Material/tag APIs: `api/data/chemical/material/`, `api/data/tag/TagPrefix.java`; generated material content is driven from these APIs and common data registries.
 - Datagen providers: `data/` and `api/registry/registrate/provider/`; prefer these over hand-editing generated resources.
+- Mixins/resources: `src/main/resources/gtceu.mixins.json` and mixin packages under `src/main/java/com/gregtechceu/gtceu/mixin/`; use as upstream reference for target style.
+- Test anchors: `api/recipe/OverclockLogicTest.java`, `MultipleEnergyHatchTest.java`, `api/machine/trait/RecipeLogicTest.java`, `integration/ae2/machine/PatternBufferTest.java`, `common/recipe/condition/AdjacentFluidConditionTest.java`, and `gametest/util/TestUtils.java`.
 
 ## CONVENTIONS
 - Namespace is `com.gregtechceu.gtceu`.
 - This project has its own Gradle configuration and is excluded from root `ctnhSubprojects` shared CTNH plugin setup.
 - Generated and resource directories are much larger than CTNH modules; narrow searches before editing.
 - Prefer reading GTCEu APIs from here instead of guessing addon contracts in CTNH modules.
+- `jacocoTestReport` invokes `runGameTestServer` in this subproject's build; GTCEu test commands are heavier than CTNH module datagen checks.
 
 ## COMMANDS
 ```bash
 ./gradlew :modules:GregTech-Modern:build
 ./gradlew :modules:GregTech-Modern:test
+./gradlew :modules:GregTech-Modern:runGameTestServer
+./gradlew :modules:GregTech-Modern:jacocoTestReport
 ```
 
 ## ANTI-PATTERNS
