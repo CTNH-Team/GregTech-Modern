@@ -37,6 +37,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+import com.mojang.serialization.Codec;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
 import it.unimi.dsi.fastutil.objects.*;
@@ -49,10 +50,12 @@ import java.util.stream.Collectors;
 
 public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
 
-    public final static ItemRecipeCapability CAP = new ItemRecipeCapability();
+    public final static ItemRecipeCapability CAP = new ItemRecipeCapability("item", 0xFFD96106, true,
+            ItemIngredient.CODEC);
 
-    protected ItemRecipeCapability() {
-        super("item", 0xFFD96106, true, ItemIngredient.CODEC);
+    protected ItemRecipeCapability(String name, int color, boolean doRenderSlot,
+                                   Codec<ItemIngredient> contentCodec) {
+        super(name, color, doRenderSlot, contentCodec);
     }
 
     @Override
@@ -111,7 +114,7 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
         graphics.pose().scale(0.5f, 0.5f, 1);
         Font fontRenderer = Minecraft.getInstance().font;
         graphics.drawString(fontRenderer, s, (int) ((x + (width / 3f)) * 2 - fontRenderer.width(s) + 23),
-                (int) ((y + (height / 3f) + 6) * 2 - (top ? height : 0)), color, true);
+                (int) ((y + (height / 3f) + 6) * 2 - (top ? height + 5 : 0)), color, true);
         graphics.pose().popPose();
     }
 
