@@ -40,7 +40,6 @@
     "EnergyNetWorkMixin",
     "EntityMixin",
     "GrowingPlantBlockAccessor",
-    "GTCapabilityHelperMixin",
     "IngredientAccessor",
     "IntegerPropertyAccessor",
     "InventoryMixin",

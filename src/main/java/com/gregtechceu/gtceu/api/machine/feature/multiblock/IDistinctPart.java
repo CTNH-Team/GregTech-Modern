@@ -30,7 +30,8 @@ public interface IDistinctPart extends IMultiPart {
                                         "gtceu.multiblock.universal.distinct.no")))));
     }
 
-    default void superAttachConfigurators(ConfiguratorPanel configuratorPanel, ConfiguratorPanel rightConfiguratorPanel) {
+    default void superAttachConfigurators(ConfiguratorPanel configuratorPanel,
+                                          ConfiguratorPanel rightConfiguratorPanel) {
         IMultiPart.super.attachConfigurators(configuratorPanel, rightConfiguratorPanel);
     }
 }
