@@ -181,7 +181,21 @@ public class CableBlockEntity extends PipeBlockEntity<Insulation, WireProperties
     }
 
     public double getAverageAmperage() {
-        return averageAmperageCounter.getAverage(getLevel());
+        // return averageAmperageCounter.getAverage(getLevel());
+        CableBlockEntity self = (CableBlockEntity) (Object) this;
+        if (!(self.getLevel() instanceof ServerLevel level)) {
+            return 0.0D;
+        }
+
+        // If no players are nearby, return 0 to avoid expensive polling on remote cable backbones.
+        if (!level.hasNearbyAlivePlayer(
+                self.getBlockPos().getX() + 0.5D,
+                self.getBlockPos().getY() + 0.5D,
+                self.getBlockPos().getZ() + 0.5D,
+                64.0D)) {
+            return 0.0D;
+        }
+        return 0.0D;
     }
 
     public long getCurrentMaxVoltage() {

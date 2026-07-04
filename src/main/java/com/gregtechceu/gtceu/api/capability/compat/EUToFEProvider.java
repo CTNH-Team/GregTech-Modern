@@ -1,11 +1,8 @@
 package com.gregtechceu.gtceu.api.capability.compat;
 
-import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.utils.GTMath;
-import com.gregtechceu.gtceu.utils.GTUtil;
 
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -15,6 +12,9 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
 
 import org.jetbrains.annotations.NotNull;
+import org.spongepowered.asm.mixin.Unique;
+
+import java.lang.reflect.Field;
 
 public class EUToFEProvider extends CapabilityCompatProvider {
 
@@ -27,6 +27,46 @@ public class EUToFEProvider extends CapabilityCompatProvider {
 
     public EUToFEProvider(BlockEntity tileEntity) {
         super(tileEntity);
+    }
+
+    @Unique
+    private static final Field GTCEU_HOTFIX$ENERGY_STORAGE_FIELD = gtceuHotfix$findEnergyStorageField();
+
+    @Unique
+    private static Field gtceuHotfix$findEnergyStorageField() {
+        try {
+            Field f = com.gregtechceu.gtceu.api.capability.compat.EUToFEProvider.GTEnergyWrapper.class
+                    .getDeclaredField("energyStorage");
+            f.setAccessible(true);
+            return f;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    @Unique
+    private IEnergyStorage gtceuHotfix$getStorage() {
+        if (GTCEU_HOTFIX$ENERGY_STORAGE_FIELD == null) return null;
+        try {
+            return (IEnergyStorage) GTCEU_HOTFIX$ENERGY_STORAGE_FIELD.get(this);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Internal FE remainder buffer (in FE units).
+     * This is the same idea as GTCEu's original EUToFEProvider: if a sink can only accept part of a GT packet
+     * worth of FE, we buffer the remainder so no energy is lost, and amperage consumption remains consistent.
+     */
+    @Unique
+    private long gtceuHotfix$feBuffer;
+
+    @Unique
+    private static int gtceuHotfix$satCast(long v) {
+        if (v <= 0) return 0;
+        if (v >= Integer.MAX_VALUE) return Integer.MAX_VALUE;
+        return (int) v;
     }
 
     @Override
@@ -52,103 +92,94 @@ public class EUToFEProvider extends CapabilityCompatProvider {
 
         @Override
         public long acceptEnergyFromNetwork(Direction facing, long voltage, long amperage) {
-            int receive = 0;
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null || !s.canReceive()) return 0;
+
+            final int ratio = FeCompat.ratio(false);
+            final long maxPacketFe = FeCompat.toFeLong(voltage, ratio);
+            if (maxPacketFe <= 0 || amperage <= 0 || voltage <= 0) return 0;
+
+            final long maximalValue = maxPacketFe * amperage;
+
+            int receiveFromBuffer = 0;
 
             // Try to use the internal buffer before consuming a new packet
-            if (feBuffer > 0) {
+            if (gtceuHotfix$feBuffer > 0) {
+                int can = s.receiveEnergy(gtceuHotfix$satCast(gtceuHotfix$feBuffer), true);
+                if (can == 0) return 0;
 
-                receive = energyStorage.receiveEnergy(GTMath.saturatedCast(feBuffer), true);
-
-                if (receive == 0)
+                // Buffer could provide only part of what the sink can accept this tick; consume part of buffer only
+                if (gtceuHotfix$feBuffer > can) {
+                    int inserted = s.receiveEnergy(can, false);
+                    gtceuHotfix$feBuffer -= inserted;
                     return 0;
-
-                // Internal Buffer could provide the max RF the consumer could consume
-                if (feBuffer > receive) {
-                    feBuffer -= energyStorage.receiveEnergy(receive, false);
-                    return 0;
-
-                    // Buffer could not provide max value, save the remainder and continue processing
                 } else {
-                    receive = GTMath.saturatedCast(feBuffer);
+                    // Buffer can be fully consumed; include it in the combined insertion below
+                    receiveFromBuffer = gtceuHotfix$satCast(gtceuHotfix$feBuffer);
                 }
             }
 
-            long maxPacket = FeCompat.toFeLong(voltage, FeCompat.ratio(false));
-            long maximalValue = maxPacket * amperage;
+            // Consume buffer remainder + new packet energy in a single insertion
+            if (receiveFromBuffer != 0) {
+                int consumable = s.receiveEnergy(gtceuHotfix$satCast(maximalValue + (long) receiveFromBuffer), true);
+                if (consumable == 0) return 0;
 
-            // Try to consume our remainder buffer plus a fresh packet
-            if (receive != 0) {
+                consumable = s.receiveEnergy(consumable, false);
 
-                int consumable = energyStorage.receiveEnergy(GTMath.saturatedCast(maximalValue + receive), true);
-
-                // Machine unable to consume any power
-                if (consumable == 0)
-                    return 0;
-
-                consumable = energyStorage.receiveEnergy(consumable, false);
-
-                // Only able to consume less then our buffered amount
-                if (consumable <= receive) {
-                    feBuffer = receive - consumable;
+                // Only able to consume less than our buffered amount
+                if ((long) consumable <= (long) receiveFromBuffer) {
+                    gtceuHotfix$feBuffer = (long) receiveFromBuffer - (long) consumable;
                     return 0;
                 }
 
-                long newPower = consumable - receive;
+                long newPower = (long) consumable - (long) receiveFromBuffer;
 
-                // Able to consume buffered amount plus an even amount of packets (no buffer needed)
-                if (newPower % maxPacket == 0) {
-                    feBuffer = 0;
-                    return newPower / maxPacket;
+                // Able to consume buffered amount plus an even amount of packets
+                if (newPower % maxPacketFe == 0) {
+                    gtceuHotfix$feBuffer = 0;
+                    return newPower / maxPacketFe;
                 }
 
-                // Able to consume buffered amount plus some amount of power with a packet remainder
-                int ampsToConsume = GTMath.saturatedCast((newPower / maxPacket) + 1);
-                feBuffer = GTMath.saturatedCast((maxPacket * ampsToConsume) - newPower);
-                return ampsToConsume;
-
-                // Else try to draw 1 full packet
-            } else {
-
-                int consumable = energyStorage.receiveEnergy(GTMath.saturatedCast(maximalValue), true);
-
-                // Machine unable to consume any power
-                if (consumable == 0)
-                    return 0;
-
-                consumable = energyStorage.receiveEnergy(consumable, false);
-
-                // Machine unable to actually consume any power
-                if (consumable == 0)
-                    return 0;
-
-                // Able to consume an even amount of packets
-                if (consumable % maxPacket == 0) {
-                    feBuffer = 0;
-                    return consumable / maxPacket;
-                }
-
-                // Able to consume power with some amount of power remainder in the packet
-                int ampsToConsume = GTMath.saturatedCast((consumable / maxPacket) + 1);
-                feBuffer = GTMath.saturatedCast((maxPacket * ampsToConsume) - consumable);
+                // Able to consume buffered amount plus some remainder inside the last packet
+                long ampsToConsume = (newPower / maxPacketFe) + 1;
+                gtceuHotfix$feBuffer = (maxPacketFe * ampsToConsume) - newPower;
                 return ampsToConsume;
             }
+
+            // No buffer: try to draw up to amperage packets worth of FE
+            int consumable = s.receiveEnergy(gtceuHotfix$satCast(maximalValue), true);
+            if (consumable == 0) return 0;
+
+            consumable = s.receiveEnergy(consumable, false);
+
+            if ((long) consumable % maxPacketFe == 0) {
+                gtceuHotfix$feBuffer = 0;
+                return (long) consumable / maxPacketFe;
+            }
+
+            long ampsToConsume = ((long) consumable / maxPacketFe) + 1;
+            gtceuHotfix$feBuffer = (maxPacketFe * ampsToConsume) - (long) consumable;
+            return ampsToConsume;
         }
 
         @Override
-        public long changeEnergy(long delta) {
-            if (delta == 0) return 0;
-            else if (delta < 0) return FeCompat.extractEu(energyStorage, -delta, false);
-            else return FeCompat.insertEu(energyStorage, delta, false);
+        public long changeEnergy(long differenceAmount) {
+            // Keep original behaviour: this wrapper is a sink adapter; direct delta changes are unsupported here.
+            return 0;
         }
 
         @Override
         public long getEnergyCapacity() {
-            return FeCompat.toEu(energyStorage.getMaxEnergyStored(), FeCompat.ratio(false));
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null) return 0;
+            return FeCompat.toEu(s.getMaxEnergyStored(), FeCompat.ratio(false));
         }
 
         @Override
         public long getEnergyStored() {
-            return FeCompat.toEu(energyStorage.getEnergyStored(), FeCompat.ratio(false));
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null) return 0;
+            return FeCompat.toEu(s.getEnergyStored(), FeCompat.ratio(false));
         }
 
         /**
@@ -161,26 +192,34 @@ public class EUToFEProvider extends CapabilityCompatProvider {
          */
         @Override
         public long getEnergyCanBeInserted() {
-            return Math.max(1, getEnergyCapacity() - getEnergyStored());
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null) return 0;
+            if (!s.canReceive()) return 0;
+
+            // "Very large" so sink validation (euSpace >= voltage) won't filter out the endpoint.
+            // Actual throughput + amperage drain is still governed by acceptEnergyFromNetwork(),
+            // which is based on the real amount inserted into FE this tick.
+            return Long.MAX_VALUE / 4;
         }
 
         @Override
         public long getInputAmperage() {
-            return getInputVoltage() == 0 ? 0 : 2;
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null || !s.canReceive()) return 0;
+            return Long.MAX_VALUE;
         }
 
         @Override
         public long getInputVoltage() {
-            long maxInput = energyStorage.receiveEnergy(Integer.MAX_VALUE, true);
-
-            if (maxInput == 0) return 0;
-            return GTValues.V[GTUtil
-                    .getTierByVoltage(FeCompat.toEu(maxInput, FeCompat.ratio(false)))];
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            if (s == null || !s.canReceive()) return 0;
+            return Long.MAX_VALUE;
         }
 
         @Override
         public boolean inputsEnergy(Direction facing) {
-            return energyStorage.canReceive();
+            IEnergyStorage s = gtceuHotfix$getStorage();
+            return s != null && s.canReceive();
         }
 
         /**

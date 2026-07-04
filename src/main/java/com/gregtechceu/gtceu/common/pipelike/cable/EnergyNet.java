@@ -4,10 +4,18 @@ import com.gregtechceu.gtceu.api.data.chemical.material.properties.WirePropertie
 import com.gregtechceu.gtceu.api.pipenet.LevelPipeNet;
 import com.gregtechceu.gtceu.api.pipenet.Node;
 import com.gregtechceu.gtceu.api.pipenet.PipeNet;
+import com.gregtechceu.gtceu.common.blockentity.CableBlockEntity;
+import com.gregtechceu.gtceu.utils.energy.EndpointChangeTracker;
+import com.gregtechceu.gtceu.utils.energy.HandlerCache;
+import com.gregtechceu.gtceu.utils.energy.SinkCache;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -18,12 +26,32 @@ public class EnergyNet extends PipeNet<WireProperties> {
     private long lastEnergyFluxPerSec;
     private long energyFluxPerSec;
     private long lastTime;
+    private boolean gtceuHotfixDirty = false;
+    private long gtceuHotfixLastGlobalClearTick = Long.MIN_VALUE;
 
     protected EnergyNet(LevelPipeNet<WireProperties, ? extends EnergyNet> world) {
         super(world);
     }
 
     public List<EnergyRoutePath> getNetData(BlockPos pipePos) {
+        EnergyNet self = (EnergyNet) (Object) this;
+        Level level = self.getLevel();
+        if (level != null) {
+            long tick = level.getGameTime();
+            if (gtceuHotfixDirty && gtceuHotfixLastGlobalClearTick != tick) {
+                // One global invalidation per tick per net, then rebuild lazily per pipePos.
+                NET_DATA.clear();
+                HandlerCache.clear(self);
+                SinkCache.clear(self);
+                gtceuHotfixLastGlobalClearTick = tick;
+                gtceuHotfixDirty = false;
+            }
+        }
+        return getEnergyRoutePaths(pipePos);
+    }
+
+    @NotNull
+    private List<EnergyRoutePath> getEnergyRoutePaths(BlockPos pipePos) {
         List<EnergyRoutePath> data = NET_DATA.get(pipePos);
         if (data == null) {
             data = EnergyNetWalker.createNetData(this, pipePos);
@@ -37,9 +65,52 @@ public class EnergyNet extends PipeNet<WireProperties> {
         return data;
     }
 
+    private boolean gtceuHotfixIsNearCable(Level level, BlockPos pos) {
+        if (level == null || pos == null) return false;
+        if (level.getBlockEntity(pos) instanceof CableBlockEntity) return true;
+        for (Direction d : Direction.values()) {
+            BlockEntity be = level.getBlockEntity(pos.relative(d));
+            if (be instanceof CableBlockEntity) return true;
+        }
+        return false;
+    }
+
     @Override
     public void onNeighbourUpdate(BlockPos fromPos) {
-        NET_DATA.clear();
+        if (fromPos == null) return;
+
+        EnergyNet self = (EnergyNet) (Object) this;
+        Level level = self.getLevel();
+        if (level == null) return;
+
+        // (A) Near-cable filter: ignore unrelated updates
+        if (!gtceuHotfixIsNearCable(level, fromPos)) {
+            return;
+        }
+
+        // Always perform local invalidation around the update position (cheap).
+        NET_DATA.remove(fromPos);
+        for (Direction dir : Direction.values()) {
+            NET_DATA.remove(fromPos.relative(dir));
+        }
+
+        // Invalidate cached endpoint handlers around this update position.
+        HandlerCache.invalidateAround(self, fromPos);
+
+        // Mark dirty ONLY when the BlockEntity identity at fromPos actually changes.
+        // This captures real endpoint add/remove/replace without reacting to noisy neighbor updates.
+        BlockEntity be = level.getBlockEntity(fromPos);
+        if (EndpointChangeTracker.didBlockEntityChange(self, fromPos, be)) {
+            gtceuHotfixDirty = true;
+        }
+
+        // Also mark dirty when a cable block entity is the source of the update.
+        // Connection toggles (e.g. wire cutters) mutate topology without changing BE identity,
+        // but routes/sinks must be rebuilt so newly attached endpoints (including FE sinks)
+        // are discovered.
+        if (be instanceof CableBlockEntity) {
+            gtceuHotfixDirty = true;
+        }
     }
 
     @Override

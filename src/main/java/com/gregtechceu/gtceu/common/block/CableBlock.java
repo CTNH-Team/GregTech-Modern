@@ -38,6 +38,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.energy.IEnergyStorage;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -90,8 +92,28 @@ public class CableBlock extends MaterialPipeBlock<Insulation, WireProperties, Le
     @Override
     public boolean canPipeConnectToBlock(IPipeNode<Insulation, WireProperties> selfTile, Direction side,
                                          @Nullable BlockEntity tile) {
-        return tile != null &&
-                tile.getCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, side.getOpposite()).isPresent();
+        // "output-enabled" == "not blocked"
+        if (selfTile.isBlocked(side)) {
+            return false;
+        }
+
+        if (tile == null) return false;
+
+        // 1) GT energy container capability (fast path)
+        var gt = tile.getCapability(com.gregtechceu.gtceu.api.capability.forge.GTCapability.CAPABILITY_ENERGY_CONTAINER,
+                side.getOpposite()).resolve().orElse(null);
+        if (gt != null) return true;
+
+        // 2) ForgeCapabilities.ENERGY sided
+        IEnergyStorage fe = tile.getCapability(ForgeCapabilities.ENERGY, side.getOpposite()).orElse(null);
+        if (fe != null && (fe.canReceive() || fe.canExtract())) {
+            return true;
+        }
+
+        // 3) Unsided fallback only on explicitly enabled faces (we're already gated by isBlocked)
+        fe = tile.getCapability(ForgeCapabilities.ENERGY, null).orElse(null);
+        if (fe != null && (fe.canReceive() || fe.canExtract())) return true;
+        return false;
     }
 
     @Override

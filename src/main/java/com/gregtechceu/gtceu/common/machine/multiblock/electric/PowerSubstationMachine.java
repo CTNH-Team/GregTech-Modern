@@ -36,8 +36,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.world.entity.player.Player;
 
 import com.google.common.annotations.VisibleForTesting;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
@@ -106,7 +104,7 @@ public class PowerSubstationMachine extends WorkableMultiblockMachine
                 handlerList.getCapability(EURecipeCapability.CAP).stream()
                         .filter(IEnergyContainer.class::isInstance)
                         .map(IEnergyContainer.class::cast)
-                        .forEach(c-> {
+                        .forEach(c -> {
                             if (((IRecipeHandler<?>) c).getHandlerIO().support(IO.IN)) {
                                 inputs.add(c);
                             } else if (((IRecipeHandler<?>) c).getHandlerIO().support(IO.OUT)) {
