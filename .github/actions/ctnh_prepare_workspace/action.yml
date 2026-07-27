@@ -26,7 +26,22 @@ inputs:
     description: CTNH-Core ref.
     required: false
     default: dev
-
+  cei_repository:
+    description: Create-Enough-Items repository.
+    required: false
+    default: CTNH-Team/Create-Enough-Items
+  cei_ref:
+    description: CEI ref
+    required: false
+    default: dev
+  ctnh_astral_repository:
+    description: CTNH-Astral repository.
+    required: false
+    default: CTNH-Team/CTNH-Astral
+  ctnh_astral_ref:
+    description: CTNH-Astral ref.
+    required: false
+    default: dev
   ctnh_bio_repository:
     description: CTNH-Bio repository.
     required: false
@@ -143,7 +158,14 @@ runs:
         repository: ${{ inputs.ctnh_mana_repository }}
         ref: ${{ inputs.ctnh_mana_ref }}
         path: CTNH-Modules/modules/CTNH-Mana
-
+    - name: Checkout CTNH-Astral
+      if: ${{ inputs.module_name != 'CTNH-Astral' }}
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.token }}
+        repository: ${{ inputs.ctnh_astral_repository }}
+        ref: ${{ inputs.ctnh_astral_ref }}
+        path: CTNH-Modules/modules/CTNH-Astral
     - name: Checkout CTPP
       if: ${{ inputs.module_name != 'CTPP' }}
       uses: actions/checkout@v4
@@ -152,7 +174,14 @@ runs:
         repository: ${{ inputs.ctpp_repository }}
         ref: ${{ inputs.ctpp_ref }}
         path: CTNH-Modules/modules/CTPP
-
+    - name: Checkout Create-Enough-Items
+      if: ${{ inputs.module_name != 'Create-Enough-Items' }}
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.token }}
+        repository: ${{ inputs.cei_repository }}
+        ref: ${{ inputs.cei_ref }}
+        path: CTNH-Modules/modules/Create-Enough-Items
     - name: Checkout GTM
       if: ${{ inputs.module_name != 'GregTech-Modern' }}
       uses: actions/checkout@v4
@@ -165,10 +194,14 @@ runs:
     - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
-        distribution: temurin
-        java-version: '17'
+        distribution: microsoft
+        java-version: '17.0.16'
 
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
         cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+    - name: Show Java version
+      run: java -version
+      shell: bash

@@ -1,0 +1,60 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit and GameTests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      MODULE_NAME: GregTech-Modern
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Workspace
+        uses: ./.github/actions/ctnh_prepare_workspace
+        with:
+          token: ${{ github.token }}
+          module_name: ${{ env.MODULE_NAME }}
+
+      - name: Run JVM unit tests
+        id: unit-tests
+        continue-on-error: true
+        working-directory: CTNH-Modules
+        run: ./gradlew :modules:${{ env.MODULE_NAME }}:test --no-daemon --stacktrace
+
+      - name: Run GameTests
+        id: game-tests
+        continue-on-error: true
+        working-directory: CTNH-Modules
+        run: ./gradlew :modules:${{ env.MODULE_NAME }}:runGameTestServer --no-daemon --stacktrace
+
+      - name: Upload test reports and logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.MODULE_NAME }}-test-results
+          path: |
+            CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/reports/tests/test/**
+            CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/test-results/test/**
+            CTNH-Modules/modules/${{ env.MODULE_NAME }}/run/gametest/logs/**
+          if-no-files-found: warn
+          retention-days: 15
+
+      - name: Fail when a test suite fails
+        if: ${{ steps.unit-tests.outcome == 'failure' || steps.game-tests.outcome == 'failure' }}
+        run: exit 1

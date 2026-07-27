@@ -917,6 +917,7 @@ public class LangHandler {
         provider.add("gtceu.universal.tooltip.energy_storage_capacity", "§cEnergy Capacity: §r%d EU");
         provider.add("gtceu.universal.tooltip.energy_tier_range", "§aAllowed Voltage Tiers: §f%s §f- %s");
         provider.add("gtceu.universal.tooltip.item_storage_capacity", "§6Item Slots: §f%d");
+        provider.add("gtceu.universal.tooltip.item_storage_multiplier", "§6Item Stack Multiplier: §f%d");
         provider.add("gtceu.universal.tooltip.item_storage_total", "§6Item Capacity: §f%d items");
         provider.add("gtceu.universal.tooltip.item_stored", "§dItem Stored: §f%s, %d items");
         provider.add("gtceu.universal.tooltip.item_transfer_rate", "§bTransfer Rate: §f%d items/s");
@@ -1271,6 +1272,8 @@ public class LangHandler {
         provider.add("gtceu.gui.cover_setting.title", "Cover Settings");
         provider.add("gtceu.gui.output_setting.title", "Output Settings");
         provider.add("gtceu.gui.circuit.title", "Circuit Settings");
+        provider.add("gtceu.gui.refund_all_item", "Returns all items to the container in front");
+        provider.add("gtceu.gui.refund_all_fluid", "Returns all fluids to the container in front");
         multiLang(provider, "gtceu.gui.output_setting.tooltips", "left-click to tune the item auto output",
                 "right-click to tune the fluid auto output.");
         provider.add("gtceu.gui.item_auto_output.allow_input.enabled",
@@ -1334,6 +1337,18 @@ public class LangHandler {
         provider.add("gtceu.gui.content.chance_boosted_logic", "Chance at Tier: %s%% (%s)");
         provider.add("gtceu.gui.content.count_range", "%s-%sx");
         provider.add("gtceu.gui.content.fluid_range", "%s-%smB");
+        provider.add("gtceu.gui.large_stack.amount", "Amount: %s / %s");
+        provider.add("gtceu.gui.allow_same.enabled", "§aEnabled");
+        provider.add("gtceu.gui.allow_same.disabled", "§cDisabled");
+        provider.add("gtceu.gui.allow_same.not_allowed", "NOT ");
+        provider.add("gtceu.gui.allow_same.item_input.title", "Input Slot Protect");
+        provider.add("gtceu.gui.allow_same.item_input.tooltip", "Allow same items to occupy multiple input slots");
+        provider.add("gtceu.gui.allow_same.item_output.title", "Output Slot Protect");
+        provider.add("gtceu.gui.allow_same.item_output.tooltip", "Allow same items to occupy multiple output slots");
+        provider.add("gtceu.gui.allow_same.fluid_input.title", "Input Tank Protect");
+        provider.add("gtceu.gui.allow_same.fluid_input.tooltip", "Allow same fluids to occupy multiple input tanks");
+        provider.add("gtceu.gui.allow_same.fluid_output.title", "Output Tank Protect");
+        provider.add("gtceu.gui.allow_same.fluid_output.tooltip", "Allow same fluids to occupy multiple output tanks");
         provider.add("gtceu.gui.content.range", "%s-%s");
         provider.add("gtceu.gui.content.times_item", "x %s");
 

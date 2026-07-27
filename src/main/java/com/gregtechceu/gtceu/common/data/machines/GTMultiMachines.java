@@ -30,6 +30,7 @@ import com.gregtechceu.gtceu.common.machine.multiblock.primitive.PrimitiveBlastF
 import com.gregtechceu.gtceu.common.machine.multiblock.primitive.PrimitivePumpMachine;
 import com.gregtechceu.gtceu.common.machine.multiblock.steam.SteamParallelMultiblockMachine;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
@@ -43,9 +44,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 import net.minecraftforge.client.model.generators.ConfiguredModel;
-
-import appeng.api.networking.pathing.ChannelMode;
-import appeng.core.AEConfig;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -541,7 +539,7 @@ public class GTMultiMachines {
                     .where('F', blocks(CASING_STEEL_SOLID.get())
                             .or(!ConfigHolder.INSTANCE.machines.orderedAssemblyLineFluids ?
                                     Predicates.abilities(PartAbility.IMPORT_FLUIDS_1X,
-                                            PartAbility.IMPORT_FLUIDS_4X, PartAbility.IMPORT_FLUIDS_9X) :
+                                            PartAbility.IMPORT_FLUIDS_MULTI) :
                                     Predicates.abilities(PartAbility.IMPORT_FLUIDS_1X).setMaxGlobalLimited(4)))
                     .where('O',
                             Predicates.abilities(PartAbility.EXPORT_ITEMS)
@@ -790,7 +788,7 @@ public class GTMultiMachines {
                     // tooltip.add(Component.translatable("gtceu.machine.cleanroom.tooltip.8"));
                     if (GTCEu.Mods.isAE2Loaded()) {
                         tooltip.add(
-                                Component.translatable(AEConfig.instance().getChannelMode() == ChannelMode.INFINITE ?
+                                Component.translatable(AE2Compat.hasInfiniteChannels() ?
                                         "gtceu.machine.cleanroom.tooltip.ae2.no_channels" :
                                         "gtceu.machine.cleanroom.tooltip.ae2.channels"));
                     }
@@ -831,8 +829,8 @@ public class GTMultiMachines {
                         .where('S', GTMultiMachines.CLEANROOM.getBlock())
                         .where(' ', Blocks.AIR)
                         .where('E', GTMachines.ENERGY_INPUT_HATCH[GTValues.LV], Direction.SOUTH)
-                        .where('I', GTMachines.ITEM_PASSTHROUGH_HATCH[GTValues.LV], Direction.NORTH)
-                        .where('L', GTMachines.FLUID_PASSTHROUGH_HATCH[GTValues.LV], Direction.NORTH)
+                        .where('I', GTMachines.ITEM_PASSTHROUGH_HATCH[GTValues.HV], Direction.NORTH)
+                        .where('L', GTMachines.FLUID_PASSTHROUGH_HATCH[GTValues.HV], Direction.NORTH)
                         .where('H', GTMachines.HULL[GTValues.HV], Direction.NORTH)
                         .where('D', GTMachines.DIODE[GTValues.HV], Direction.NORTH)
                         .where('O',
