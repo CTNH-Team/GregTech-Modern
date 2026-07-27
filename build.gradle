@@ -12,10 +12,9 @@ plugins {
 }
 
 group = maven_group
-// Formats the mod version to include the loader, Minecraft version, and '-SNAPSHOT-<timestamp>' if enabled.
-boolean isSnapshot = System.getenv("SNAPSHOT")
+// Adds a SNAPSHOT suffix when SNAPSHOT is set by the build environment.
+def isSnapshot = providers.environmentVariable("SNAPSHOT").isPresent()
 version = "${mod_version}" + (isSnapshot ? "-SNAPSHOT" : "")
-boolean isCI = System.getenv("CI") != null
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -61,6 +60,7 @@ configurations {
 
     renderNurseCfg {
         canBeConsumed = false
+        canBeResolved = true
     }
 }
 
@@ -92,6 +92,7 @@ apply from: "$projectDir/gradle/scripts/docs.gradle"
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
+    options.release = 17
     options.compilerArgs << "-Xlint:-removal"
     options.compilerArgs << "-Aquiet=true" // Suppress mixin notes
 }

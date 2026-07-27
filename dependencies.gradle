@@ -1,6 +1,11 @@
 dependencies {
     compileOnly(libs.jetbrains.annotations)
 
+    // Fast JVM tests. GameTests are executed separately through runGameTestServer.
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+
     // LDLib
     jarJar(modApi(forge.ldlib.get()))
 
