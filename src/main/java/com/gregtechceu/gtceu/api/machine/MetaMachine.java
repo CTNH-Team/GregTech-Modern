@@ -504,6 +504,24 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     public void attachTraits(MachineTrait trait) {
         traits.add(trait);
     }
+    /**
+     * Find the first trait attached to this machine that is an instance of {@code traitClass}.
+     *
+     * @param traitClass the trait type to look for
+     * @param <T>        the trait type
+     * @return the matching trait, or {@code null} if none is found
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public <T extends MachineTrait> T getTrait(@NotNull Class<T> traitClass) {
+        for (MachineTrait trait : traits) {
+            if (traitClass.isInstance(trait)) {
+                return (T) trait;
+            }
+        }
+        return null;
+    }
+
 
     public void clearInventory(IItemHandlerModifiable inventory) {
         for (int i = 0; i < inventory.getSlots(); i++) {

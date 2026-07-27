@@ -7,6 +7,9 @@ import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IOverclockMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.multiblock.CoilWorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.block.ICoilType;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.trait.CoilTrait;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.OverclockingLogic;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
@@ -24,6 +27,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -124,8 +128,33 @@ public class GTRecipeModifiers {
         return ModifierFunction.IDENTITY;
     }
 
+
     /**
-     * Recipe Modifier for <b>Cracker Multiblocks</b> - can be used as a valid {@link RecipeModifier}
+     * Resolve coil data from either a {@link CoilTrait} or a {@link CoilWorkableElectricMultiblockMachine}.
+     */
+    @Nullable
+    private static CoilData resolveCoil(@NotNull MetaMachine machine) {
+        var coilTrait = machine.getTrait(CoilTrait.class);
+        if (coilTrait != null) {
+            int tier = 0;
+            long ov = 0;
+            if (machine instanceof WorkableElectricMultiblockMachine wembm) {
+                tier = wembm.getTier();
+                ov = wembm.getOverclockVoltage();
+            }
+            return new CoilData(coilTrait.getCoilType(), coilTrait.getCoilTier(), tier, ov);
+        }
+        if (machine instanceof CoilWorkableElectricMultiblockMachine coilMachine) {
+            return new CoilData(coilMachine.getCoilType(), coilMachine.getCoilTier(),
+                    coilMachine.getTier(), coilMachine.getOverclockVoltage());
+        }
+        return null;
+    }
+
+    private record CoilData(@NotNull ICoilType coilType, int coilTier, int machineTier, long overclockVoltage) {}
+
+    /**
+     * Recipe Modifier for <b>Cracker Multiblocks</b> - can be used as a valid {@link RecipeModifier}</b> - can be used as a valid {@link RecipeModifier}
      * <p>
      * Recipe is OC'd via {@link OverclockingLogic#NON_PERFECT_OVERCLOCK_SUBTICK}.
      * Then, EUt is multiplied by {@code 1 - (0.1 × coilTier)}
