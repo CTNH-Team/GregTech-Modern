@@ -2,7 +2,7 @@ package com.gregtechceu.gtceu.common.machine.electric;
 
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.GTCapabilityHelper;
-import com.gregtechceu.gtceu.api.capability.IWorkable;
+import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.cover.filter.ItemFilter;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
@@ -14,12 +14,13 @@ import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
-import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
+import com.gregtechceu.gtceu.api.machine.WorkableTieredMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputItem;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.config.ConfigHolder;
@@ -67,8 +68,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class ItemCollectorMachine extends TieredEnergyMachine
-                                  implements IAutoOutputItem, IFancyUIMachine, IMachineLife, IWorkable {
+public class ItemCollectorMachine extends WorkableTieredMachine
+                                  implements IAutoOutputItem, IFancyUIMachine, IMachineLife {
 
     @Getter
     private static final int[] INVENTORY_SIZES = { 4, 9, 16, 25, 25 };
@@ -96,7 +97,7 @@ public class ItemCollectorMachine extends TieredEnergyMachine
     protected final CustomItemStackHandler filterInventory;
 
     @Nullable
-    protected TickableSubscription autoOutputSubs, batterySubs, collectionSubs;
+    protected TickableSubscription autoOutputSubs, batterySubs;
     @Nullable
     protected ISubscription exportItemSubs, energySubs;
     private final long energyPerTick;
@@ -113,17 +114,6 @@ public class ItemCollectorMachine extends TieredEnergyMachine
     private boolean rangeDirty = false;
 
     private final int maxRange;
-
-    @Getter
-    @Persisted
-    @DescSynced
-    private boolean isWorkingEnabled = true;
-
-    @DescSynced
-    @Persisted
-    @Getter
-    @RequireRerender
-    private boolean active = false;
 
     public ItemCollectorMachine(IMachineBlockEntity holder, int tier, Object... ignoredArgs) {
         super(holder, tier);
@@ -170,14 +160,14 @@ public class ItemCollectorMachine extends TieredEnergyMachine
 
             serverLevel.getServer().tell(new TickTask(0, () -> {
                 this.updateAutoOutputSubscription();
-                this.updateCollectionSubscription();
+                getWorkLogic().updateTickSubscription();
             }));
         }
 
         exportItemSubs = output.addChangedListener(this::updateAutoOutputSubscription);
         energySubs = energyContainer.addChangedListener(() -> {
             this.updateBatterySubscription();
-            this.updateCollectionSubscription();
+            getWorkLogic().updateTickSubscription();
         });
         chargerInventory.setOnContentsChanged(this::updateBatterySubscription);
     }
@@ -210,25 +200,26 @@ public class ItemCollectorMachine extends TieredEnergyMachine
     // ********* Logic **********//
     //////////////////////////////////////
 
-    public void updateCollectionSubscription() {
-        if (drainEnergy(true) && isWorkingEnabled) {
-            collectionSubs = subscribeServerTick(collectionSubs, this::update);
-            setActive(true);
-            active = true;
-        } else if (collectionSubs != null) {
-            collectionSubs.unsubscribe();
-            collectionSubs = null;
-            active = false;
-        }
+    @Override
+    public boolean keepSubscribing() {
+        return false;
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
-        setRenderState(getRenderState().setValue(GTMachineModelProperties.IS_ACTIVE, active));
+    @Override
+    public void notifyWorkStatusChanged(WorkLogic.Status oldStatus, WorkLogic.Status newStatus) {
+        super.notifyWorkStatusChanged(oldStatus, newStatus);
+        setRenderState(
+                getRenderState().setValue(GTMachineModelProperties.IS_ACTIVE, newStatus == WorkLogic.Status.WORKING));
     }
 
-    public void update() {
-        if (drainEnergy(false)) {
+    @Override
+    public void serverRunningTick() {
+        if (energyContainer.getEnergyStored() < energyPerTick ||
+                energyContainer.removeEnergy(energyPerTick) < energyPerTick) {
+            setWaiting(Component.translatable("gtceu.recipe_logic.insufficient_in").append(": ")
+                    .append(EURecipeCapability.CAP.getName()));
+        } else {
+            setStatus(WorkLogic.Status.WORKING);
             if (aabb == null || rangeDirty) {
                 rangeDirty = false;
                 BlockPos pos1 = getPos().offset(-range, 0, -range);
@@ -236,7 +227,6 @@ public class ItemCollectorMachine extends TieredEnergyMachine
                 this.aabb = AABB.of(BoundingBox.fromCorners(pos1, pos2));
             }
             moveItemsInRange();
-            updateCollectionSubscription();
         }
     }
 
@@ -387,12 +377,6 @@ public class ItemCollectorMachine extends TieredEnergyMachine
         rangeDirty = true;
     }
 
-    @Override
-    public void setWorkingEnabled(boolean workingEnabled) {
-        isWorkingEnabled = workingEnabled;
-        updateCollectionSubscription();
-    }
-
     //////////////////////////////////////
     // ********** GUI ***********//
     //////////////////////////////////////
@@ -510,7 +494,7 @@ public class ItemCollectorMachine extends TieredEnergyMachine
                 return GuiTextures.TOOL_ALLOW_INPUT;
             }
         } else if (toolTypes.contains(GTToolType.SOFT_MALLET)) {
-            return isWorkingEnabled ? GuiTextures.TOOL_PAUSE : GuiTextures.TOOL_START;
+            return isWorkingEnabled() ? GuiTextures.TOOL_PAUSE : GuiTextures.TOOL_START;
         }
 
         return super.sideTips(player, pos, state, toolTypes, side);

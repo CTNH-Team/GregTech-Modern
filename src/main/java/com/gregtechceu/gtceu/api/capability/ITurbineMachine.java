@@ -3,7 +3,7 @@ package com.gregtechceu.gtceu.api.capability;
 /**
  * For the large gas turbine / large plasma turbine
  */
-public interface ITurbineMachine extends IWorkable {
+public interface ITurbineMachine {
 
     /**
      * @return true if the machine has a roter installed
@@ -29,11 +29,6 @@ public interface ITurbineMachine extends IWorkable {
      * @return the current energy production
      */
     long getCurrentProduction();
-
-    /**
-     * @return the maximum energy production
-     */
-    long getOverclockVoltage();
 
     /**
      * @return the rotor durability in % or -1 when no rotor is installed

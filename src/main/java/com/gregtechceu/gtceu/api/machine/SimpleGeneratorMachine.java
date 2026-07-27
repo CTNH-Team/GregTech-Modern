@@ -5,11 +5,9 @@ import com.gregtechceu.gtceu.api.capability.recipe.*;
 import com.gregtechceu.gtceu.api.gui.editor.EditableMachineUI;
 import com.gregtechceu.gtceu.api.machine.feature.IEnvironmentalHazardEmitter;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
-import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.api.recipe.modifier.ModifierFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.modifier.ParallelLogic;
 import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
 import com.gregtechceu.gtceu.api.recipe.ui.GTRecipeTypeUI;
@@ -20,13 +18,14 @@ import com.lowdragmc.lowdraglib.utils.Size;
 
 import net.minecraft.Util;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 import com.google.common.collect.Tables;
 import com.mojang.blaze3d.MethodsReturnNonnullByDefault;
 import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import lombok.Getter;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.EnumMap;
@@ -37,7 +36,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class SimpleGeneratorMachine extends WorkableTieredMachine
+public class SimpleGeneratorMachine extends RecipeTieredMachine
                                     implements IFancyUIMachine, IEnvironmentalHazardEmitter {
 
     @Getter
@@ -48,21 +47,12 @@ public class SimpleGeneratorMachine extends WorkableTieredMachine
                                   Object... args) {
         super(holder, tier, tankScalingFunction, args);
         this.hazardStrengthPerOperation = hazardStrengthPerOperation;
+        energyContainer.setSideOutputCondition(side -> !hasFrontFacing() || side == getFrontFacing());
     }
 
     public SimpleGeneratorMachine(IMachineBlockEntity holder, int tier, Int2IntFunction tankScalingFunction,
                                   Object... args) {
         this(holder, tier, 0.25f, tankScalingFunction, args);
-    }
-    //////////////////////////////////////
-    // ***** Initialization ******//
-    //////////////////////////////////////
-
-    @Override
-    protected NotifiableEnergyContainer createEnergyContainer(Object... args) {
-        var energyContainer = super.createEnergyContainer(args);
-        energyContainer.setSideOutputCondition(side -> !hasFrontFacing() || side == getFrontFacing());
-        return energyContainer;
     }
 
     @Override
@@ -82,6 +72,11 @@ public class SimpleGeneratorMachine extends WorkableTieredMachine
     // ****** RECIPE LOGIC *******//
     //////////////////////////////////////
 
+    @Override
+    public boolean alwaysTryModifyRecipe() {
+        return true;
+    }
+
     /**
      * Recipe Modifier for <b>Simple Generator Machines</b> - can be used as a valid {@link RecipeModifier}
      * <p>
@@ -90,24 +85,21 @@ public class SimpleGeneratorMachine extends WorkableTieredMachine
      * 
      * @param machine a {@link SimpleGeneratorMachine}
      * @param recipe  recipe
-     * @return A {@link ModifierFunction} for the given Simple Generator
+     * @return the failure reason, or {@code null} on success
      */
-    public static ModifierFunction recipeModifier(@NotNull MetaMachine machine, @NotNull GTRecipe recipe) {
+    public static @Nullable Component recipeModifier(MetaMachine machine, RecipeHandlerGroup group, GTRecipe recipe) {
         if (!(machine instanceof SimpleGeneratorMachine generator)) {
             return RecipeModifier.nullWrongType(SimpleGeneratorMachine.class, machine);
         }
-        long EUt = recipe.getOutputEUt().getTotalEU();
-        if (EUt <= 0) return ModifierFunction.NULL;
+        long EUt = recipe.getOutputEUt();
+        if (EUt <= 0) return RecipeModifier.DEFAULT_FAILURE;
 
         int maxParallel = (int) (generator.getOverclockVoltage() / EUt);
-        int parallels = ParallelLogic.getParallelAmountFast(generator, recipe, maxParallel);
+        int parallels = ParallelLogic.getParallelAmountFast(group, recipe, maxParallel);
 
-        return ModifierFunction.builder()
-                .inputModifier(ContentModifier.multiplier(parallels))
-                .outputModifier(ContentModifier.multiplier(parallels))
-                .eutMultiplier(parallels)
-                .parallels(parallels)
-                .build();
+        recipe.multiplyAllContents(parallels);
+        recipe.parallels *= parallels;
+        return null;
     }
 
     @Override

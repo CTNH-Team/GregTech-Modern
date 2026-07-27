@@ -1,7 +1,7 @@
 package com.gregtechceu.gtceu.api.recipe.category;
 
 import com.gregtechceu.gtceu.GTCEu;
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
@@ -51,6 +51,13 @@ public class GTRecipeCategory {
         this.languageKey = "%s.recipe.category.%s".formatted(GTCEu.MOD_ID, categoryName);
     }
 
+    public GTRecipeCategory(@NotNull ResourceLocation registryKey, @NotNull GTRecipeType recipeType) {
+        this.recipeType = recipeType;
+        this.name = registryKey.getPath();
+        this.registryKey = registryKey;
+        this.languageKey = "%s.recipe.category.%s".formatted(registryKey.getNamespace(), registryKey.getPath());
+    }
+
     public static GTRecipeCategory registerDefault(@NotNull GTRecipeType recipeType) {
         GTRecipeCategory category = new GTRecipeCategory(recipeType);
         GTRegistries.RECIPE_CATEGORIES.register(category.registryKey, category);
@@ -65,7 +72,7 @@ public class GTRecipeCategory {
         return icon;
     }
 
-    public void addRecipe(GTRecipe recipe) {
+    public void addRecipe(GTRecipeDefinition recipe) {
         recipeType.addToCategoryMap(this, recipe);
     }
 

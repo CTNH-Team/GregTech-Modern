@@ -1,8 +1,6 @@
 package com.gregtechceu.gtceu.api.machine.steam;
 
-import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
-import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
@@ -10,11 +8,9 @@ import com.gregtechceu.gtceu.api.machine.feature.ICleanroomProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.feature.IMufflableMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
-import com.gregtechceu.gtceu.api.machine.trait.IRecipeHandlerTrait;
-import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.*;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerList;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
@@ -31,7 +27,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
@@ -70,9 +65,7 @@ public abstract class SteamWorkableMachine extends SteamMachine
     protected boolean isMuffled;
     protected boolean previouslyMuffled = true;
     @Getter
-    protected final Map<IO, List<RecipeHandlerList>> capabilitiesProxy;
-    @Getter
-    protected final Map<IO, Map<RecipeCapability<?>, List<IRecipeHandler<?>>>> capabilitiesFlat;
+    protected RecipeHandlerList recipeHandlerList;
     protected final List<ISubscription> traitSubscriptions;
 
     public SteamWorkableMachine(IMachineBlockEntity holder, boolean isHighPressure, Object... args) {
@@ -80,8 +73,7 @@ public abstract class SteamWorkableMachine extends SteamMachine
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.recipeLogic = createRecipeLogic(args);
-        this.capabilitiesProxy = new EnumMap<>(IO.class);
-        this.capabilitiesFlat = new EnumMap<>(IO.class);
+
         this.traitSubscriptions = new ArrayList<>();
         this.outputFacing = hasFrontFacing() ? getFrontFacing().getOpposite() : Direction.UP;
     }
@@ -92,20 +84,19 @@ public abstract class SteamWorkableMachine extends SteamMachine
     @Override
     public void onLoad() {
         super.onLoad();
-        // attach self traits
-        Map<IO, List<IRecipeHandler<?>>> ioTraits = new Object2ObjectOpenHashMap<>();
-
+        List<IRecipeHandler<?>> list = new ArrayList<>();
         for (MachineTrait trait : getTraits()) {
-            if (trait instanceof IRecipeHandlerTrait<?> handlerTrait) {
-                ioTraits.computeIfAbsent(handlerTrait.getHandlerIO(), i -> new ArrayList<>()).add(handlerTrait);
+            if (trait instanceof IRecipeHandler<?> handlerTrait) {
+                list.add(handlerTrait);
             }
         }
+        recipeHandlerList = RecipeHandlerList.of(list);
+        traitSubscriptions.add(recipeHandlerList.subscribe(recipeLogic::updateTickSubscription));
+    }
 
-        for (var entry : ioTraits.entrySet()) {
-            var handlerList = RecipeHandlerList.of(entry.getKey(), entry.getValue());
-            this.addHandlerList(handlerList);
-            traitSubscriptions.add(handlerList.subscribe(recipeLogic::updateTickSubscription));
-        }
+    @Override
+    public @NotNull List<RecipeHandlerList> getRecipeHandlerLists() {
+        return List.of(recipeHandlerList);
     }
 
     protected RecipeLogic createRecipeLogic(@SuppressWarnings("unused") Object... args) {
@@ -117,9 +108,8 @@ public abstract class SteamWorkableMachine extends SteamMachine
         super.onUnload();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        capabilitiesProxy.clear();
-        capabilitiesFlat.clear();
         recipeLogic.inValid();
+        recipeHandlerList = null;
     }
 
     public boolean hasOutputFacing() {
@@ -159,11 +149,6 @@ public abstract class SteamWorkableMachine extends SteamMachine
             return InteractionResult.sidedSuccess(playerIn.level().isClientSide);
         }
         return super.onWrenchClick(playerIn, hand, gridSide, hitResult);
-    }
-
-    @Override
-    public boolean keepSubscribing() {
-        return false;
     }
 
     @NotNull

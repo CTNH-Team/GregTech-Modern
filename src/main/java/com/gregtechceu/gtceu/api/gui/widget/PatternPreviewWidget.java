@@ -52,7 +52,6 @@ import dev.emi.emi.screen.RecipeScreen;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import me.shedaniel.rei.impl.client.gui.screen.AbstractDisplayViewingScreen;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
@@ -265,10 +264,9 @@ public class PatternPreviewWidget extends WidgetGroup {
 
             Map<BlockPos, TraceabilityPredicate> predicateMap = patterns[index].controllerBase
                     .getMultiblockState()
-                    .getMatchContext()
-                    .get("predicates");
+                    .getPosPredicateMap();
 
-            if (predicateMap == null) return;
+            if (predicateMap.isEmpty()) return;
 
             BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
@@ -627,14 +625,10 @@ public class PatternPreviewWidget extends WidgetGroup {
     public void updateScreen() {
         super.updateScreen();
         // I can only think of this way
-        if (!isLoaded && GTCEu.Mods.isEMILoaded() && Minecraft.getInstance().screen instanceof RecipeScreen) {
+        if (!isLoaded && Minecraft.getInstance().screen instanceof RecipeScreen) {
             setPage(0);
             isLoaded = true;
-        } else if (!isLoaded && GTCEu.Mods.isREILoaded() &&
-                Minecraft.getInstance().screen instanceof AbstractDisplayViewingScreen) {
-                    setPage(0);
-                    isLoaded = true;
-                }
+        }
     }
 
     @Override
@@ -677,7 +671,7 @@ public class PatternPreviewWidget extends WidgetGroup {
         Map<BlockPos, TraceabilityPredicate> predicateMap = new HashMap<>();
         if (controllerBase != null) {
             loadControllerFormed(predicateMap.keySet(), controllerBase);
-            predicateMap = controllerBase.getMultiblockState().getMatchContext().get("predicates");
+            predicateMap = controllerBase.getMultiblockState().getPosPredicateMap();
         }
         return controllerBase == null ? null : new MBPattern(blockMap, parts.values().stream().sorted((one, two) -> {
             if (one.isController) return -1;

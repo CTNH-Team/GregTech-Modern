@@ -1,15 +1,25 @@
 package com.gregtechceu.gtceu.api.machine.trait;
 
-import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.recipe.DummyCraftingContainer;
+import com.gregtechceu.gtceu.api.machine.feature.IAllowSameContainer;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderIngredient;
-import com.gregtechceu.gtceu.api.recipe.ingredient.SizedIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.item.ItemIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.CircuitMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.CustomMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.IntersectionMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.ItemMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.ItemTagMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.NBTPredicateItemStackMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.PartialNBTItemStackMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.StrictNBTItemStackMapIngredient;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
+import com.gregtechceu.gtceu.api.transfer.item.LargeStackItemHandler;
+import com.gregtechceu.gtceu.common.data.GTItems;
+import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
@@ -18,23 +28,21 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import dev.latvian.mods.kubejs.recipe.ingredientaction.IngredientAction;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 
-public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ingredient>
-                                        implements ICapabilityTrait, IItemHandlerModifiable {
+public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<ItemIngredient>
+                                        implements ICapabilityTrait, IItemHandlerModifiable, IAllowSameContainer {
 
     @Getter
     public final IO handlerIO;
@@ -47,6 +55,8 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
     @Getter
     @Setter
     private boolean shouldSearchContent = true;
+    @Persisted
+    private boolean allowSameItems;
     private Boolean isEmpty;
 
     public NotifiableItemStackHandler(MetaMachine machine, int slots, @NotNull IO handlerIO, @NotNull IO capabilityIO,
@@ -55,6 +65,7 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
         this.handlerIO = handlerIO;
         this.storage = storageFactory.apply(slots);
         this.capabilityIO = capabilityIO;
+        this.allowSameItems = handlerIO.support(IO.OUT);
         this.storage.setOnContentsChanged(this::onContentsChanged);
     }
 
@@ -77,134 +88,138 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
     }
 
     @Override
-    public List<Ingredient> handleRecipeInner(IO io, GTRecipe recipe, List<Ingredient> left, boolean simulate) {
-        return handleRecipe(io, recipe, left, simulate, handlerIO, storage);
+    public boolean isAllowSame() {
+        return allowSameItems;
     }
 
-    // TODO: See if implementable in outside callers and unstatic; or move to different common class if not
-    // Notable caller is ItemRecipeHandler, used for MinerLogic
-    public static List<Ingredient> handleRecipe(IO io, GTRecipe recipe, List<Ingredient> left, boolean simulate,
-                                                IO handlerIO, CustomItemStackHandler storage) {
-        if (io != handlerIO) return left;
-        if (io != IO.IN && io != IO.OUT) return left.isEmpty() ? null : left;
+    @Override
+    public void setAllowSame(boolean allowSame) {
+        allowSameItems = allowSame;
+        onContentsChanged();
+    }
 
-        // Temporarily remove listener so that we can broadcast the entire set of transactions once
+    @Override
+    public boolean handleRecipe(IO io, GTRecipe recipe, List<ItemIngredient> left, boolean simulate) {
+        return handleRecipe(io, recipe, left, simulate, handlerIO, storage, allowSameItems);
+    }
+
+    // Notable caller is ItemRecipeHandler, used for MinerLogic
+    public static boolean handleRecipe(IO io, GTRecipe recipe, List<ItemIngredient> left, boolean simulate,
+                                       IO handlerIO, CustomItemStackHandler storage) {
+        return handleRecipe(io, recipe, left, simulate, handlerIO, storage, true);
+    }
+
+    private static boolean handleRecipe(IO io, GTRecipe recipe, List<ItemIngredient> left, boolean simulate,
+                                        IO handlerIO, CustomItemStackHandler storage, boolean allowSameItems) {
+        if (!handlerIO.support(io)) return false;
+
         Runnable listener = storage.getOnContentsChanged();
         storage.setOnContentsChanged(() -> {});
         boolean changed = false;
 
-        // Store the ItemStack in each slot after an operation
-        // Necessary for simulation since we don't actually modify the slot's contents
-        // Doesn't hurt for execution, and definitely cheaper than copying the entire storage
         ItemStack[] visited = new ItemStack[storage.getSlots()];
         for (var it = left.listIterator(); it.hasNext();) {
             var ingredient = it.next();
-            if (ingredient.isEmpty()) {
-                it.remove();
-                continue;
-            }
-
-            ItemStack[] items;
             int amount;
-            if (ingredient instanceof IntProviderIngredient provider) {
-                provider.setItemStacks(null);
-                provider.setSampledCount(-1);
 
-                ItemStack output;
+            if (io == IO.IN) {
                 if (simulate) {
-                    output = provider.getMaxSizeStack();
-                    items = new ItemStack[] { output };
+                    amount = ingredient.getCount();
                 } else {
-                    items = provider.getItems();
-                    if (items.length == 0 || items[0].isEmpty()) {
+                    ItemStack stack = ingredient.toStack();
+                    if (stack.isEmpty()) {
                         it.remove();
                         continue;
                     }
-                    output = items[0];
+                    amount = stack.getCount();
                 }
-                amount = output.getCount();
-            } else {
-                items = ingredient.getItems();
-                if (items.length == 0 || items[0].isEmpty()) {
-                    it.remove();
-                    continue;
-                }
-                if (ingredient instanceof SizedIngredient si) amount = si.getAmount();
-                else amount = items[0].getCount();
-            }
 
-            for (int slot = 0; slot < storage.getSlots(); ++slot) {
-                ItemStack current = visited[slot] == null ? storage.getStackInSlot(slot) : visited[slot];
-                int count = current.getCount();
-
-                if (io == IO.IN) {
+                for (int slot = 0; slot < storage.getSlots(); ++slot) {
+                    ItemStack current = visited[slot] == null ? storage.getStackInSlot(slot) : visited[slot];
+                    int count = current.getCount();
                     if (current.isEmpty()) continue;
                     if (ingredient.test(current)) {
-                        var extracted = getActioned(storage, slot, recipe.ingredientActions);
-                        if (extracted == null) extracted = storage.extractItem(slot, Math.min(count, amount), simulate);
+                        var extracted = storage.extractItem(slot, Math.min(count, amount), simulate);
                         if (!extracted.isEmpty()) {
                             changed = true;
                             visited[slot] = extracted.copyWithCount(count - extracted.getCount());
                         }
                         amount -= extracted.getCount();
                     }
-                } else { // IO.OUT
-                    ItemStack output = items[0].copyWithCount(amount);
-                    // Only try this slot if not visited or if visited with the same type of item
+                    if (amount <= 0) {
+                        it.remove();
+                        break;
+                    }
+                }
+            } else {
+                ItemStack outputStack;
+                if (simulate) {
+                    ItemStack[] items = ingredient.getItems();
+                    if (items.length == 0 || items[0].isEmpty()) {
+                        it.remove();
+                        continue;
+                    }
+                    outputStack = items[0];
+                    amount = ingredient.getCount();
+                } else {
+                    outputStack = ingredient.toStack();
+                    if (outputStack.isEmpty()) {
+                        it.remove();
+                        continue;
+                    }
+                    amount = outputStack.getCount();
+                }
+
+                int matchingSlot = -1;
+                if (!allowSameItems) {
+                    for (int slot = 0; slot < storage.getSlots(); slot++) {
+                        if (GTUtil.isSameItemSameTags(storage.getStackInSlot(slot), outputStack)) {
+                            matchingSlot = slot;
+                            break;
+                        }
+                    }
+                }
+                for (int slot = 0; slot < storage.getSlots(); ++slot) {
+                    if (matchingSlot >= 0 && slot != matchingSlot) continue;
+                    ItemStack current = visited[slot] == null ? storage.getStackInSlot(slot) : visited[slot];
+                    int count = current.getCount();
+                    ItemStack output = outputStack.copyWithCount(amount);
                     if (visited[slot] == null || GTUtil.isSameItemSameTags(visited[slot], output)) {
-                        if (count < output.getMaxStackSize() && count < storage.getSlotLimit(slot)) {
-                            var remainder = getActioned(storage, slot, recipe.ingredientActions);
-                            if (remainder == null) remainder = storage.insertItem(slot, output, simulate);
+                        if (count < storage.getSlotLimit(slot)) {
+                            var remainder = storage.insertItem(slot, output, simulate);
                             if (remainder.getCount() < amount) {
                                 changed = true;
                                 visited[slot] = output.copyWithCount(count + amount - remainder.getCount());
                             }
                             amount = remainder.getCount();
+                            if (!allowSameItems) break;
                         }
                     }
-                }
-
-                if (amount <= 0) {
-                    it.remove();
-                    break;
+                    if (amount <= 0) {
+                        it.remove();
+                        break;
+                    }
                 }
             }
-            // Modify ingredient if we didn't finish it off
+
             if (amount > 0) {
-                if (ingredient instanceof SizedIngredient si) {
-                    si.setAmount(amount);
-                } else {
-                    items[0].setCount(amount);
-                }
+                it.set(ingredient.copyWithCount(amount));
             }
         }
 
         storage.setOnContentsChanged(listener);
         if (changed && !simulate) listener.run();
 
-        return left.isEmpty() ? null : left;
-    }
-
-    private static @Nullable ItemStack getActioned(CustomItemStackHandler storage, int index, List<?> actions) {
-        if (!GTCEu.Mods.isKubeJSLoaded()) return null;
-        // noinspection unchecked
-        var actioned = KJSCallWrapper.applyIngredientAction(storage, index, (List<IngredientAction>) actions);
-        if (!actioned.isEmpty()) return actioned;
-        return null;
+        return left.isEmpty();
     }
 
     @Override
-    public RecipeCapability<Ingredient> getCapability() {
+    public RecipeCapability<ItemIngredient> getCapability() {
         return ItemRecipeCapability.CAP;
     }
 
     public int getSlots() {
         return storage.getSlots();
-    }
-
-    @Override
-    public int getSize() {
-        return getSlots();
     }
 
     @Override
@@ -217,6 +232,34 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
             }
         }
         return new ArrayList<>(stacks);
+    }
+
+    @Override
+    public @NotNull List<AbstractMapIngredient> getMapIngredients() {
+        List<AbstractMapIngredient> ingredients = new ArrayList<>();
+        for (int i = 0; i < getSlots(); ++i) {
+            ItemStack stack = getStackInSlot(i);
+            ingredients.addAll(mapItemStack(stack));
+
+        }
+        return ingredients;
+    }
+
+    public static List<AbstractMapIngredient> mapItemStack(ItemStack stack) {
+        List<AbstractMapIngredient> ingredients = new ArrayList<>();
+        if (stack.isEmpty()) return ingredients;
+        if (stack.is(GTItems.PROGRAMMED_CIRCUIT.get())) {
+            ingredients.addAll(CircuitMapIngredient.from(IntCircuitBehaviour.getCircuitConfiguration(stack)));
+            return ingredients;
+        }
+        ingredients.addAll(ItemMapIngredient.from(stack));
+        ingredients.addAll(ItemTagMapIngredient.from(stack));
+        ingredients.addAll(StrictNBTItemStackMapIngredient.from(stack));
+        ingredients.addAll(PartialNBTItemStackMapIngredient.from(stack));
+        ingredients.addAll(NBTPredicateItemStackMapIngredient.from(stack));
+        ingredients.addAll(IntersectionMapIngredient.from(stack));
+        ingredients.addAll(CustomMapIngredient.from(stack));
+        return ingredients;
     }
 
     @Override
@@ -251,7 +294,16 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
         for (Direction facing : facings) {
             var filter = getMachine().getItemCapFilter(facing, IO.OUT);
             GTTransferUtils.getAdjacentItemHandler(level, pos, facing)
-                    .ifPresent(adj -> GTTransferUtils.transferItemsFiltered(this, adj, filter));
+                    .ifPresent(adj -> outputItemsFiltered(adj, filter));
+        }
+    }
+
+    private void outputItemsFiltered(@NotNull IItemHandler dest, @NotNull Predicate<ItemStack> filter) {
+        if (storage instanceof LargeStackItemHandler largeStackItemHandler &&
+                largeStackItemHandler.getMultiplier() > 1) {
+            GTTransferUtils.transferLargeStackFiltered(storage, dest, filter, Integer.MAX_VALUE);
+        } else {
+            GTTransferUtils.transferItemsFiltered(storage, dest, filter);
         }
     }
 
@@ -283,6 +335,13 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
     @Override
     public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
         if (canCapInput()) {
+            if (!allowSameItems) {
+                for (int index = 0; index < storage.getSlots(); index++) {
+                    if (index != slot && GTUtil.isSameItemSameTags(stack, storage.getStackInSlot(index))) {
+                        return stack;
+                    }
+                }
+            }
             return storage.insertItem(slot, stack, simulate);
         }
         return stack;
@@ -313,25 +372,5 @@ public class NotifiableItemStackHandler extends NotifiableRecipeHandlerTrait<Ing
     @Override
     public boolean isItemValid(int slot, @NotNull ItemStack stack) {
         return storage.isItemValid(slot, stack);
-    }
-
-    public static class KJSCallWrapper {
-
-        public static ItemStack applyIngredientAction(CustomItemStackHandler storage, int index,
-                                                      List<IngredientAction> ingredientActions) {
-            var stack = storage.getStackInSlot(index);
-            if (stack.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-
-            DummyCraftingContainer container = new DummyCraftingContainer(storage);
-            for (var action : ingredientActions) {
-                if (action.checkFilter(index, stack)) {
-                    return action.transform(stack.copy(), index, container);
-                }
-            }
-
-            return ItemStack.EMPTY;
-        }
     }
 }

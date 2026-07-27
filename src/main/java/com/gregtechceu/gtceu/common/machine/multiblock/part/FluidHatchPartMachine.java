@@ -1,6 +1,6 @@
 package com.gregtechceu.gtceu.common.machine.multiblock.part;
 
-import com.gregtechceu.gtceu.api.blockentity.IPaintable;
+import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
@@ -10,11 +10,16 @@ import com.gregtechceu.gtceu.api.gui.widget.ToggleButtonWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
+import com.gregtechceu.gtceu.api.machine.fancyconfigurator.ButtonConfigurator;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CircuitFancyConfigurator;
+import com.gregtechceu.gtceu.api.machine.fancyconfigurator.FancyTankConfigurator;
+import com.gregtechceu.gtceu.api.machine.feature.IAllowSameUIProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
+import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDistinctPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredIOPartMachine;
+import com.gregtechceu.gtceu.api.machine.trait.CatalystFluidHandler;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.common.data.GTMachines;
@@ -22,6 +27,9 @@ import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
+import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
+import com.lowdragmc.lowdraglib.gui.texture.TextTexture;
+import com.lowdragmc.lowdraglib.gui.util.ClickData;
 import com.lowdragmc.lowdraglib.gui.widget.ImageWidget;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
@@ -39,7 +47,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -47,18 +54,20 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidType;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachineLife, IHasCircuitSlot, IPaintable {
+public class FluidHatchPartMachine extends TieredIOPartMachine
+                                   implements IDistinctPart, IMachineLife, IHasCircuitSlot, IAllowSameUIProvider {
 
-    public static final int INITIAL_TANK_CAPACITY_1X = 8 * FluidType.BUCKET_VOLUME;
-    public static final int INITIAL_TANK_CAPACITY_4X = 2 * FluidType.BUCKET_VOLUME;
-    public static final int INITIAL_TANK_CAPACITY_9X = FluidType.BUCKET_VOLUME;
+    public static final int INITIAL_TANK_CAPACITY = 8 * FluidType.BUCKET_VOLUME;
+    public static final int[] TANKS = { 0, 2, 3, 4, 5, 12, 14, 18, 24, 36 };
+    public static final int[] LINE_NUM = { 0, 1, 1, 1, 1, 2, 2, 3, 4, 6 };
 
     @Persisted
     public final NotifiableFluidTank tank;
@@ -67,43 +76,65 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
     protected TickableSubscription autoIOSubs;
     @Nullable
     protected ISubscription tankSubs;
+
     @Getter
-    @Setter
     @Persisted
     @DescSynced
-    protected boolean circuitSlotEnabled;
+    private boolean isDistinct = false;
+
     @Getter
     @Persisted
     protected final NotifiableItemStackHandler circuitInventory;
+    @Getter
+    @Persisted
+    protected final NotifiableFluidTank shareTank;
 
-    // The `Object... args` parameter is necessary in case a superclass needs to pass any args along to createTank().
-    // We can't use fields here because those won't be available while createTank() is called.
+    public FluidHatchPartMachine(IMachineBlockEntity holder, int tier, IO io, int initialCapacity, int slots) {
+        this(holder, tier, io, initialCapacity, slots, false);
+    }
+
     public FluidHatchPartMachine(IMachineBlockEntity holder, int tier, IO io, int initialCapacity, int slots,
-                                 Object... args) {
+                                 boolean enableShareTank) {
         super(holder, tier, io);
         this.slots = slots;
-        this.tank = createTank(initialCapacity, slots, args);
-        this.circuitSlotEnabled = true;
+        this.tank = createTank(initialCapacity, slots);
         this.circuitInventory = createCircuitItemHandler(io).shouldSearchContent(false);
+        this.shareTank = new CatalystFluidHandler(this,
+                enableShareTank && io == IO.IN ? getShareTankSlots(getTier()) : 0,
+                initialCapacity, IO.IN, IO.NONE)
+                .shouldSearchContent(false);
+        shareTank.setCapabilityValidator(dir -> false);
     }
 
     //////////////////////////////////////
     // ***** Initialization ******//
     //////////////////////////////////////
-    protected NotifiableFluidTank createTank(int initialCapacity, int slots, Object... args) {
+    protected NotifiableFluidTank createTank(int initialCapacity, int slots) {
         return new NotifiableFluidTank(this, slots, getTankCapacity(initialCapacity, getTier()), io);
     }
 
     public static int getTankCapacity(int initialCapacity, int tier) {
-        return initialCapacity * (1 << Math.min(9, tier));
+        return initialCapacity * (1 << 2 * tier);
     }
 
-    protected NotifiableItemStackHandler createCircuitItemHandler(Object... args) {
-        if (args.length > 0 && args[0] instanceof IO io && io == IO.IN) {
+    protected NotifiableItemStackHandler createCircuitItemHandler(IO io) {
+        if (io == IO.IN) {
             return new NotifiableItemStackHandler(this, 1, IO.IN, IO.NONE)
                     .setFilter(IntCircuitBehaviour::isIntegratedCircuit);
         } else {
             return new NotifiableItemStackHandler(this, 0, IO.NONE);
+        }
+    }
+
+    public static int getShareTankSlots(int tier) {
+        if (tier <= GTValues.HV) {
+            return 0;
+        } else if (tier <= GTValues.IV) {
+            return 4;
+        } else if (tier <= GTValues.ZPM) {
+            return 9;
+        } else {
+            return 16;
         }
     }
 
@@ -120,7 +151,7 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
         if (getLevel() instanceof ServerLevel serverLevel) {
             serverLevel.getServer().tell(new TickTask(0, this::updateTankSubscription));
         }
-        getHandlerList().setColor(getPaintingColor());
+
         tankSubs = tank.addChangedListener(this::updateTankSubscription);
     }
 
@@ -135,31 +166,21 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
 
     @Override
     public void onPaintingColorChanged(int color) {
-        getHandlerList().setColor(color, true);
+        getControllers().forEach(controller -> {
+            if (controller instanceof IRecipeLogicMachine rlm) {
+                rlm.getRecipeLogic().resetLastGroup();
+            }
+        });
     }
 
     @Override
-    public void addedToController(IMultiController controller) {
-        if (!controller.allowCircuitSlots()) {
-            if (!ConfigHolder.INSTANCE.machines.ghostCircuit) {
-                clearInventory(circuitInventory.storage);
-            } else {
-                circuitInventory.setStackInSlot(0, ItemStack.EMPTY);
+    public void setDistinct(boolean distinct) {
+        isDistinct = (io != IO.OUT && distinct);
+        getControllers().forEach(controller -> {
+            if (controller instanceof IRecipeLogicMachine rlm) {
+                rlm.getRecipeLogic().resetLastGroup();
             }
-            setCircuitSlotEnabled(false);
-        }
-        super.addedToController(controller);
-    }
-
-    @Override
-    public void removedFromController(IMultiController controller) {
-        super.removedFromController(controller);
-        for (var c : controllers) {
-            if (!c.allowCircuitSlots()) {
-                return;
-            }
-        }
-        setCircuitSlotEnabled(true);
+        });
     }
 
     @Override
@@ -240,12 +261,10 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
 
         if (io == IO.IN) {
             if (this.slots == 1) newDefinition = GTMachines.FLUID_EXPORT_HATCH[this.getTier()];
-            else if (this.slots == 4) newDefinition = GTMachines.FLUID_EXPORT_HATCH_4X[this.getTier()];
-            else if (this.slots == 9) newDefinition = GTMachines.FLUID_EXPORT_HATCH_9X[this.getTier()];
+            else newDefinition = GTMachines.FLUID_EXPORT_HATCH_MULTI[this.getTier()];
         } else if (io == IO.OUT) {
             if (this.slots == 1) newDefinition = GTMachines.FLUID_IMPORT_HATCH[this.getTier()];
-            else if (this.slots == 4) newDefinition = GTMachines.FLUID_IMPORT_HATCH_4X[this.getTier()];
-            else if (this.slots == 9) newDefinition = GTMachines.FLUID_IMPORT_HATCH_9X[this.getTier()];
+            else newDefinition = GTMachines.FLUID_IMPORT_HATCH_MULTI[this.getTier()];
         }
         if (newDefinition == null) return false;
 
@@ -270,11 +289,33 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
     // ********** GUI ***********//
     //////////////////////////////////////
 
+    protected void refundAll(ClickData clickData) {
+        if (!clickData.isRemote) {
+            this.setWorkingEnabled(false);
+            tank.exportToNearby(getFrontFacing());
+        }
+    }
+
     @Override
-    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
-        super.attachConfigurators(configuratorPanel);
-        if (isCircuitSlotEnabled() && this.io == IO.IN) {
-            configuratorPanel.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
+    public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
+        attachAllowSameConfigurators(right);
+        if (this.io == IO.IN) {
+            left.attachConfigurators(
+                    new ButtonConfigurator(new GuiTextureGroup(GuiTextures.BUTTON, new TextTexture("\ud83d\udd19")),
+                            this::refundAll)
+                            .setTooltips(List.of(Component.translatable("gtceu.gui.refund_all_fluid"))));
+            if (isCircuitSlotEnabled()) {
+                left.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
+            }
+            if (shareTank.getTanks() != 0) {
+                right.attachConfigurators(new FancyTankConfigurator(
+                        shareTank.getStorages(), Component.translatable("gui.gtceu.share_tank.title"))
+                        .setTooltips(List.of(
+                                Component.translatable("gui.gtceu.share_inventory.desc.1"))));
+            }
+            IDistinctPart.super.attachConfigurators(left, right);
+        } else {
+            super.attachConfigurators(left, right);
         }
     }
 
@@ -357,8 +398,8 @@ public class FluidHatchPartMachine extends TieredIOPartMachine implements IMachi
     }
 
     protected Widget createMultiSlotGUI() {
-        int rowSize = (int) Math.sqrt(slots);
-        int colSize = rowSize;
+        int colSize = LINE_NUM[getTier()];
+        int rowSize = slots / colSize;
         if (slots == 8) {
             rowSize = 4;
             colSize = 2;

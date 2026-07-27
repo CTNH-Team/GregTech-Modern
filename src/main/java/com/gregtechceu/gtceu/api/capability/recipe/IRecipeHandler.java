@@ -1,8 +1,8 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
@@ -23,6 +23,8 @@ public interface IRecipeHandler<K> extends IFilteredHandler<K> {
         return Boolean.compare(empty1, empty2);
     };
 
+    IO getHandlerIO();
+
     /**
      * matching or handling the given recipe.
      *
@@ -34,17 +36,15 @@ public interface IRecipeHandler<K> extends IFilteredHandler<K> {
      *         <br>
      *         null - nothing left. handling successful/finish. you should always return null as a handling-done mark.
      */
-    List<K> handleRecipeInner(IO io, GTRecipe recipe, List<K> left, boolean simulate);
-
-    /**
-     * container size, if it has one. otherwise -1.
-     */
-    default int getSize() {
-        return -1;
-    }
+    boolean handleRecipe(IO io, GTRecipe recipe, List<K> left, boolean simulate);
 
     @NotNull
     List<Object> getContents();
+
+    @NotNull
+    default List<AbstractMapIngredient> getMapIngredients() {
+        return List.of();
+    }
 
     double getTotalContentAmount();
 
@@ -70,13 +70,5 @@ public interface IRecipeHandler<K> extends IFilteredHandler<K> {
     @SuppressWarnings("unchecked")
     default K copyContent(Object content) {
         return getCapability().copyInner((K) content);
-    }
-
-    default List<K> handleRecipe(IO io, GTRecipe recipe, List<?> left, boolean simulate) {
-        List<K> contents = new ObjectArrayList<>(left.size());
-        for (Object leftObj : left) {
-            contents.add(copyContent(leftObj));
-        }
-        return handleRecipeInner(io, recipe, contents, simulate);
     }
 }

@@ -3,7 +3,7 @@ package com.gregtechceu.gtceu.api.recipe;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.RecipeElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.common.machine.multiblock.part.EnergyHatchPartMachine;
@@ -74,7 +74,7 @@ public class MultipleEnergyHatchTest {
     }
 
     private record BusHolder(ItemBusPartMachine inputBus, ItemBusPartMachine outputBus,
-                             WorkableElectricMultiblockMachine controller,
+                             RecipeElectricMultiblockMachine controller,
                              EnergyHatchPartMachine energyHatch1, Optional<EnergyHatchPartMachine> energyHatch2) {}
 
     /**
@@ -84,7 +84,7 @@ public class MultipleEnergyHatchTest {
      * @return the busses, in the BusHolder record.
      */
     private static BusHolder getBussesAndForm(GameTestHelper helper) {
-        WorkableElectricMultiblockMachine controller = (WorkableElectricMultiblockMachine) getMetaMachine(
+        RecipeElectricMultiblockMachine controller = (RecipeElectricMultiblockMachine) getMetaMachine(
                 helper.getBlockEntity(new BlockPos(1, 2, 0)));
         TestUtils.formMultiblock(controller);
         controller.setRecipeType(LCR_RECIPE_TYPE);
@@ -112,14 +112,14 @@ public class MultipleEnergyHatchTest {
     }
 
     private static void checkContainerList(GameTestHelper helper, BusHolder busHolder, List<Hatch> hatches) {
-        long totalVoltage = 0;
+        long totalEut = 0;
         for (var hatch : hatches) {
-            totalVoltage += hatch.EU * hatch.amps;
+            totalEut += hatch.EU * hatch.amps;
         }
         EnergyContainerList containerList = busHolder.controller.getEnergyContainer();
 
-        helper.assertTrue(totalVoltage == containerList.getInputVoltage(),
-                "Hatches on multiblock didn't match expected input voltage");
+        helper.assertTrue(totalEut == containerList.getTotalEUt(),
+                "Hatches on multiblock didn't match expected input EUt");
     }
 
     @GameTest(template = "energy/lcr_ev_mv", batch = "MultipleEnergyHatch", setupTicks = 10L)

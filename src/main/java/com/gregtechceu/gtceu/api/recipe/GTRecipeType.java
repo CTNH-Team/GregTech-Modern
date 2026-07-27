@@ -5,6 +5,7 @@ import com.gregtechceu.gtceu.api.capability.recipe.*;
 import com.gregtechceu.gtceu.api.gui.SteamTexture;
 import com.gregtechceu.gtceu.api.recipe.category.GTRecipeCategory;
 import com.gregtechceu.gtceu.api.recipe.chance.boost.ChanceBoostFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.lookup.RecipeAdditionHandler;
 import com.gregtechceu.gtceu.api.recipe.lookup.RecipeDB;
 import com.gregtechceu.gtceu.api.recipe.ui.GTRecipeTypeUI;
@@ -39,7 +40,7 @@ import java.util.*;
 import java.util.function.*;
 
 @Accessors(chain = true)
-public class GTRecipeType implements RecipeType<GTRecipe> {
+public class GTRecipeType implements RecipeType<GTRecipeDefinition> {
 
     public final ResourceLocation registryName;
     public final String group;
@@ -76,22 +77,19 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
     @Setter
     protected boolean hasResearchSlot;
     @Getter
-    protected final Map<RecipeType<?>, List<GTRecipe>> proxyRecipes;
+    protected final Map<RecipeType<?>, List<GTRecipeDefinition>> proxyRecipes;
     @Getter
     private final GTRecipeCategory category;
     @Getter
-    private final Map<GTRecipeCategory, Set<GTRecipe>> categoryMap = new Object2ObjectOpenHashMap<>();
+    private final Map<GTRecipeCategory, Set<GTRecipeDefinition>> categoryMap = new Object2ObjectOpenHashMap<>();
     private final RecipeDB db = new RecipeDB();
     @ApiStatus.Internal
     @Getter
     private final RecipeAdditionHandler additionHandler = new RecipeAdditionHandler(db);
     @Setter
     @Getter
-    private boolean offsetVoltageText = false;
-    @Setter
-    @Getter
-    private int voltageTextOffset = 20;
-    private final Map<String, Collection<GTRecipe>> researchEntries = new Object2ObjectOpenHashMap<>();
+    private boolean overclockable = true;
+    private final Map<String, Collection<GTRecipeDefinition>> researchEntries = new Object2ObjectOpenHashMap<>();
     @Getter
     private final List<ICustomRecipeLogic> customRecipeLogicRunners = new ArrayList<>();
     @Getter
@@ -103,7 +101,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         this.category = GTRecipeCategory.registerDefault(this);
         recipeBuilder = new GTRecipeBuilder(registryName, this);
         // must be linked to stop json contents from shuffling
-        Map<RecipeType<?>, List<GTRecipe>> map = new Object2ObjectLinkedOpenHashMap<>();
+        Map<RecipeType<?>, List<GTRecipeDefinition>> map = new Object2ObjectLinkedOpenHashMap<>();
         for (RecipeType<?> proxyRecipe : proxyRecipes) {
             map.put(proxyRecipe, new ArrayList<>());
         }
@@ -158,7 +156,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         return this;
     }
 
-    public GTRecipeType setUiBuilder(BiConsumer<GTRecipe, WidgetGroup> uiBuilder) {
+    public GTRecipeType setUiBuilder(BiConsumer<GTRecipeDefinition, WidgetGroup> uiBuilder) {
         this.recipeUI.setUiBuilder(uiBuilder);
         return this;
     }
@@ -197,30 +195,37 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         return registryName.toString();
     }
 
-    public @NotNull Iterator<GTRecipe> searchRecipe(IRecipeCapabilityHolder holder, Predicate<GTRecipe> canHandle) {
-        if (!holder.hasCapabilityProxies()) return Collections.emptyIterator();
-        var iterator = db.iterator(holder, canHandle);
-        if (iterator == null) {
-            return Collections.emptyIterator();
+    public GTRecipeDefinition findRecipe(IRecipeCapabilityHolder holder, Predicate<GTRecipeDefinition> canHandle) {
+        for (var group : holder.getRecipeHandlerGroups()) {
+            var result = findRecipe(group, canHandle);
+            if (result != null) {
+                return result;
+            }
         }
-        boolean any = false;
-        while (iterator.hasNext()) {
-            GTRecipe recipe = iterator.next();
-            if (recipe == null) continue;
-            any = true;
-            break;
-        }
+        return null;
+    }
 
-        if (any) {
-            iterator.reset();
-            return iterator;
+    public @Nullable GTRecipeDefinition findRecipe(RecipeHandlerGroup group, Predicate<GTRecipeDefinition> canHandle) {
+        if (group.isEmpty()) return null;
+        var iterator = db.iterator(group, canHandle);
+        if (iterator == null) {
+            return null;
+        }
+        if (iterator.hasNext()) {
+            return iterator.next();
         }
 
         for (ICustomRecipeLogic logic : customRecipeLogicRunners) {
-            GTRecipe recipe = logic.createCustomRecipe(holder);
-            if (recipe != null && canHandle.test(recipe)) return Collections.singleton(recipe).iterator();
+            var recipe = logic.createCustomRecipe(group);
+            if (recipe != null && canHandle.test(recipe)) return recipe;
         }
-        return Collections.emptyIterator();
+        return null;
+    }
+
+    public @Nullable RecipeDB.RecipeIterator getRecipeIterator(RecipeHandlerGroup group,
+                                                               Predicate<GTRecipeDefinition> canHandle) {
+        if (group.isEmpty()) return null;
+        return db.iterator(group, canHandle);
     }
 
     public int getMaxInputs(RecipeCapability<?> cap) {
@@ -272,18 +277,19 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         return this;
     }
 
-    public void addDataStickEntry(@NotNull String researchId, @NotNull GTRecipe recipe) {
-        Collection<GTRecipe> collection = researchEntries.computeIfAbsent(researchId, (k) -> new ObjectOpenHashSet<>());
+    public void addDataStickEntry(@NotNull String researchId, @NotNull GTRecipeDefinition recipe) {
+        Collection<GTRecipeDefinition> collection = researchEntries.computeIfAbsent(researchId,
+                (k) -> new ObjectOpenHashSet<>());
         collection.add(recipe);
     }
 
     @Nullable
-    public Collection<GTRecipe> getDataStickEntry(@NotNull String researchId) {
+    public Collection<GTRecipeDefinition> getDataStickEntry(@NotNull String researchId) {
         return researchEntries.get(researchId);
     }
 
-    public boolean removeDataStickEntry(@NotNull String researchId, @NotNull GTRecipe recipe) {
-        Collection<GTRecipe> collection = researchEntries.get(researchId);
+    public boolean removeDataStickEntry(@NotNull String researchId, @NotNull GTRecipeDefinition recipe) {
+        Collection<GTRecipeDefinition> collection = researchEntries.get(researchId);
         if (collection == null) return false;
         if (collection.remove(recipe)) {
             if (collection.isEmpty()) {
@@ -294,7 +300,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         return false;
     }
 
-    public GTRecipe toGTrecipe(ResourceLocation id, Recipe<?> recipe) {
+    public GTRecipeDefinition toGTrecipe(ResourceLocation id, Recipe<?> recipe) {
         var builder = recipeBuilder(id);
         for (var ingredient : recipe.getIngredients()) {
             builder.inputItems(ingredient);
@@ -303,7 +309,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         if (recipe instanceof SmeltingRecipe smeltingRecipe) {
             builder.duration(smeltingRecipe.getCookingTime());
         }
-        return GTRecipeSerializer.SERIALIZER.fromJson(id, builder.build().serializeRecipe());
+        return builder.buildRawRecipe();
     }
 
     public void buildRepresentativeRecipes() {
@@ -312,11 +318,11 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         }
     }
 
-    public void addToMainCategory(GTRecipe recipe) {
+    public void addToMainCategory(GTRecipeDefinition recipe) {
         addToCategoryMap(category, recipe);
     }
 
-    public void addToCategoryMap(GTRecipeCategory category, GTRecipe recipe) {
+    public void addToCategoryMap(GTRecipeCategory category, GTRecipeDefinition recipe) {
         categoryMap.computeIfAbsent(category, k -> new ObjectLinkedOpenHashSet<>()).add(recipe);
     }
 
@@ -324,7 +330,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
         return Collections.unmodifiableSet(categoryMap.keySet());
     }
 
-    public Set<GTRecipe> getRecipesInCategory(GTRecipeCategory category) {
+    public Set<GTRecipeDefinition> getRecipesInCategory(GTRecipeCategory category) {
         return Collections.unmodifiableSet(categoryMap.getOrDefault(category, Set.of()));
     }
 
@@ -345,7 +351,7 @@ public class GTRecipeType implements RecipeType<GTRecipe> {
          *         recipe is not found to run. Return null if no recipe should be run by your logic.
          */
         @Nullable
-        GTRecipe createCustomRecipe(IRecipeCapabilityHolder holder);
+        GTRecipeDefinition createCustomRecipe(RecipeHandlerGroup holder);
 
         /**
          * Build all representative recipes in this method, then add them to the appropriate recipe category.

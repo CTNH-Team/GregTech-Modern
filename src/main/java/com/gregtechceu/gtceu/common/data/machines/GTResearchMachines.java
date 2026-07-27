@@ -9,13 +9,14 @@ import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.pattern.FactoryBlockPattern;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.gregtechceu.gtceu.api.registry.registrate.MachineBuilder;
 import com.gregtechceu.gtceu.client.util.TooltipHelper;
 import com.gregtechceu.gtceu.common.data.GTMachines;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
+import com.gregtechceu.gtceu.common.data.GTRecipeModifiers;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.common.machine.multiblock.electric.research.DataBankMachine;
 import com.gregtechceu.gtceu.common.machine.multiblock.electric.research.HPCAMachine;
@@ -62,20 +63,20 @@ public class GTResearchMachines {
             .multiblock("research_station", ResearchStationMachine::new)
             .rotationState(RotationState.NON_Y_AXIS)
             .recipeType(GTRecipeTypes.RESEARCH_STATION_RECIPES)
+            .recipeModifier(GTRecipeModifiers.TIER_CHECK)
             .appearanceBlock(ADVANCED_COMPUTER_CASING)
             .tooltips(LangHandler.getMultiLang("gtceu.machine.research_station.tooltip"))
             .pattern(definition -> FactoryBlockPattern.start()
                     .aisle("XXX", "VVV", "PPP", "PPP", "PPP", "VVV", "XXX")
                     .aisle("XXX", "VAV", "AAA", "AAA", "AAA", "VAV", "XXX")
                     .aisle("XXX", "VAV", "XAX", "XSX", "XAX", "VAV", "XXX")
-                    .aisle("XXX", "XAX", "---", "---", "---", "XAX", "XXX")
-                    .aisle(" X ", "XAX", "---", "---", "---", "XAX", " X ")
-                    .aisle(" X ", "XAX", "-A-", "-H-", "-A-", "XAX", " X ")
-                    .aisle("   ", "XXX", "---", "---", "---", "XXX", "   ")
+                    .aisle("XXX", "XAX", "   ", "   ", "   ", "XAX", "XXX")
+                    .aisle(" X ", "XAX", "   ", "   ", "   ", "XAX", " X ")
+                    .aisle(" X ", "XAX", " A ", " H ", " A ", "XAX", " X ")
+                    .aisle("   ", "XXX", "   ", "   ", "   ", "XXX", "   ")
                     .where('S', controller(blocks(definition.getBlock())))
                     .where('X', blocks(COMPUTER_CASING.get()))
                     .where(' ', any())
-                    .where('-', air())
                     .where('V', blocks(COMPUTER_HEAT_VENT.get()))
                     .where('A', blocks(ADVANCED_COMPUTER_CASING.get()))
                     .where('P', blocks(COMPUTER_CASING.get())
@@ -116,7 +117,7 @@ public class GTResearchMachines {
             .rotationState(RotationState.ALL)
             .abilities(PartAbility.OBJECT_HOLDER)
             .modelProperty(IS_FORMED, false)
-            .modelProperty(GTMachineModelProperties.RECIPE_LOGIC_STATUS, RecipeLogic.Status.IDLE)
+            .modelProperty(GTMachineModelProperties.RECIPE_LOGIC_STATUS, WorkLogic.Status.IDLE)
             .model(createWorkableTieredHullMachineModel(GTCEu.id("block/machines/object_holder"))
                     .andThen((ctx, prov, model) -> {
                         model.addReplaceableTextures("bottom", "top", "side");

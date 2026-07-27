@@ -12,11 +12,9 @@ import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
 import com.gregtechceu.gtceu.api.item.IGTTool;
 import com.gregtechceu.gtceu.api.item.tool.aoe.AoESymmetrical;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.ingredient.SizedIngredient;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
+import com.gregtechceu.gtceu.api.recipe.ingredient.ToolIngredient;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.common.data.GTMaterialItems;
@@ -141,6 +139,14 @@ public class ToolHelper {
      */
     public static GTToolType getToolFromSymbol(char symbol) {
         return symbols.get(symbol);
+    }
+
+    public static ToolIngredient getIngredientFromSymbol(char symbol) {
+        GTToolType toolType = getToolFromSymbol(symbol);
+        if (toolType == null) {
+            throw new IllegalArgumentException("No tool type with symbol '%s'".formatted(symbol));
+        }
+        return new ToolIngredient(toolType);
     }
 
     @UnmodifiableView
@@ -421,35 +427,34 @@ public class ToolHelper {
 
                 DummyMachineBlockEntity be = new DummyMachineBlockEntity(GTValues.LV,
                         GTRecipeTypes.FORGE_HAMMER_RECIPES, GTMachineUtils.defaultTankSizeFunction,
-                        Collections.emptyList());
-                RecipeHandlerList dummyInputs = RecipeHandlerList.of(IO.IN,
+                        RecipeHandlerGroup.EMPTY);
+
+                var group = new RecipeHandlerGroup();
+                group.addHandlers(List.of(
                         new InfiniteEnergyContainer(be.getMetaMachine(), GTValues.V[GTValues.LV],
                                 GTValues.V[GTValues.LV], 1, GTValues.V[GTValues.LV], 1),
                         new NotifiableItemStackHandler(be.getMetaMachine(), 1, IO.IN, IO.IN,
-                                (slots) -> new CustomItemStackHandler(silktouchDrop)));
+                                (slots) -> new CustomItemStackHandler(silktouchDrop)),
+                        new NotifiableItemStackHandler(be.getMetaMachine(), 2, IO.OUT)));
 
-                RecipeHandlerList dummyOutputs = RecipeHandlerList.of(IO.OUT,
-                        new NotifiableItemStackHandler(be.getMetaMachine(), 2, IO.OUT));
-                be.getMetaMachine().reinitializeHandlers(List.of(dummyInputs, dummyOutputs));
+                be.getMetaMachine().reinitializeHandlers(group);
 
-                Iterator<GTRecipe> hammerRecipes = GTRecipeTypes.FORGE_HAMMER_RECIPES.searchRecipe(be.metaMachine,
-                        r -> RecipeHelper.matchContents(be.metaMachine, r).isSuccess());
-                GTRecipe hammerRecipe = !hammerRecipes.hasNext() ? null : hammerRecipes.next();
-                if (hammerRecipe != null && RecipeHelper.handleRecipeIO(be.metaMachine, hammerRecipe, IO.IN,
-                        be.getMetaMachine().recipeLogic.getChanceCaches()).isSuccess()) {
+                var hammerRecipe = GTRecipeTypes.FORGE_HAMMER_RECIPES.findRecipe(group,
+                        r -> RecipeHelper.matchContents(group, r.toRuntime()).isSuccess());
+                if (hammerRecipe != null && RecipeHelper.handleRecipeIO(group, hammerRecipe.toRuntime(), IO.IN)
+                        .isSuccess()) {
                     drops.clear();
                     TagPrefix prefix = ChemicalHelper.getPrefix(silktouchDrop.getItem());
                     if (prefix.isEmpty()) {
-                        for (Content output : hammerRecipe.getOutputContents(ItemRecipeCapability.CAP)) {
+                        for (var output : hammerRecipe.getOutputContents(ItemRecipeCapability.CAP)) {
                             if (dropChance >= 1.0F || random.nextFloat() <= dropChance) {
-                                drops.add(SizedIngredient.copy(ItemRecipeCapability.CAP.of(output.content))
-                                        .getItems()[0]);
+                                drops.add(output.toStack());
                             }
                         }
                     } else if (TagPrefix.ORES.containsKey(prefix)) {
-                        for (Content content : hammerRecipe.getOutputContents(ItemRecipeCapability.CAP)) {
+                        for (var content : hammerRecipe.getOutputContents(ItemRecipeCapability.CAP)) {
                             if (dropChance >= 1.0F || random.nextFloat() <= dropChance) {
-                                ItemStack output = ItemRecipeCapability.CAP.of(content.content).getItems()[0];
+                                ItemStack output = content.toStack();
                                 // Only apply fortune on ore -> crushed forge hammer recipes
                                 if (ChemicalHelper.getPrefix(output.getItem()) == TagPrefix.crushed) {
                                     output = output.copy();

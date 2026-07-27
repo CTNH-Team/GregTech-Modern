@@ -5,7 +5,6 @@ import com.gregtechceu.gtceu.api.GTCEuAPI;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
-import com.gregtechceu.gtceu.common.data.machines.GTAEMachines;
 import com.gregtechceu.gtceu.common.data.machines.GTMultiMachines;
 import com.gregtechceu.gtceu.data.recipe.CustomTags;
 import com.gregtechceu.gtceu.data.recipe.GTCraftingComponents;
@@ -15,7 +14,6 @@ import com.gregtechceu.gtceu.data.recipe.builder.GTRecipeBuilder;
 import net.minecraft.data.recipes.FinishedRecipe;
 import net.minecraft.world.item.ItemStack;
 
-import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.core.definitions.AEParts;
 
@@ -522,44 +520,6 @@ public class MetaTileEntityMachineRecipeLoader {
                 .duration(100).EUt(VA[LV])
                 .addMaterialInfo(true).save(provider);
 
-        // Multiblock Miners
-
-        ASSEMBLER_RECIPES.recipeBuilder("ev_large_miner")
-                .inputItems(HULL[EV])
-                .inputItems(frameGt, Titanium, 4)
-                .inputItems(CustomTags.IV_CIRCUITS, 4)
-                .inputItems(ELECTRIC_MOTOR_EV, 4)
-                .inputItems(ELECTRIC_PUMP_EV, 4)
-                .inputItems(CONVEYOR_MODULE_EV, 4)
-                .inputItems(gear, Tungsten, 4)
-                .circuitMeta(2)
-                .outputItems(GTMultiMachines.LARGE_MINER[EV])
-                .duration(400).EUt(VA[EV]).save(provider);
-
-        ASSEMBLER_RECIPES.recipeBuilder("iv_large_miner")
-                .inputItems(HULL[IV])
-                .inputItems(frameGt, TungstenSteel, 4)
-                .inputItems(CustomTags.IV_CIRCUITS, 4)
-                .inputItems(ELECTRIC_MOTOR_IV, 4)
-                .inputItems(ELECTRIC_PUMP_IV, 4)
-                .inputItems(CONVEYOR_MODULE_IV, 4)
-                .inputItems(gear, Iridium, 4)
-                .circuitMeta(2)
-                .outputItems(GTMultiMachines.LARGE_MINER[IV])
-                .duration(400).EUt(VA[IV]).save(provider);
-
-        ASSEMBLER_RECIPES.recipeBuilder("luv_large_miner")
-                .inputItems(HULL[LuV])
-                .inputItems(frameGt, HSSS, 4)
-                .inputItems(CustomTags.LuV_CIRCUITS, 4)
-                .inputItems(ELECTRIC_MOTOR_LuV, 4)
-                .inputItems(ELECTRIC_PUMP_LuV, 4)
-                .inputItems(CONVEYOR_MODULE_LuV, 4)
-                .inputItems(gear, Ruridit, 4)
-                .circuitMeta(2)
-                .outputItems(GTMultiMachines.LARGE_MINER[LuV])
-                .duration(400).EUt(VA[LuV]).save(provider);
-
         // Multiblock Fluid Drills
 
         ASSEMBLER_RECIPES.recipeBuilder("mv_fluid_drilling_rig")
@@ -644,90 +604,92 @@ public class MetaTileEntityMachineRecipeLoader {
             ItemStack meInterface = AEParts.INTERFACE.stack(1);
             ItemStack accelerationCard = AEItems.SPEED_CARD.stack(2);
 
-            ASSEMBLER_RECIPES.recipeBuilder("me_export_hatch")
-                    .inputItems(FLUID_EXPORT_HATCH[EV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(accelerationCard.copy())
-                    .outputItems(GTAEMachines.FLUID_EXPORT_HATCH_ME)
-                    .duration(300).EUt(VA[HV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLER_RECIPES.recipeBuilder("me_import_hatch")
-                    .inputItems(FLUID_IMPORT_HATCH[EV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(accelerationCard.copy())
-                    .outputItems(GTAEMachines.FLUID_IMPORT_HATCH_ME)
-                    .duration(300).EUt(VA[HV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLER_RECIPES.recipeBuilder("me_export_bus")
-                    .inputItems(ITEM_EXPORT_BUS[EV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(accelerationCard.copy())
-                    .outputItems(GTAEMachines.ITEM_EXPORT_BUS_ME)
-                    .duration(300).EUt(VA[HV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLER_RECIPES.recipeBuilder("me_import_bus")
-                    .inputItems(ITEM_IMPORT_BUS[EV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(accelerationCard.copy())
-                    .outputItems(GTAEMachines.ITEM_IMPORT_BUS_ME)
-                    .duration(300).EUt(VA[HV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLER_RECIPES.recipeBuilder("me_stocking_import_bus")
-                    .inputItems(ITEM_IMPORT_BUS[IV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(CONVEYOR_MODULE_IV)
-                    .inputItems(SENSOR_IV)
-                    .inputItems(accelerationCard.copyWithCount(4))
-                    .outputItems(GTAEMachines.STOCKING_IMPORT_BUS_ME)
-                    .duration(300).EUt(VA[IV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLER_RECIPES.recipeBuilder("me_stocking_import_hatch")
-                    .inputItems(FLUID_IMPORT_HATCH[IV])
-                    .inputItems(meInterface.copy())
-                    .inputItems(ELECTRIC_PUMP_IV)
-                    .inputItems(SENSOR_IV)
-                    .inputItems(accelerationCard.copyWithCount(4))
-                    .outputItems(GTAEMachines.STOCKING_IMPORT_HATCH_ME)
-                    .duration(300).EUt(VA[IV])
-                    .addMaterialInfo(true).save(provider);
-
-            ASSEMBLY_LINE_RECIPES.recipeBuilder("me_pattern_buffer")
-                    .inputItems(DUAL_IMPORT_HATCH[LuV], 1)
-                    .inputItems(EMITTER_LuV, 1)
-                    .inputItems(CustomTags.LuV_CIRCUITS, 4)
-                    .inputItems(AEBlocks.PATTERN_PROVIDER.asItem(), 3)
-                    .inputItems(AEBlocks.INTERFACE.asItem(), 3)
-                    .inputItems(AEItems.SPEED_CARD.asItem(), 4)
-                    .inputItems(AEItems.CAPACITY_CARD.asItem(), 2)
-                    .inputItems(wireFine, Europium, 32)
-                    .inputItems(wireFine, Europium, 32)
-                    .inputItems(wireFine, Europium, 32)
-                    .inputFluids(SolderingAlloy, L * 4)
-                    .inputFluids(Lubricant, 500)
-                    .outputItems(GTAEMachines.ME_PATTERN_BUFFER)
-                    .scannerResearch(b -> b.researchStack(DUAL_IMPORT_HATCH[LuV].asStack())
-                            .duration(1200)
-                            .EUt(VA[LuV]))
-                    .duration(600).EUt(VA[LuV]).save(provider);
-            ASSEMBLY_LINE_RECIPES.recipeBuilder("me_pattern_buffer_proxy")
-                    .inputItems(HULL[LuV], 1)
-                    .inputItems(SENSOR_LuV, 2)
-                    .inputItems(CustomTags.LuV_CIRCUITS, 1)
-                    .inputItems(AEBlocks.QUANTUM_LINK.asItem(), 1)
-                    .inputItems(AEBlocks.QUANTUM_RING.asItem(), 2)
-                    .inputItems(wireFine, Europium, 32)
-                    .inputItems(wireFine, Europium, 32)
-                    .inputFluids(SolderingAlloy, L * 4)
-                    .inputFluids(Lubricant, 500)
-                    .outputItems(GTAEMachines.ME_PATTERN_BUFFER_PROXY)
-                    .stationResearch(b -> b.researchStack(GTAEMachines.ME_PATTERN_BUFFER.asStack())
-                            .CWUt(32))
-                    .duration(600).EUt(VA[ZPM]).save(provider);
+            // spotless:off
+//            ASSEMBLER_RECIPES.recipeBuilder("me_export_hatch")
+//                    .inputItems(FLUID_EXPORT_HATCH[EV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(accelerationCard.copy())
+//                    .outputItems(GTAEMachines.FLUID_EXPORT_HATCH_ME)
+//                    .duration(300).EUt(VA[HV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLER_RECIPES.recipeBuilder("me_import_hatch")
+//                    .inputItems(FLUID_IMPORT_HATCH[EV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(accelerationCard.copy())
+//                    .outputItems(GTAEMachines.FLUID_IMPORT_HATCH_ME)
+//                    .duration(300).EUt(VA[HV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLER_RECIPES.recipeBuilder("me_export_bus")
+//                    .inputItems(ITEM_EXPORT_BUS[EV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(accelerationCard.copy())
+//                    .outputItems(GTAEMachines.ITEM_EXPORT_BUS_ME)
+//                    .duration(300).EUt(VA[HV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLER_RECIPES.recipeBuilder("me_import_bus")
+//                    .inputItems(ITEM_IMPORT_BUS[EV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(accelerationCard.copy())
+//                    .outputItems(GTAEMachines.ITEM_IMPORT_BUS_ME)
+//                    .duration(300).EUt(VA[HV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLER_RECIPES.recipeBuilder("me_stocking_import_bus")
+//                    .inputItems(ITEM_IMPORT_BUS[IV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(CONVEYOR_MODULE_IV)
+//                    .inputItems(SENSOR_IV)
+//                    .inputItems(accelerationCard.copyWithCount(4))
+//                    .outputItems(GTAEMachines.STOCKING_IMPORT_BUS_ME)
+//                    .duration(300).EUt(VA[IV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLER_RECIPES.recipeBuilder("me_stocking_import_hatch")
+//                    .inputItems(FLUID_IMPORT_HATCH[IV])
+//                    .inputItems(meInterface.copy())
+//                    .inputItems(ELECTRIC_PUMP_IV)
+//                    .inputItems(SENSOR_IV)
+//                    .inputItems(accelerationCard.copyWithCount(4))
+//                    .outputItems(GTAEMachines.STOCKING_IMPORT_HATCH_ME)
+//                    .duration(300).EUt(VA[IV])
+//                    .addMaterialInfo(true).save(provider);
+//
+//            ASSEMBLY_LINE_RECIPES.recipeBuilder("me_pattern_buffer")
+//                    .inputItems(DUAL_IMPORT_HATCH[LuV], 1)
+//                    .inputItems(EMITTER_LuV, 1)
+//                    .inputItems(CustomTags.LuV_CIRCUITS, 4)
+//                    .inputItems(AEBlocks.PATTERN_PROVIDER.asItem(), 3)
+//                    .inputItems(AEBlocks.INTERFACE.asItem(), 3)
+//                    .inputItems(AEItems.SPEED_CARD.asItem(), 4)
+//                    .inputItems(AEItems.CAPACITY_CARD.asItem(), 2)
+//                    .inputItems(wireFine, Europium, 32)
+//                    .inputItems(wireFine, Europium, 32)
+//                    .inputItems(wireFine, Europium, 32)
+//                    .inputFluids(SolderingAlloy, L * 4)
+//                    .inputFluids(Lubricant, 500)
+//                    .outputItems(GTAEMachines.ME_PATTERN_BUFFER)
+//                    .scannerResearch(b -> b.researchStack(DUAL_IMPORT_HATCH[LuV].asStack())
+//                            .duration(1200)
+//                            .EUt(VA[LuV]))
+//                    .duration(600).EUt(VA[LuV]).save(provider);
+//            ASSEMBLY_LINE_RECIPES.recipeBuilder("me_pattern_buffer_proxy")
+//                    .inputItems(HULL[LuV], 1)
+//                    .inputItems(SENSOR_LuV, 2)
+//                    .inputItems(CustomTags.LuV_CIRCUITS, 1)
+//                    .inputItems(AEBlocks.QUANTUM_LINK.asItem(), 1)
+//                    .inputItems(AEBlocks.QUANTUM_RING.asItem(), 2)
+//                    .inputItems(wireFine, Europium, 32)
+//                    .inputItems(wireFine, Europium, 32)
+//                    .inputFluids(SolderingAlloy, L * 4)
+//                    .inputFluids(Lubricant, 500)
+//                    .outputItems(GTAEMachines.ME_PATTERN_BUFFER_PROXY)
+//                    .stationResearch(b -> b.researchStack(GTAEMachines.ME_PATTERN_BUFFER.asStack())
+//                            .CWUt(32))
+//                    .duration(600).EUt(VA[ZPM]).save(provider);
+            // spotless:on
         }
     }
 

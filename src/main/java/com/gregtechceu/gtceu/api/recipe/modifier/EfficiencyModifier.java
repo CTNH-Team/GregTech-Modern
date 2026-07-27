@@ -3,9 +3,13 @@ package com.gregtechceu.gtceu.api.recipe.modifier;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
+
+import net.minecraft.network.chat.Component;
 
 import com.google.common.base.Preconditions;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Recipe Modifier that scales recipe duration based on the number of times the recipe has been consecutively run
@@ -59,18 +63,18 @@ public class EfficiencyModifier implements RecipeModifier {
      * @return Efficiency Modifier
      */
     @Override
-    public @NotNull ModifierFunction getModifier(@NotNull MetaMachine machine, @NotNull GTRecipe recipe) {
+    public @Nullable Component apply(@NotNull MetaMachine machine, RecipeHandlerGroup group,
+                                     @NotNull GTRecipe recipe) {
         if (!(machine instanceof IRecipeLogicMachine rlm)) {
             return RecipeModifier.nullWrongType(IRecipeLogicMachine.class, machine);
         }
-        if (recipe.duration <= 1) return ModifierFunction.IDENTITY;
-        int runs = rlm.getRecipeLogic().getConsecutiveRecipes();
+        if (recipe.duration <= 1) return null;
+        int runs = 0; // TODO: add this back
         double mult;
         // Heuristic to not do insane floating point math - if you need more than this to get to the cap, seek help
         if (runs > heuristic) mult = hardCap;
         else mult = Math.max(hardCap, baseMultiplier * Math.pow(efficiency, runs));
-        return ModifierFunction.builder()
-                .durationMultiplier(mult)
-                .build();
+        recipe.multiplyDuration(mult);
+        return null;
     }
 }

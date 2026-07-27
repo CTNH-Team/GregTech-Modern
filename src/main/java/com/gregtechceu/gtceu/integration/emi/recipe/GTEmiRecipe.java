@@ -1,6 +1,9 @@
 package com.gregtechceu.gtceu.integration.emi.recipe;
 
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
+import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
 import com.gregtechceu.gtceu.integration.xei.widgets.GTRecipeWidget;
 
 import com.lowdragmc.lowdraglib.emi.ModularEmiRecipe;
@@ -20,6 +23,7 @@ import net.minecraftforge.items.wrapper.EmptyHandler;
 
 import dev.emi.emi.api.recipe.EmiRecipeCategory;
 import dev.emi.emi.api.stack.EmiIngredient;
+import dev.emi.emi.api.stack.EmiStack;
 import dev.emi.emi.api.widget.SlotWidget;
 import dev.emi.emi.api.widget.TankWidget;
 import dev.emi.emi.api.widget.Widget;
@@ -32,12 +36,19 @@ import java.util.List;
 public class GTEmiRecipe extends ModularEmiRecipe<WidgetGroup> {
 
     final EmiRecipeCategory category;
-    final GTRecipe recipe;
+    final GTRecipeDefinition recipe;
 
-    public GTEmiRecipe(GTRecipe recipe, EmiRecipeCategory category) {
-        super(() -> new GTRecipeWidget(recipe));
+    public GTEmiRecipe(GTRecipeDefinition recipe, EmiRecipeCategory category) {
+        super(() -> GTRecipeWidget.getPlaceHolder(recipe));
         this.category = category;
         this.recipe = recipe;
+        this.inputs = getEmiIngredients(IO.IN, recipe.inputs, recipe.tickInputs);
+        this.outputs = getEmiStacks(IO.OUT, recipe.outputs, recipe.tickOutputs);
+        for (var condition : recipe.conditions) {
+            if (!condition.hasXEICatalysts()) continue;
+            this.catalysts.addAll((List<EmiIngredient>) condition.getXEICatalysts());
+        }
+        this.widget = () -> new GTRecipeWidget(recipe);
     }
 
     @Override
@@ -108,5 +119,36 @@ public class GTEmiRecipe extends ModularEmiRecipe<WidgetGroup> {
         widgets.add(new ModularWrapperWidget(modular, slots));
         slots.forEach(widgets::add);
         widgets.add(new ModularForegroundRenderWidget(modular));
+    }
+
+    private List<EmiIngredient> getEmiIngredients(IO io, ContentListMap... contentListMaps) {
+        List<EmiIngredient> list = new ArrayList<>();
+        for (var contentListMap : contentListMaps) {
+            contentListMap.forEachEntry(new ContentListMap.EntryConsumer() {
+
+                @Override
+                public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
+                    list.addAll((List<EmiIngredient>) capability.getXEIIngredients(contents, recipe, io));
+                }
+            });
+        }
+        return list;
+    }
+
+    private List<EmiStack> getEmiStacks(IO io, ContentListMap... contentListMaps) {
+        List<EmiStack> list = new ArrayList<>();
+        for (var contentListMap : contentListMaps) {
+            contentListMap.forEachEntry(new ContentListMap.EntryConsumer() {
+
+                @Override
+                public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
+                    ((List<EmiIngredient>) capability.getXEIIngredients(contents, recipe, io))
+                            .stream()
+                            .map(ingredient -> ingredient.getEmiStacks().get(0))
+                            .forEach(list::add);
+                }
+            });
+        }
+        return list;
     }
 }

@@ -9,15 +9,14 @@ import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
-import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.RecipeElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
 import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.OverclockingLogic;
-import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
-import com.gregtechceu.gtceu.api.recipe.modifier.ModifierFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
 import com.gregtechceu.gtceu.common.block.FusionCasingBlock;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
@@ -37,8 +36,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2IntSortedMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -54,7 +51,7 @@ import static com.gregtechceu.gtceu.common.data.GTBlocks.*;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class FusionReactorMachine extends WorkableElectricMultiblockMachine implements ITieredMachine {
+public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
 
     // Standard OC used for Fusion
     public static final OverclockingLogic FUSION_OC = OverclockingLogic.create(PERFECT_HALF_DURATION_FACTOR,
@@ -111,19 +108,17 @@ public class FusionReactorMachine extends WorkableElectricMultiblockMachine impl
         super.onStructureFormed();
         // capture all energy containers
         List<IEnergyContainer> energyContainers = new ArrayList<>();
-        Long2ObjectMap<IO> ioMap = getMultiblockState().getMatchContext().getOrCreate("ioMap",
-                Long2ObjectMaps::emptyMap);
+
         for (IMultiPart part : getParts()) {
-            IO io = ioMap.getOrDefault(part.self().getPos().asLong(), IO.BOTH);
-            if (io == IO.NONE || io == IO.OUT) continue;
+
             var handlerLists = part.getRecipeHandlers();
             for (var handlerList : handlerLists) {
-                if (!handlerList.isValid(io)) continue;
-
                 handlerList.getCapability(EURecipeCapability.CAP).stream()
+                        .filter(h -> h.getHandlerIO().support(IO.IN))
                         .filter(IEnergyContainer.class::isInstance)
                         .map(IEnergyContainer.class::cast)
                         .forEach(energyContainers::add);
+
                 traitSubscriptions.add(handlerList.subscribe(this::updatePreHeatSubscription, EURecipeCapability.CAP));
             }
         }
@@ -167,36 +162,36 @@ public class FusionReactorMachine extends WorkableElectricMultiblockMachine impl
      * 
      * @param machine a {@link FusionReactorMachine}
      * @param recipe  recipe
-     * @return A {@link ModifierFunction} for the given Fusion Reactor and recipe
+     * @return the failure reason, or {@code null} on success
      */
-    public static ModifierFunction recipeModifier(@NotNull MetaMachine machine, @NotNull GTRecipe recipe) {
+    public static @org.jetbrains.annotations.Nullable Component recipeModifier(@NotNull MetaMachine machine,
+                                                                               RecipeHandlerGroup group,
+                                                                               @NotNull GTRecipe recipe) {
         if (!(machine instanceof FusionReactorMachine fusionReactorMachine)) {
             return RecipeModifier.nullWrongType(FusionReactorMachine.class, machine);
         }
-        if (RecipeHelper.getRecipeEUtTier(recipe) > fusionReactorMachine.getTier() ||
+        if (recipe.tier > fusionReactorMachine.getTier() ||
                 !recipe.data.contains("eu_to_start") ||
                 recipe.data.getLong("eu_to_start") > fusionReactorMachine.energyContainer.getEnergyCapacity()) {
-            return ModifierFunction
-                    .cancel(Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion"));
+            return Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion");
         }
 
         long heatDiff = recipe.data.getLong("eu_to_start") - fusionReactorMachine.heat;
 
         // if the stored heat is >= required energy, recipe is okay to run
         if (heatDiff <= 0) {
-            return FUSION_OC.getModifier(machine, recipe, fusionReactorMachine.getMaxVoltage(), false);
+            return FUSION_OC.getModifier(machine, group, recipe, GTValues.V[fusionReactorMachine.tier], false);
         }
         // if the remaining energy needed is more than stored, do not run
         if (fusionReactorMachine.energyContainer.getEnergyStored() < heatDiff)
-            return ModifierFunction
-                    .cancel(Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion"));
+            return Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion");
 
         // remove the energy needed
         fusionReactorMachine.energyContainer.removeEnergy(heatDiff);
         // increase the stored heat
         fusionReactorMachine.heat += heatDiff;
         fusionReactorMachine.updatePreHeatSubscription();
-        return FUSION_OC.getModifier(machine, recipe, fusionReactorMachine.getMaxVoltage(), false);
+        return FUSION_OC.getModifier(machine, group, recipe, GTValues.V[fusionReactorMachine.tier], false);
     }
 
     @Override
@@ -222,8 +217,7 @@ public class FusionReactorMachine extends WorkableElectricMultiblockMachine impl
 
         if (color == -1) {
             if (!recipe.getOutputContents(FluidRecipeCapability.CAP).isEmpty()) {
-                var stack = FluidRecipeCapability.CAP
-                        .of(recipe.getOutputContents(FluidRecipeCapability.CAP).get(0).getContent()).getStacks()[0];
+                var stack = recipe.getOutputContents(FluidRecipeCapability.CAP).get(0).getFluids()[0];
                 int newColor = 0xFF000000 | GTUtil.getFluidColor(stack);
                 if (!Objects.equals(color, newColor)) {
                     color = newColor;
@@ -263,11 +257,6 @@ public class FusionReactorMachine extends WorkableElectricMultiblockMachine impl
         color = -1;
     }
 
-    @Override
-    public long getMaxVoltage() {
-        return Math.min(GTValues.V[tier], super.getMaxVoltage());
-    }
-
     //////////////////////////////////////
     // ******** GUI *********//
     //////////////////////////////////////
@@ -281,10 +270,10 @@ public class FusionReactorMachine extends WorkableElectricMultiblockMachine impl
         }
     }
 
-    public static void addEUToStartLabel(GTRecipe recipe, WidgetGroup group) {
+    public static void addEUToStartLabel(GTRecipeDefinition recipe, WidgetGroup group) {
         long euToStart = recipe.data.getLong("eu_to_start");
         if (euToStart <= 0) return;
-        int recipeTier = RecipeHelper.getPreOCRecipeEuTier(recipe);
+        int recipeTier = recipe.tier;
         int fusionTier = findCeilingTier(euToStart);
         int tier = Math.max(MINIMUM_TIER, Math.max(recipeTier, fusionTier));
         group.addWidget(new LabelWidget(-8, group.getSizeHeight() - 10,

@@ -7,7 +7,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.StringRepresentable;
 
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
@@ -85,15 +84,6 @@ public enum RelativeDirection implements StringRepresentable {
 
     public Vec3i applyVec3i(Direction facing) {
         return getActualDirection(facing).getNormal();
-    }
-
-    /**
-     * @deprecated Renamed to {@link RelativeDirection#getRelative(Direction, Direction, boolean) getRelative}.
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.0.0", forRemoval = true)
-    public Direction getRelativeFacing(Direction frontFacing, Direction upwardsFacing, boolean isFlipped) {
-        return getRelative(frontFacing, upwardsFacing, isFlipped);
     }
 
     public Direction getRelative(Direction frontDir, Direction upwardsDir, boolean isFlipped) {

@@ -1,31 +1,25 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
-import com.gregtechceu.gtceu.api.codec.DispatchedMapCodec;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.api.recipe.content.IContentSerializer;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
 import com.gregtechceu.gtceu.api.recipe.ui.GTRecipeTypeUI;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 
+import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
 import com.mojang.serialization.Codec;
-import io.netty.buffer.Unpooled;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.*;
 
@@ -35,65 +29,62 @@ import java.util.*;
 public abstract class RecipeCapability<T> {
 
     public static final Codec<RecipeCapability<?>> DIRECT_CODEC = GTRegistries.RECIPE_CAPABILITIES.codec();
-    public static final Codec<Map<RecipeCapability<?>, List<Content>>> CODEC = new DispatchedMapCodec<>(
-            RecipeCapability.DIRECT_CODEC,
-            RecipeCapability::contentCodec);
+    // public static final Codec<Map<RecipeCapability<?>, List<?>>> CODEC = new DispatchedMapCodec<>(
+    // RecipeCapability.DIRECT_CODEC,
+    // RecipeCapability::contentCodec);
     public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator.comparingInt(o -> o.sortIndex);
+    private static int index = 0;
 
     public final String name;
     public final int color;
     public final boolean doRenderSlot;
     public final int sortIndex;
-    public final IContentSerializer<T> serializer;
+    public final Codec<T> contentCodec;
 
-    protected RecipeCapability(String name, int color, boolean doRenderSlot, int sortIndex,
-                               IContentSerializer<T> serializer) {
+    protected RecipeCapability(String name, int color, boolean doRenderSlot,
+                               Codec<T> contentCodec) {
         this.name = name;
         this.color = color;
         this.doRenderSlot = doRenderSlot;
-        this.sortIndex = sortIndex;
-        this.serializer = serializer;
+        this.sortIndex = index++;
+        this.contentCodec = contentCodec;
     }
 
-    public static Codec<List<Content>> contentCodec(RecipeCapability<?> capability) {
-        return Content.codec(capability).listOf();
+    public static <T> Codec<List<T>> contentCodec(RecipeCapability<T> capability) {
+        return capability.contentCodec.listOf();
     }
 
-    public Tag contentToNbt(Object value) {
-        return this.serializer.toNbt(this.of(value));
-    }
+    public abstract T fromNetwork(FriendlyByteBuf friendlyByteBuf);
+
+    public abstract void toNetwork(T ingredient, FriendlyByteBuf friendlyByteBuf);
+
+    public T copyInner(T content) {
+        return copyInner(content, 1);
+    };
 
     /**
      * deep copy of this content. recipe need it for searching and such things
      */
-    public T copyInner(T content) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        serializer.toNetwork(buf, content);
-        return serializer.fromNetwork(buf);
-    }
+    public abstract T copyInner(T content, int multiplier);
 
     /**
-     * deep copy and modify the size attribute for those Content that have the size attribute.
+     * deep copy and modify the size attribute for contents that have the size attribute.
      */
-    public T copyWithModifier(T content, ContentModifier modifier) {
-        return copyInner(content);
+    public T copyWithMultiplier(T content, int multiplier) {
+        return copyInner(content, multiplier);
+    }
+
+    public boolean isChanced(T content) {
+        return false;
+    }
+
+    public @Nullable IGuiTexture createXEIOverlay(T content, boolean perTick) {
+        return null;
     }
 
     @SuppressWarnings("unchecked")
     public final T copyContent(Object content) {
         return copyInner((T) content);
-    }
-
-    @SuppressWarnings("unchecked")
-    public final T copyContent(Object content, ContentModifier modifier) {
-        return copyWithModifier((T) content, modifier);
-    }
-
-    /**
-     * used for recipe builder via KubeJs.
-     */
-    public T of(Object o) {
-        return serializer.of(o);
     }
 
     public String slotName(IO io) {
@@ -116,12 +107,8 @@ public abstract class RecipeCapability<T> {
         return false;
     }
 
-    public List<Object> compressIngredients(@Unmodifiable Collection<Object> ingredients) {
-        return new ArrayList<>(ingredients);
-    }
-
-    public @Nullable List<AbstractMapIngredient> getDefaultMapIngredient(Object object) {
-        return null;
+    public List<AbstractMapIngredient> getMapIngredients(T content) {
+        return List.of();
     }
 
     /**
@@ -142,7 +129,7 @@ public abstract class RecipeCapability<T> {
      * @return the amount of times a {@link GTRecipe} outputs can be merged into an inventory without voiding products.
      */
     // returns Integer.MAX_VALUE by default, to skip processing.
-    public int limitMaxParallelByOutput(IRecipeCapabilityHolder holder, GTRecipe recipe, int maxMultiplier,
+    public int limitMaxParallelByOutput(RecipeHandlerGroup holder, GTRecipe recipe, int maxMultiplier,
                                         boolean tick) {
         return Integer.MAX_VALUE;
     }
@@ -158,7 +145,7 @@ public abstract class RecipeCapability<T> {
      * @return The Maximum number of GTRecipes that can be performed at a single time based on the available Items
      */
     // returns Integer.MAX_VALUE by default, to skip processing.
-    public int getMaxParallelByInput(IRecipeCapabilityHolder holder, GTRecipe recipe, int limit, boolean tick) {
+    public int getMaxParallelByInput(RecipeHandlerGroup holder, GTRecipe recipe, int limit, boolean tick) {
         return Integer.MAX_VALUE;
     }
 
@@ -166,11 +153,11 @@ public abstract class RecipeCapability<T> {
         return isRecipeSearchFilter();
     }
 
-    public void addXEIInfo(WidgetGroup group, int xOffset, GTRecipe recipe, List<Content> contents, boolean perTick,
-                           boolean isInput, MutableInt yOffset) {}
+    public void addXEIInfo(WidgetGroup group, int xOffset, GTRecipeDefinition recipe, List<T> contents,
+                           int duration, boolean perTick, boolean isInput, MutableInt yOffset) {}
 
     @NotNull
-    public List<Object> createXEIContainerContents(List<Content> contents, GTRecipe recipe, IO io) {
+    public List<?> createXEIContainerContents(List<T> contents, GTRecipeDefinition recipe, IO io) {
         return new ArrayList<>();
     }
 
@@ -198,20 +185,11 @@ public abstract class RecipeCapability<T> {
                                 IO io,
                                 @Nullable("null when storage == null") GTRecipeTypeUI.RecipeHolder recipeHolder,
                                 @NotNull GTRecipeType recipeType,
-                                @Nullable("null when content == null") GTRecipe recipe,
-                                @Nullable Content content,
+                                @Nullable("null when content == null") GTRecipeDefinition recipe,
+                                @Nullable T content,
                                 @Nullable Object storage, int recipeTier, int chanceTier) {}
 
-    /**
-     * Create a cache map for chanced outputs
-     *
-     * @return a map of this capability's content type -> integer
-     */
-    public Object2IntMap<T> makeChanceCache() {
-        return new Object2IntOpenHashMap<>();
-    }
-
-    public boolean isTickSlot(int index, IO io, GTRecipe recipe) {
+    public boolean isTickSlot(int index, IO io, GTRecipeDefinition recipe) {
         return index >= (io == IO.IN ? recipe.getInputContents(this) : recipe.getOutputContents(this)).size();
     }
 
@@ -222,5 +200,9 @@ public abstract class RecipeCapability<T> {
      */
     public boolean shouldBypassDistinct() {
         return true;
+    }
+
+    public List<?> getXEIIngredients(List<T> contents, GTRecipeDefinition recipe, IO io) {
+        return new ArrayList<>();
     }
 }

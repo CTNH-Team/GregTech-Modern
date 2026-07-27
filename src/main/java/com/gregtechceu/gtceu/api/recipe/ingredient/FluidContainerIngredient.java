@@ -2,6 +2,7 @@ package com.gregtechceu.gtceu.api.recipe.ingredient;
 
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.data.tag.TagUtil;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -60,7 +61,7 @@ public class FluidContainerIngredient extends Ingredient {
     @Override
     public ItemStack[] getItems() {
         if (cachedStacks == null)
-            cachedStacks = Arrays.stream(this.fluid.getStacks())
+            cachedStacks = Arrays.stream(this.fluid.getFluids())
                     .map(FluidUtil::getFilledBucket)
                     .filter(s -> !s.isEmpty())
                     .toArray(ItemStack[]::new);
@@ -77,7 +78,7 @@ public class FluidContainerIngredient extends Ingredient {
 
     @Override
     public boolean isEmpty() {
-        return this.fluid.isEmpty();
+        return this.fluid.getFluids().length == 0;
     }
 
     @Override

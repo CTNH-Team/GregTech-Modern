@@ -5,7 +5,7 @@ import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
+import com.gregtechceu.gtceu.api.recipe.ingredient.item.ItemIngredient;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRenderType;
 import com.gregtechceu.gtceu.client.util.RenderUtil;
@@ -25,7 +25,6 @@ import net.minecraft.util.ExtraCodecs;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.*;
@@ -200,14 +199,14 @@ public class GrowingPlantRender extends DynamicRender<IRecipeLogicMachine, Growi
 
     private static final Function<GTRecipe, Optional<Block>> RECIPE_BLOCK_CACHE = GTMemoizer
             .memoizeFunctionWeakIdent(recipe -> {
-                List<Content> allItemContents = new ArrayList<>();
+                List<ItemIngredient> allItemContents = new ArrayList<>();
                 allItemContents.addAll(recipe.getInputContents(ItemRecipeCapability.CAP));
                 allItemContents.addAll(recipe.getTickInputContents(ItemRecipeCapability.CAP));
                 allItemContents.addAll(recipe.getOutputContents(ItemRecipeCapability.CAP));
                 allItemContents.addAll(recipe.getTickOutputContents(ItemRecipeCapability.CAP));
                 return allItemContents.stream()
-                        .map(Content::getContent).map(ItemRecipeCapability.CAP::of)
-                        .map(Ingredient::getItems).flatMap(Arrays::stream)
+                        .map(ItemIngredient::getItems)
+                        .flatMap(Arrays::stream)
                         .map(ItemStack::getItem)
                         .filter(BlockItem.class::isInstance)
                         .findFirst()

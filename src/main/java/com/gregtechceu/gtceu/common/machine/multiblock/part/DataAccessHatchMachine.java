@@ -2,7 +2,7 @@ package com.gregtechceu.gtceu.common.machine.multiblock.part;
 
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
-import com.gregtechceu.gtceu.api.capability.IDataAccessHatch;
+import com.gregtechceu.gtceu.api.capability.IDataAccessMachine;
 import com.gregtechceu.gtceu.api.capability.IMonitorComponent;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
@@ -15,10 +15,10 @@ import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredPartMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.common.item.PortableScannerBehavior;
 import com.gregtechceu.gtceu.common.machine.multiblock.electric.research.DataBankMachine;
-import com.gregtechceu.gtceu.common.recipe.condition.ResearchCondition;
 import com.gregtechceu.gtceu.utils.ItemStackHashStrategy;
 import com.gregtechceu.gtceu.utils.ResearchManager;
 
@@ -48,9 +48,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @MethodsReturnNonnullByDefault
 @ParametersAreNonnullByDefault
 public class DataAccessHatchMachine extends TieredPartMachine
-                                    implements IMachineLife, IDataAccessHatch, IDataInfoProvider, IMonitorComponent {
+                                    implements IMachineLife, IDataAccessMachine, IDataInfoProvider, IMonitorComponent {
 
-    private final Set<GTRecipe> recipes;
+    private final Set<GTRecipeDefinition> recipes;
     @Getter
     private final boolean isCreative;
     @Persisted
@@ -64,25 +64,15 @@ public class DataAccessHatchMachine extends TieredPartMachine
     }
 
     protected NotifiableItemStackHandler createImportItemHandler() {
-        if (isCreative) return new NotifiableItemStackHandler(this, 0, IO.BOTH);
-        return new NotifiableItemStackHandler(this, getInventorySize(), IO.BOTH) {
-
-            @Override
-            public void onContentsChanged() {
-                super.onContentsChanged();
-                rebuildData(isFormed() && getControllers().first() instanceof DataBankMachine);
-            }
-
-            @NotNull
-            @Override
-            public ItemStack insertItem(int slot, @NotNull ItemStack stack, boolean simulate) {
-                boolean isDataBank = isFormed() && getControllers().first() instanceof DataBankMachine;
-                if (ResearchManager.isStackDataItem(stack, isDataBank)) {
-                    return super.insertItem(slot, stack, simulate);
-                }
-                return stack;
-            }
-        };
+        if (isCreative) return new NotifiableItemStackHandler(this, 0, IO.NONE);
+        var inventory = new NotifiableItemStackHandler(this, getInventorySize(), IO.NONE, IO.BOTH)
+                .setFilter(stack -> {
+                    boolean isDataBank = isFormed() && getControllers().first() instanceof DataBankMachine;
+                    return ResearchManager.isStackDataItem(stack, isDataBank);
+                });
+        inventory.addChangedListener(
+                () -> rebuildData(isFormed() && getControllers().first() instanceof DataBankMachine));
+        return inventory;
     }
 
     @Override
@@ -129,19 +119,21 @@ public class DataAccessHatchMachine extends TieredPartMachine
             ResearchManager.ResearchItem researchData = ResearchManager.readResearchId(stack);
             boolean isValid = ResearchManager.isStackDataItem(stack, isDataBank);
             if (researchData != null && isValid) {
-                Collection<GTRecipe> collection = researchData.recipeType()
+                Collection<GTRecipeDefinition> collection = researchData.recipeType()
                         .getDataStickEntry(researchData.researchId());
                 if (collection != null) {
                     recipes.addAll(collection);
                 }
             }
         }
+        getControllers().forEach(controller -> {
+            if (controller instanceof IDataAccessMachine dataAccessMachine) dataAccessMachine.notifyListeners();
+        });
     }
 
     @Override
-    public boolean isRecipeAvailable(@NotNull GTRecipe recipe, @NotNull Collection<IDataAccessHatch> seen) {
-        seen.add(this);
-        return recipe.conditions.stream().noneMatch(ResearchCondition.class::isInstance) || recipes.contains(recipe);
+    public boolean isRecipeAvailable(@NotNull GTRecipe recipe) {
+        return isCreative || recipes.stream().anyMatch(definition -> definition.getId().equals(recipe.getId()));
     }
 
     @NotNull
@@ -157,9 +149,8 @@ public class DataAccessHatchMachine extends TieredPartMachine
                     Component.translatable(GTRecipeTypes.ASSEMBLY_LINE_RECIPES.registryName.toLanguageKey())));
             list.add(Component.empty());
             Collection<ItemStack> itemsAdded = new ObjectOpenCustomHashSet<>(ItemStackHashStrategy.comparingAll());
-            for (GTRecipe recipe : recipes) {
-                ItemStack stack = ItemRecipeCapability.CAP
-                        .of(recipe.getOutputContents(ItemRecipeCapability.CAP).get(0).content).getItems()[0];
+            for (GTRecipeDefinition recipe : recipes) {
+                ItemStack stack = recipe.getOutputContents(ItemRecipeCapability.CAP).get(0).getItems()[0];
                 if (!itemsAdded.contains(stack)) {
                     itemsAdded.add(stack);
                     list.add(Component.translatable("behavior.data_item.data", stack.getDisplayName()));
@@ -179,11 +170,6 @@ public class DataAccessHatchMachine extends TieredPartMachine
     public void addedToController(IMultiController controller) {
         rebuildData(controller instanceof DataBankMachine);
         super.addedToController(controller);
-    }
-
-    @Override
-    public GTRecipe modifyRecipe(GTRecipe recipe) {
-        return IDataAccessHatch.super.modifyRecipe(recipe);
     }
 
     @Override

@@ -2,8 +2,8 @@ package com.gregtechceu.gtceu.api.cover.filter;
 
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.gui.widget.EnumSelectorWidget;
+import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.utils.ItemStackHashStrategy;
 
@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 
 import it.unimi.dsi.fastutil.objects.Object2IntOpenCustomHashMap;
 
-import java.util.Collections;
 import java.util.function.Consumer;
 
 public class SmartItemFilter implements ItemFilter {
@@ -88,13 +87,14 @@ public class SmartItemFilter implements ItemFilter {
 
     private int lookup(ItemStack itemStack) {
         ItemStack copy = itemStack.copyWithCount(Integer.MAX_VALUE);
+
         var recipe = filterMode.recipeType.db()
-                .find(Collections.singletonMap(ItemRecipeCapability.CAP, Collections.singletonList(copy)), r -> true);
+                .find(NotifiableItemStackHandler.mapItemStack(copy), r -> true);
         if (recipe == null) {
             return 0;
         }
-        for (Content content : recipe.getInputContents(ItemRecipeCapability.CAP)) {
-            var stacks = ItemRecipeCapability.CAP.of(content.getContent()).getItems();
+        for (var ingredient : recipe.getInputContents(ItemRecipeCapability.CAP)) {
+            var stacks = ingredient.getItems();
             for (var stack : stacks) {
                 if (ItemStack.isSameItem(stack, itemStack)) return stack.getCount();
             }

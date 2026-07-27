@@ -1,14 +1,16 @@
 package com.gregtechceu.gtceu.api.machine.feature;
 
 import com.gregtechceu.gtceu.api.capability.ICleanroomReceiver;
-import com.gregtechceu.gtceu.api.capability.IWorkable;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeCapabilityHolder;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
-import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.jade.provider.RecipeLogicProvider;
+
+import net.minecraft.network.chat.Component;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A machine can handle recipes.
  */
-public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFeature, IWorkable, ICleanroomReceiver,
+public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogicMachine, ICleanroomReceiver,
                                      IVoidable {
 
     /**
@@ -33,18 +35,14 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
     void setActiveRecipeType(int type);
 
     /**
-     * Called when recipe logic status changed
-     */
-    default void notifyStatusChanged(RecipeLogic.Status oldStatus, RecipeLogic.Status newStatus) {}
-
-    /**
      * Recipe logic
      */
     @NotNull
     RecipeLogic getRecipeLogic();
 
-    default GTRecipe fullModifyRecipe(GTRecipe recipe) {
-        return doModifyRecipe(RecipeHelper.trimRecipeOutputs(recipe, this.getOutputLimits()));
+    @Override
+    default WorkLogic getWorkLogic() {
+        return getRecipeLogic();
     }
 
     /**
@@ -55,8 +53,12 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
      *         null -- this recipe is unavailable
      */
     @Nullable
-    default GTRecipe doModifyRecipe(GTRecipe recipe) {
-        return self().getDefinition().getRecipeModifier().applyModifier(self(), recipe);
+    default Component modifyRecipe(GTRecipe recipe, RecipeHandlerGroup group) {
+        for (var modifier : self().getDefinition().getRecipeModifiers()) {
+            var failReason = modifier.apply(self(), group, recipe);
+            if (failReason != null) return failReason;
+        }
+        return null;
     }
 
     /**
@@ -64,22 +66,16 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
      * if false. you should call {@link RecipeLogic#updateTickSubscription()} manually later to active recipe logic
      * again.
      */
+    @Override
     default boolean keepSubscribing() {
-        return true;
-    }
-
-    /**
-     * Whether the recipe logic should work or waiting for next {@link RecipeLogic#updateTickSubscription()}.
-     */
-    default boolean isRecipeLogicAvailable() {
-        return true;
+        return false;
     }
 
     /**
      * Called in {@link RecipeLogic#setupRecipe(GTRecipe)} ()}
      */
-    default boolean beforeWorking(@Nullable GTRecipe recipe) {
-        return self().getDefinition().getBeforeWorking().test(this, recipe);
+    default @Nullable Component beforeWorking(@NotNull GTRecipe recipe) {
+        return self().getDefinition().getBeforeWorking().apply(this, recipe);
     }
 
     /**
@@ -111,7 +107,7 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
     }
 
     /**
-     * Always try {@link IRecipeLogicMachine#fullModifyRecipe(GTRecipe)} before setting up recipe.
+     * Always try {@link IRecipeLogicMachine#modifyRecipe(GTRecipe, RecipeHandlerGroup)} before setting up recipe.
      * 
      * @return true - will map {@link RecipeLogic#lastOriginRecipe} to the latest recipe for next round when finishing.
      *         false - keep using the {@link RecipeLogic#lastRecipe}, which is already modified.
@@ -135,29 +131,6 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
         return -1;
     }
 
-    //////////////////////////////////////
-    // ******* IWorkable ********//
-    //////////////////////////////////////
-    @Override
-    default boolean isWorkingEnabled() {
-        return getRecipeLogic().isWorkingEnabled();
-    }
-
-    @Override
-    default void setWorkingEnabled(boolean isWorkingAllowed) {
-        getRecipeLogic().setWorkingEnabled(isWorkingAllowed);
-    }
-
-    @Override
-    default void setSuspendAfterFinish(boolean suspendAfterFinish) {
-        getRecipeLogic().setSuspendAfterFinish(suspendAfterFinish);
-    }
-
-    @Override
-    default boolean isSuspendAfterFinish() {
-        return getRecipeLogic().isSuspendAfterFinish();
-    }
-
     @Override
     default int getProgress() {
         return getRecipeLogic().getProgress();
@@ -166,10 +139,5 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IMachineFe
     @Override
     default int getMaxProgress() {
         return getRecipeLogic().getMaxProgress();
-    }
-
-    @Override
-    default boolean isActive() {
-        return getRecipeLogic().isActive();
     }
 }

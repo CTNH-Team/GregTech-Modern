@@ -2,14 +2,16 @@ package com.gregtechceu.gtceu.api.recipe;
 
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.api.recipe.modifier.ModifierFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.modifier.ParallelLogic;
 import com.gregtechceu.gtceu.utils.GTMath;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
+import net.minecraft.network.chat.Component;
+
 import com.google.common.math.IntMath;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.RoundingMode;
 
@@ -43,7 +45,6 @@ public interface OverclockingLogic {
     OverclockingLogic NON_PERFECT_OVERCLOCK = create(STD_DURATION_FACTOR, STD_VOLTAGE_FACTOR, false);
 
     OverclockingLogic PERFECT_OVERCLOCK_SUBTICK = create(PERFECT_DURATION_FACTOR, STD_VOLTAGE_FACTOR, true);
-    OverclockingLogic NON_PERFECT_OVERCLOCK_SUBTICK = create(STD_DURATION_FACTOR, STD_VOLTAGE_FACTOR, true);
 
     /**
      * Create a standard OverclockingLogic using either {@link #standardOC} or {@link #subTickParallelOC}
@@ -59,24 +60,24 @@ public interface OverclockingLogic {
     }
 
     /**
-     * Determines overclocking parameters from the given arguments, runs the overclock, and returns a ModifierFunction
+     * Determines overclocking parameters from the given arguments, runs the overclock, and applies it to the recipe.
      * 
      * @param machine        machine
      * @param recipe         recipe
      * @param maxVoltage     max overclock voltage
      * @param shouldParallel whether the OC Logic should parallel or not
-     * @return A {@link ModifierFunction} describing how the OC application should modify the recipe
+     * @return the failure reason, or {@code null} on success
      */
-    default @NotNull ModifierFunction getModifier(MetaMachine machine, GTRecipe recipe, long maxVoltage,
-                                                  boolean shouldParallel) {
-        long EUt = RecipeHelper.getRealEUt(recipe).getTotalEU();
-        if (EUt == 0) return ModifierFunction.IDENTITY;
+    default @Nullable Component getModifier(MetaMachine machine, RecipeHandlerGroup group, GTRecipe recipe,
+                                            long maxVoltage, boolean shouldParallel) {
+        long EUt = RecipeHelper.getRealEUt(recipe);
+        if (EUt == 0) return null;
 
         int recipeTier = GTUtil.getTierByVoltage(EUt);
         int maximumTier = GTUtil.getOCTierByVoltage(maxVoltage);
         int OCs = maximumTier - recipeTier;
         if (recipeTier == GTValues.ULV) OCs--;
-        if (OCs == 0) return ModifierFunction.IDENTITY;
+        if (OCs == 0) return null;
 
         int maxParallels;
         if (!shouldParallel || this == PERFECT_OVERCLOCK || this == NON_PERFECT_OVERCLOCK) { // don't parallel
@@ -92,17 +93,19 @@ public interface OverclockingLogic {
                 maxParallels = 16;
             } else {
                 int p = GTMath.saturatedCast((1L << (2 * (OCs - lg))) + 1);
-                maxParallels = ParallelLogic.getParallelAmount(machine, recipe, p);
+                maxParallels = ParallelLogic.getParallelAmount(group, recipe, p);
             }
         }
 
         OCParams params = new OCParams(EUt, recipe.duration, OCs, maxParallels);
         OCResult result = runOverclockingLogic(params, maxVoltage);
-        return result.toModifier();
+        result.applyTo(recipe);
+        return null;
     }
 
-    default @NotNull ModifierFunction getModifier(MetaMachine machine, GTRecipe recipe, long maxVoltage) {
-        return getModifier(machine, recipe, maxVoltage, true);
+    default @Nullable Component getModifier(MetaMachine machine, RecipeHandlerGroup group, GTRecipe recipe,
+                                            long maxVoltage) {
+        return getModifier(machine, group, recipe, maxVoltage, true);
     }
 
     /**
@@ -222,6 +225,7 @@ public interface OverclockingLogic {
         double parallel = 1;
         boolean shouldParallel = false;
         int ocLevel = 0;
+        int nonSubtickOCs = 0;
         double durationMultiplier = 1;
 
         while (ocAmount-- > 0) {
@@ -239,6 +243,7 @@ public interface OverclockingLogic {
             } else {
                 duration *= durationFactor;
                 durationMultiplier *= durationFactor;
+                nonSubtickOCs++;
             }
 
             // Only set EUt after checking parallels - no need to OC if parallels would be too high
@@ -246,7 +251,7 @@ public interface OverclockingLogic {
             ocLevel++;
         }
 
-        return new OCResult(Math.pow(voltageFactor, ocLevel), durationMultiplier, ocLevel, (int) parallel);
+        return new OCResult(Math.pow(voltageFactor, nonSubtickOCs), durationMultiplier, ocLevel, (int) parallel);
     }
 
     /**
@@ -342,14 +347,14 @@ public interface OverclockingLogic {
 
     record OCResult(double eutMultiplier, double durationMultiplier, int ocLevel, int parallels) {
 
-        public ModifierFunction toModifier() {
-            return ModifierFunction.builder()
-                    .modifyAllContents(ContentModifier.multiplier(parallels))
-                    .eutMultiplier(eutMultiplier)
-                    .durationMultiplier(durationMultiplier)
-                    .addOCs(ocLevel)
-                    .subtickParallels(parallels)
-                    .build();
+        public void applyTo(GTRecipe recipe) {
+            recipe.multiplyAllContents(parallels);
+            recipe.multiplyTickContents(GTMath.saturatedCast(Math.round(eutMultiplier)));
+            if (!recipe.data.getBoolean("duration_is_total_cwu")) {
+                recipe.multiplyDuration(durationMultiplier);
+            }
+            recipe.addOCs(ocLevel);
+            recipe.subtickParallels *= parallels;
         }
     }
 }

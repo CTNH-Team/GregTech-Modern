@@ -40,6 +40,10 @@ public abstract class LevelPipeNet<NodeDataType, T extends PipeNet<NodeDataType>
         return serverLevel;
     }
 
+    public List<T> getPipeNets() {
+        return Collections.unmodifiableList(pipeNets);
+    }
+
     protected void init() {
         this.pipeNets.forEach(PipeNet::onNodeConnectionsUpdate);
     }
@@ -111,11 +115,21 @@ public abstract class LevelPipeNet<NodeDataType, T extends PipeNet<NodeDataType>
 
     public T getNetFromPos(BlockPos blockPos) {
         List<T> pipeNetsInChunk = pipeNetsByChunk.getOrDefault(new ChunkPos(blockPos), Collections.emptyList());
+        T result = null;
         for (T pipeNet : pipeNetsInChunk) {
-            if (pipeNet.containsNode(blockPos))
-                return pipeNet;
+            // to clear error nets
+            if (pipeNet.containsNode(blockPos)) {
+                if (result == null) {
+                    result = pipeNet;
+                } else if (pipeNet.getLastUpdate() > result.getLastUpdate()) {
+                    pipeNets.remove(result);
+                    result = pipeNet;
+                } else {
+                    pipeNets.remove(pipeNet);
+                }
+            }
         }
-        return null;
+        return result;
     }
 
     protected void addPipeNet(T pipeNet) {

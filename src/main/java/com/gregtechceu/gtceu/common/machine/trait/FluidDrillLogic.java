@@ -52,7 +52,7 @@ public class FluidDrillLogic extends RecipeLogic {
             }
             var match = getFluidDrillRecipe();
             if (match != null) {
-                if (RecipeHelper.matchContents(this.machine, match).isSuccess()) {
+                if (RecipeHelper.matchContents(getLastGroup(), match).isSuccess()) {
                     setupRecipe(match);
                 }
             }
@@ -63,13 +63,15 @@ public class FluidDrillLogic extends RecipeLogic {
     private GTRecipe getFluidDrillRecipe() {
         if (getMachine().getLevel() instanceof ServerLevel serverLevel && veinFluid != null) {
             var data = BedrockFluidVeinSavedData.getOrCreate(serverLevel);
+            long EUt = GTValues.VA[getMachine().getTier()];
+            if (getMachine().isOverclocked()) EUt *= 4;
             var recipe = GTRecipeBuilder.ofRaw()
                     .duration(MAX_PROGRESS)
-                    .EUt(GTValues.VA[getMachine().getEnergyTier()])
+                    .EUt(EUt)
                     .outputFluids(new FluidStack(veinFluid,
                             getFluidToProduce(data.getFluidVeinWorldEntry(getChunkX(), getChunkZ()))))
-                    .buildRawRecipe();
-            if (RecipeHelper.matchContents(getMachine(), recipe).isSuccess()) {
+                    .buildRuntime();
+            if (RecipeHelper.matchContents(getLastGroup(), recipe).isSuccess()) {
                 return recipe;
             }
         }
@@ -96,7 +98,7 @@ public class FluidDrillLogic extends RecipeLogic {
             produced *= FluidDrillMachine.getRigMultiplier(getMachine().getTier());
 
             // Overclocks produce 50% more fluid
-            if (isOverclocked()) {
+            if (getMachine().isOverclocked()) {
                 produced = produced * 3 / 2;
             }
             return produced;
@@ -108,13 +110,13 @@ public class FluidDrillLogic extends RecipeLogic {
     public void onRecipeFinish() {
         machine.afterWorking();
         if (lastRecipe != null) {
-            RecipeHelper.handleRecipeIO(this.machine, lastRecipe, IO.OUT, this.chanceCaches);
+            RecipeHelper.handleRecipeIO(getLastGroup(), lastRecipe, IO.OUT);
         }
         depleteVein();
         // try it again
         var match = getFluidDrillRecipe();
         if (match != null) {
-            if (RecipeHelper.matchContents(this.machine, match).isSuccess()) {
+            if (RecipeHelper.matchContents(getLastGroup(), match).isSuccess()) {
                 setupRecipe(match);
                 return;
             }
@@ -138,10 +140,6 @@ public class FluidDrillLogic extends RecipeLogic {
                 data.depleteVein(getChunkX(), getChunkZ(), 0, false);
             }
         }
-    }
-
-    protected boolean isOverclocked() {
-        return getMachine().getEnergyTier() > getMachine().getTier();
     }
 
     private int getChunkX() {

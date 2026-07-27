@@ -1,12 +1,11 @@
 package com.gregtechceu.gtceu.common.machine.multiblock.electric;
 
-import com.gregtechceu.gtceu.api.capability.IControllable;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.fancy.FancyMachineUIWidget;
-import com.gregtechceu.gtceu.api.machine.ConditionalSubscriptionHandler;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IExplosionMachine;
@@ -14,8 +13,8 @@ import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDisplayUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate;
 import com.gregtechceu.gtceu.config.ConfigHolder;
@@ -28,8 +27,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -38,43 +35,32 @@ import java.util.List;
 
 import static com.gregtechceu.gtceu.api.pattern.Predicates.abilities;
 
-public class ActiveTransformerMachine extends WorkableElectricMultiblockMachine
-                                      implements IControllable, IExplosionMachine, IFancyUIMachine, IDisplayUIMachine {
+public class ActiveTransformerMachine extends WorkableMultiblockMachine
+                                      implements IExplosionMachine, IFancyUIMachine, IDisplayUIMachine {
 
-    private IEnergyContainer powerOutput;
-    private IEnergyContainer powerInput;
-    protected ConditionalSubscriptionHandler converterSubscription;
+    private EnergyContainerList powerOutput;
+    private EnergyContainerList powerInput;
 
     public ActiveTransformerMachine(IMachineBlockEntity holder) {
         super(holder);
-        this.powerOutput = new EnergyContainerList(new ArrayList<>());
-        this.powerInput = new EnergyContainerList(new ArrayList<>());
-
-        this.converterSubscription = new ConditionalSubscriptionHandler(this, this::convertEnergyTick,
-                this::isSubscriptionActive);
+        this.powerOutput = EnergyContainerList.EMPTY;
+        this.powerInput = EnergyContainerList.EMPTY;
     }
 
-    public void convertEnergyTick() {
-        if (isWorkingEnabled()) {
-            getRecipeLogic()
-                    .setStatus(isSubscriptionActive() ? RecipeLogic.Status.WORKING : RecipeLogic.Status.SUSPEND);
-        }
-        if (isWorkingEnabled()) {
-            long canDrain = powerInput.getEnergyStored();
-            long totalDrained = powerOutput.changeEnergy(canDrain);
-            powerInput.removeEnergy(totalDrained);
-        }
-        converterSubscription.updateSubscription();
+    @Override
+    public void serverRunningTick() {
+        long canDrain = powerInput.getEnergyStored();
+        long totalDrained = powerOutput.changeEnergy(canDrain);
+        powerInput.removeEnergy(totalDrained);
     }
 
     @SuppressWarnings("RedundantIfStatement") // It is cleaner to have the final return true separate.
-    protected boolean isSubscriptionActive() {
-        if (!isFormed()) return false;
-
+    @Override
+    public boolean isWorkLogicAvailable() {
+        if (!super.isWorkLogicAvailable()) return false;
         if (powerInput == null || powerInput.getEnergyStored() <= 0) return false;
         if (powerOutput == null) return false;
         if (powerOutput.getEnergyStored() >= powerOutput.getEnergyCapacity()) return false;
-
         return true;
     }
 
@@ -84,29 +70,21 @@ public class ActiveTransformerMachine extends WorkableElectricMultiblockMachine
         // capture all energy containers
         List<IEnergyContainer> powerInput = new ArrayList<>();
         List<IEnergyContainer> powerOutput = new ArrayList<>();
-        Long2ObjectMap<IO> ioMap = getMultiblockState().getMatchContext().getOrCreate("ioMap",
-                Long2ObjectMaps::emptyMap);
-
         for (IMultiPart part : getPrioritySortedParts()) {
-            IO io = ioMap.getOrDefault(part.self().getPos().asLong(), IO.BOTH);
-            if (io == IO.NONE) continue;
             var handlerLists = part.getRecipeHandlers();
             for (var handlerList : handlerLists) {
-                if (!handlerList.isValid(io)) continue;
-
-                var containers = handlerList.getCapability(EURecipeCapability.CAP).stream()
+                handlerList.getCapability(EURecipeCapability.CAP).stream()
                         .filter(IEnergyContainer.class::isInstance)
                         .map(IEnergyContainer.class::cast)
-                        .toList();
-
-                if (handlerList.getHandlerIO().support(IO.IN)) {
-                    powerInput.addAll(containers);
-                } else if (handlerList.getHandlerIO().support(IO.OUT)) {
-                    powerOutput.addAll(containers);
-                }
-
+                        .forEach(c -> {
+                            if (((IRecipeHandler<?>) c).getHandlerIO().support(IO.IN)) {
+                                powerInput.add(c);
+                            } else if (((IRecipeHandler<?>) c).getHandlerIO().support(IO.OUT)) {
+                                powerOutput.add(c);
+                            }
+                        });
                 traitSubscriptions
-                        .add(handlerList.subscribe(converterSubscription::updateSubscription, EURecipeCapability.CAP));
+                        .add(handlerList.subscribe(getWorkLogic()::updateTickSubscription, EURecipeCapability.CAP));
             }
         }
 
@@ -117,8 +95,6 @@ public class ActiveTransformerMachine extends WorkableElectricMultiblockMachine
 
         this.powerOutput = new EnergyContainerList(powerOutput);
         this.powerInput = new EnergyContainerList(powerInput);
-
-        converterSubscription.updateSubscription();
     }
 
     @NotNull
@@ -143,15 +119,14 @@ public class ActiveTransformerMachine extends WorkableElectricMultiblockMachine
 
     @Override
     public void onStructureInvalid() {
-        if ((isWorkingEnabled() && recipeLogic.getStatus() == RecipeLogic.Status.WORKING) &&
+        if ((isWorkingEnabled() && workLogic.getStatus() == WorkLogic.Status.WORKING) &&
                 !ConfigHolder.INSTANCE.machines.harmlessActiveTransformers) {
-            doExplosion(6f + getTier());
+            doExplosion(6f + Math.max(powerInput.getTier(), powerOutput.getTier()));
         }
         super.onStructureInvalid();
-        this.powerOutput = new EnergyContainerList(new ArrayList<>());
-        this.powerInput = new EnergyContainerList(new ArrayList<>());
-        getRecipeLogic().setStatus(RecipeLogic.Status.SUSPEND);
-        converterSubscription.unsubscribe();
+        this.powerOutput = EnergyContainerList.EMPTY;
+        this.powerInput = EnergyContainerList.EMPTY;
+        getWorkLogic().setStatus(WorkLogic.Status.SUSPEND);
     }
 
     public static TraceabilityPredicate getHatchPredicates() {
@@ -175,12 +150,10 @@ public class ActiveTransformerMachine extends WorkableElectricMultiblockMachine
                 textList.add(Component.translatable("gtceu.multiblock.running"));
                 textList.add(Component
                         .translatable("gtceu.multiblock.active_transformer.max_input",
-                                FormattingUtil.formatNumbers(
-                                        Math.abs(powerInput.getInputVoltage() * powerInput.getInputAmperage()))));
+                                FormattingUtil.formatNumbers(powerInput.getTotalEUt())));
                 textList.add(Component
                         .translatable("gtceu.multiblock.active_transformer.max_output",
-                                FormattingUtil.formatNumbers(
-                                        Math.abs(powerOutput.getOutputVoltage() * powerOutput.getOutputAmperage()))));
+                                FormattingUtil.formatNumbers(powerOutput.getTotalEUt())));
                 textList.add(Component
                         .translatable("gtceu.multiblock.active_transformer.average_in",
                                 FormattingUtil.formatNumbers(Math.abs(powerInput.getInputPerSec() / 20))));

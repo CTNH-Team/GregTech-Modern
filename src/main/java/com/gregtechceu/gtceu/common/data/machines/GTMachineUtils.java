@@ -25,7 +25,7 @@ import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.steam.SimpleSteamMachine;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.pattern.FactoryBlockPattern;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.gregtechceu.gtceu.api.pattern.Predicates;
@@ -41,7 +41,6 @@ import com.gregtechceu.gtceu.common.block.BoilerFireboxType;
 import com.gregtechceu.gtceu.common.data.*;
 import com.gregtechceu.gtceu.common.data.models.GTMachineModels;
 import com.gregtechceu.gtceu.common.machine.electric.BatteryBufferMachine;
-import com.gregtechceu.gtceu.common.machine.electric.ChargerMachine;
 import com.gregtechceu.gtceu.common.machine.electric.ConverterMachine;
 import com.gregtechceu.gtceu.common.machine.electric.TransformerMachine;
 import com.gregtechceu.gtceu.common.machine.multiblock.electric.MultiblockTankMachine;
@@ -94,6 +93,7 @@ import static com.gregtechceu.gtceu.api.pattern.Predicates.*;
 import static com.gregtechceu.gtceu.common.data.GTBlocks.*;
 import static com.gregtechceu.gtceu.common.data.GTRecipeTypes.*;
 import static com.gregtechceu.gtceu.common.data.models.GTMachineModels.*;
+import static com.gregtechceu.gtceu.common.machine.electric.BatteryBufferMachine.AMPS_PER_BATTERY_NORMAL;
 import static com.gregtechceu.gtceu.common.machine.storage.QuantumTankMachine.TANK_CAPACITY;
 import static com.gregtechceu.gtceu.common.registry.GTRegistration.REGISTRATE;
 import static com.gregtechceu.gtceu.utils.FormattingUtil.*;
@@ -104,8 +104,8 @@ public class GTMachineUtils {
     public static final int[] ELECTRIC_TIERS = GTValues.tiersBetween(LV, GTCEuAPI.isHighTier() ? OpV : UV);
     public static final int[] LOW_TIERS = GTValues.tiersBetween(LV, EV);
     public static final int[] HIGH_TIERS = GTValues.tiersBetween(IV, GTCEuAPI.isHighTier() ? OpV : UHV);
-    public static final int[] MULTI_HATCH_TIERS = GTValues.tiersBetween(EV, GTCEuAPI.isHighTier() ? MAX : UHV);
-    public static final int[] DUAL_HATCH_TIERS = GTValues.tiersBetween(LuV, GTCEuAPI.isHighTier() ? MAX : UHV);
+    public static final int[] MULTI_HATCH_TIERS = GTValues.tiersBetween(LV, UHV);
+    public static final int[] DUAL_HATCH_TIERS = GTValues.tiersBetween(LV, UHV);
 
     public static final Int2IntFunction defaultTankSizeFunction = tier -> (tier <= GTValues.LV ? 8 :
             tier == GTValues.MV ? 12 : tier == GTValues.HV ? 16 : tier == GTValues.EV ? 32 : 64) *
@@ -237,28 +237,27 @@ public class GTMachineUtils {
     }
 
     public static MachineDefinition[] registerFluidHatches(String name, String displayName, String tooltip,
-                                                           IO io, int initialCapacity, int slots,
+                                                           IO io, int initialCapacity, boolean multi,
                                                            int[] tiers, PartAbility... abilities) {
-        return registerFluidHatches(REGISTRATE, name, displayName, tooltip, io, initialCapacity, slots, tiers,
+        return registerFluidHatches(REGISTRATE, name, displayName, tooltip, io, initialCapacity, multi, tiers,
                 abilities);
     }
 
     public static MachineDefinition[] registerFluidHatches(GTRegistrate registrate, String name, String displayName,
                                                            String tooltip,
-                                                           IO io, int initialCapacity, int slots,
+                                                           IO io, int initialCapacity, boolean multi,
                                                            int[] tiers, PartAbility... abilities) {
         final String pipeOverlay;
-        if (slots >= 9) {
+        if (multi) {
             pipeOverlay = "overlay_pipe_9x";
-        } else if (slots >= 4) {
-            pipeOverlay = "overlay_pipe_4x";
         } else {
             pipeOverlay = null;
         }
         final String ioOverlay = io == OUT ? OVERLAY_FLUID_HATCH_OUTPUT : OVERLAY_FLUID_HATCH_INPUT;
         final String emissiveOverlay = io == OUT ? "overlay_pipe_out_emissive" : "overlay_pipe_in_emissive";
         return registerTieredMachines(registrate, name,
-                (holder, tier) -> new FluidHatchPartMachine(holder, tier, io, initialCapacity, slots),
+                (holder, tier) -> new FluidHatchPartMachine(holder, tier, io, initialCapacity,
+                        multi ? FluidHatchPartMachine.TANKS[tier] : 1, true),
                 (tier, builder) -> {
                     builder.langValue(VNF[tier] + ' ' + displayName)
                             .rotationState(RotationState.ALL)
@@ -268,13 +267,13 @@ public class GTMachineUtils {
                             .tooltips(Component.translatable("gtceu.machine." + tooltip + ".tooltip"))
                             .allowCoverOnFront(true);
 
-                    if (slots == 1) {
-                        builder.tooltips(Component.translatable("gtceu.universal.tooltip.fluid_storage_capacity",
-                                FormattingUtil
+                    if (multi) {
+                        builder.tooltips(Component.translatable("gtceu.universal.tooltip.fluid_storage_capacity_mult",
+                                FluidHatchPartMachine.TANKS[tier], FormattingUtil
                                         .formatNumbers(FluidHatchPartMachine.getTankCapacity(initialCapacity, tier))));
                     } else {
-                        builder.tooltips(Component.translatable("gtceu.universal.tooltip.fluid_storage_capacity_mult",
-                                slots, FormattingUtil
+                        builder.tooltips(Component.translatable("gtceu.universal.tooltip.fluid_storage_capacity",
+                                FormattingUtil
                                         .formatNumbers(FluidHatchPartMachine.getTankCapacity(initialCapacity, tier))));
                     }
                     return builder.register();
@@ -374,7 +373,8 @@ public class GTMachineUtils {
 
     public static MachineDefinition[] registerBatteryBuffer(GTRegistrate registrate, int batterySlotSize) {
         return registerTieredMachines(registrate, "battery_buffer_" + batterySlotSize + "x",
-                (holder, tier) -> new BatteryBufferMachine(holder, tier, batterySlotSize),
+                (holder, tier) -> new BatteryBufferMachine(holder, tier, batterySlotSize, AMPS_PER_BATTERY_NORMAL,
+                        batterySlotSize),
                 (tier, builder) -> builder
                         .rotationState(RotationState.ALL)
                         .model(GTMachineModels.createBatteryBufferModel(batterySlotSize))
@@ -388,7 +388,7 @@ public class GTMachineUtils {
                                         FormattingUtil.formatNumbers(GTValues.V[tier]),
                                         GTValues.VNF[tier]),
                                 Component.translatable("gtceu.universal.tooltip.amperage_in_till",
-                                        batterySlotSize * BatteryBufferMachine.AMPS_PER_BATTERY),
+                                        batterySlotSize * BatteryBufferMachine.AMPS_PER_BATTERY_NORMAL),
                                 Component.translatable("gtceu.universal.tooltip.amperage_out_till", batterySlotSize))
                         .register(),
                 ALL_TIERS);
@@ -400,10 +400,11 @@ public class GTMachineUtils {
 
     public static MachineDefinition[] registerCharger(GTRegistrate registrate, int itemSlotSize) {
         return registerTieredMachines(registrate, "charger_" + itemSlotSize + "x",
-                (holder, tier) -> new ChargerMachine(holder, tier, itemSlotSize),
+                (holder, tier) -> new BatteryBufferMachine(holder, tier, itemSlotSize,
+                        BatteryBufferMachine.AMPS_PER_BATTERY_CHARGER, 0),
                 (tier, builder) -> builder
                         .rotationState(RotationState.ALL)
-                        .modelProperty(GTMachineModelProperties.CHARGER_STATE, ChargerMachine.State.IDLE)
+                        .modelProperty(GTMachineModelProperties.CHARGER_STATE, BatteryBufferMachine.State.IDLE)
                         .model(GTMachineModels.createChargerModel())
                         .langValue("%s %sx Turbo Charger".formatted(
                                 VCF[tier] + VOLTAGE_NAMES[tier] + ChatFormatting.RESET,
@@ -413,7 +414,7 @@ public class GTMachineUtils {
                                         FormattingUtil.formatNumbers(GTValues.V[tier]),
                                         GTValues.VNF[tier]),
                                 Component.translatable("gtceu.universal.tooltip.amperage_in_till",
-                                        itemSlotSize * ChargerMachine.AMPS_PER_ITEM))
+                                        itemSlotSize * BatteryBufferMachine.AMPS_PER_BATTERY_CHARGER))
                         .register(),
                 ALL_TIERS);
     }
@@ -740,7 +741,7 @@ public class GTMachineUtils {
                 .recoveryItems(
                         () -> new ItemLike[] {
                                 GTMaterialItems.MATERIAL_ITEMS.get(TagPrefix.dustTiny, GTMaterials.Ash).get() })
-                .modelProperty(GTMachineModelProperties.RECIPE_LOGIC_STATUS, RecipeLogic.Status.IDLE)
+                .modelProperty(GTMachineModelProperties.RECIPE_LOGIC_STATUS, WorkLogic.Status.IDLE)
                 .model(createWorkableCasingMachineModel(texture,
                         GTCEu.id("block/multiblock/generator/large_%s_boiler".formatted(name)))
                         .andThen(b -> b.addDynamicRenderer(() -> DynamicRenderHelper.makeBoilerPartRender(firebox, casing))))
@@ -775,7 +776,7 @@ public class GTMachineUtils {
                 .rotationState(RotationState.ALL)
                 .recipeType(GTRecipeTypes.COMBUSTION_GENERATOR_FUELS)
                 .generator(true)
-                .recipeModifier(LargeCombustionEngineMachine::recipeModifier, true)
+                .recipeModifiers(LargeCombustionEngineMachine::recipeModifier, GTRecipeModifiers.BATCH_MODE)
                 .appearanceBlock(casing)
                 .pattern(definition -> FactoryBlockPattern.start()
                         .aisle("XXX", "XDX", "XXX")
@@ -854,7 +855,7 @@ public class GTMachineUtils {
                 .rotationState(RotationState.ALL)
                 .recipeType(recipeType)
                 .generator(true)
-                .recipeModifier(LargeTurbineMachine::recipeModifier, true)
+                .recipeModifiers(LargeTurbineMachine::recipeModifier, GTRecipeModifiers.BATCH_MODE)
                 .appearanceBlock(casing)
                 .pattern(definition -> FactoryBlockPattern.start()
                         .aisle("CCCC", "CHHC", "CCCC")

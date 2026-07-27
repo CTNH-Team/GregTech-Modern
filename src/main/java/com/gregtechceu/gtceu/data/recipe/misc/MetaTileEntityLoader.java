@@ -329,6 +329,7 @@ public class MetaTileEntityLoader {
                 GTBlocks.CASING_STEEL_SOLID.asStack(), GTBlocks.HIGH_PRESSURE_HAZARD_SIGN_BLOCK.asStack());
 
         var multiHatchMaterials = new Material[] {
+                GTMaterials.Steel, GTMaterials.Aluminium, GTMaterials.StainlessSteel,
                 GTMaterials.Titanium, GTMaterials.TungstenSteel, GTMaterials.NiobiumTitanium,
                 GTMaterials.Iridium, GTMaterials.Naquadah, GTMaterials.Neutronium
         };
@@ -341,31 +342,20 @@ public class MetaTileEntityLoader {
             var importHatch = GTMachines.FLUID_IMPORT_HATCH[tier];
             var exportHatch = GTMachines.FLUID_EXPORT_HATCH[tier];
 
-            var importHatch4x = GTMachines.FLUID_IMPORT_HATCH_4X[tier];
-            var exportHatch4x = GTMachines.FLUID_EXPORT_HATCH_4X[tier];
-            var importHatch9x = GTMachines.FLUID_IMPORT_HATCH_9X[tier];
-            var exportHatch9x = GTMachines.FLUID_EXPORT_HATCH_9X[tier];
+            var importHatchMulti = GTMachines.FLUID_IMPORT_HATCH_MULTI[tier];
+            var exportHatchMulti = GTMachines.FLUID_EXPORT_HATCH_MULTI[tier];
 
             VanillaRecipeHelper.addShapedRecipe(
-                    provider, true, "fluid_import_hatch_4x_" + tierName,
-                    importHatch4x.asStack(), "P", "M",
+                    provider, true, "fluid_import_hatch_multi_" + tierName,
+                    importHatchMulti.asStack(), "P", "M",
                     'M', importHatch.asStack(),
                     'P', new MaterialEntry(TagPrefix.pipeQuadrupleFluid, material));
             VanillaRecipeHelper.addShapedRecipe(
-                    provider, true, "fluid_export_hatch_4x_" + tierName,
-                    exportHatch4x.asStack(), "M", "P",
+                    provider, true, "fluid_export_hatch_multi_" + tierName,
+                    exportHatchMulti.asStack(), "M", "P",
                     'M', exportHatch.asStack(),
                     'P', new MaterialEntry(TagPrefix.pipeQuadrupleFluid, material));
-            VanillaRecipeHelper.addShapedRecipe(
-                    provider, true, "fluid_import_hatch_9x_" + tierName,
-                    importHatch9x.asStack(), "P", "M",
-                    'M', importHatch.asStack(),
-                    'P', new MaterialEntry(TagPrefix.pipeNonupleFluid, material));
-            VanillaRecipeHelper.addShapedRecipe(
-                    provider, true, "fluid_export_hatch_9x_" + tierName,
-                    exportHatch9x.asStack(), "M", "P",
-                    'M', exportHatch.asStack(),
-                    'P', new MaterialEntry(TagPrefix.pipeNonupleFluid, material));
+
         }
 
         VanillaRecipeHelper.addShapedRecipe(provider, true, "rotor_holder_hv", GTMachines.ROTOR_HOLDER[HV].asStack(),
@@ -392,8 +382,9 @@ public class MetaTileEntityLoader {
                 "SGS", "GHG", "SGS", 'H', GTMachines.HULL[GTValues.UV].asStack(), 'G',
                 new MaterialEntry(TagPrefix.gear, GTMaterials.Tritanium), 'S',
                 new MaterialEntry(TagPrefix.gearSmall, GTMaterials.Darmstadtium));
-
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "maintenance_hatch", GTMachines.MAINTENANCE_HATCH.asStack(),
+        // TODO: fix this
+        VanillaRecipeHelper.addShapedRecipe(provider, false, "maintenance_hatch",
+                GTMachines.MAINTENANCE_HATCH.asStack(),
                 "dwx", "hHc", "fsr", 'H', GTMachines.HULL[GTValues.LV].asStack());
         VanillaRecipeHelper.addShapedRecipe(provider, true, "maintenance_hatch_configurable",
                 GTMachines.CONFIGURABLE_MAINTENANCE_HATCH.asStack(), "   ", "CMC", "VHV", 'C',
@@ -529,19 +520,6 @@ public class MetaTileEntityLoader {
                 new MaterialEntry(TagPrefix.plate, GTMaterials.WroughtIron), 'S',
                 new MaterialEntry(TagPrefix.plate, GTMaterials.Steel), 'P',
                 new MaterialEntry(TagPrefix.pipeSmallFluid, GTMaterials.TinAlloy));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "steam_miner_bronze",
-                GTMachines.STEAM_MINER.first().asStack(),
-                "DSD", "SMS", "GSG",
-                'M', GTBlocks.BRONZE_BRICKS_HULL.asStack(),
-                'S', new MaterialEntry(TagPrefix.pipeNormalFluid, GTMaterials.Bronze),
-                'D', new MaterialEntry(TagPrefix.gem, GTMaterials.Diamond),
-                'G', new MaterialEntry(TagPrefix.gearSmall, GTMaterials.Bronze));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "steam_miner_steel",
-                GTMachines.STEAM_MINER.second().asStack(), "DSD", "SMS", "GSG",
-                'M', GTMachines.STEAM_MINER.first().asStack(),
-                'S', new MaterialEntry(TagPrefix.pipeNormalFluid, GTMaterials.TinAlloy),
-                'D', new MaterialEntry(TagPrefix.gem, GTMaterials.Diamond),
-                'G', new MaterialEntry(TagPrefix.gearSmall, GTMaterials.Steel));
         // MULTI BLOCK CONTROLLERS
         VanillaRecipeHelper.addShapedRecipe(provider, true, "bronze_primitive_blast_furnace",
                 GTMultiMachines.PRIMITIVE_BLAST_FURNACE.asStack(), "hRS", "PBR", "dRS", 'R',
@@ -679,11 +657,6 @@ public class MetaTileEntityLoader {
                 ChemicalHelper.get(TagPrefix.rotor, GTMaterials.StainlessSteel), 'P',
                 ChemicalHelper.get(TagPrefix.pipeLargeFluid, GTMaterials.Polytetrafluoroethylene), 'M',
                 GTItems.ELECTRIC_MOTOR_HV.asStack(), 'H', GTMachines.HULL[HV].asStack());
-
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "power_substation",
-                GTMultiMachines.POWER_SUBSTATION.asStack(),
-                "LPL", "CBC", "LPL", 'L', GTItems.LAPOTRON_CRYSTAL, 'P', GTItems.POWER_INTEGRATED_CIRCUIT, 'C',
-                CustomTags.LuV_CIRCUITS, 'B', GTBlocks.CASING_PALLADIUM_SUBSTATION.asStack());
 
         // GENERATORS
         VanillaRecipeHelper.addShapedRecipe(provider, true, "diesel_generator_lv", GTMachines.COMBUSTION[LV].asStack(),
@@ -873,8 +846,6 @@ public class MetaTileEntityLoader {
                     'S', SENSOR, 'E', EMITTER, 'H', HULL);
         registerMachineRecipe(provider, GTMachines.BLOCK_BREAKER, "MGM", "CHC", "WSW", 'M', MOTOR, 'H', HULL, 'C',
                 CIRCUIT, 'W', CABLE, 'S', Tags.Items.CHESTS_WOODEN, 'G', GRINDER);
-        registerMachineRecipe(provider, GTMachines.MINER, "MMM", "WHW", "CSC", 'M', MOTOR, 'W', CABLE, 'H', HULL, 'C',
-                CIRCUIT, 'S', SENSOR);
 
         registerMachineRecipe(provider, GTMachines.MUFFLER_HATCH, "HM", "PR", 'H', HULL, 'M', MOTOR, 'P', PIPE_NORMAL,
                 'R', ROTOR);

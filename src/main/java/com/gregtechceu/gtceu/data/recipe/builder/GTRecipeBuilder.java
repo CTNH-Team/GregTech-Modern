@@ -11,17 +11,15 @@ import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialStack;
 import com.gregtechceu.gtceu.api.data.medicalcondition.MedicalCondition;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
-import com.gregtechceu.gtceu.api.data.tag.TagUtil;
 import com.gregtechceu.gtceu.api.item.component.IDataItem;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.multiblock.CleanroomType;
 import com.gregtechceu.gtceu.api.recipe.*;
 import com.gregtechceu.gtceu.api.recipe.category.GTRecipeCategory;
-import com.gregtechceu.gtceu.api.recipe.chance.logic.ChanceLogic;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.ingredient.*;
+import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.item.ItemIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.nbtpredicate.NBTPredicate;
-import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.common.recipe.condition.*;
@@ -31,12 +29,10 @@ import com.gregtechceu.gtceu.utils.ResearchManager;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.HolderSet;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.recipes.FinishedRecipe;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -54,9 +50,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.fluids.FluidStack;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.mojang.serialization.JsonOps;
 import dev.ftb.mods.ftbquests.quest.QuestObjectBase;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import lombok.Getter;
@@ -77,15 +71,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @Accessors(chain = true, fluent = true)
 public class GTRecipeBuilder {
 
-    public final Map<RecipeCapability<?>, List<Content>> input = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, List<Content>> tickInput = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, List<Content>> output = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, List<Content>> tickOutput = new IdentityHashMap<>();
-
-    public final Map<RecipeCapability<?>, ChanceLogic> inputChanceLogic = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, ChanceLogic> outputChanceLogic = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, ChanceLogic> tickInputChanceLogic = new IdentityHashMap<>();
-    public final Map<RecipeCapability<?>, ChanceLogic> tickOutputChanceLogic = new IdentityHashMap<>();
+    public final ContentListMap input;
+    public final ContentListMap tickInput;
+    public final ContentListMap output;
+    public final ContentListMap tickOutput;
 
     public final List<RecipeCondition<?>> conditions = new ArrayList<>();
 
@@ -95,15 +84,10 @@ public class GTRecipeBuilder {
     public ResourceLocation id;
     @Setter
     public GTRecipeType recipeType;
+    public int tier = 0;
     public int duration = 100;
     @Setter
     public boolean perTick;
-    @Setter
-    public int chance = ChanceLogic.getMaxChancedValue();
-    @Setter
-    public int maxChance = ChanceLogic.getMaxChancedValue();
-    @Setter
-    public int tierChanceBoost = 0;
     private boolean itemMaterialInfo = false;
     private boolean fluidMaterialInfo = false;
     private boolean removePreviousMatInfo = false;
@@ -125,19 +109,31 @@ public class GTRecipeBuilder {
         this.id = id;
         this.recipeType = recipeType;
         this.recipeCategory = recipeType.getCategory();
+        input = new ContentListMap();
+        tickInput = new ContentListMap();
+        output = new ContentListMap();
+        tickOutput = new ContentListMap();
+    }
+
+    public GTRecipeBuilder(ResourceLocation id, GTRecipeType recipeType,
+                           ContentListMap input, ContentListMap output, ContentListMap tickInput,
+                           ContentListMap tickOutput) {
+        this.id = id;
+        this.recipeType = recipeType;
+        this.recipeCategory = recipeType.getCategory();
+        this.input = input;
+        this.tickInput = tickInput;
+        this.output = output;
+        this.tickOutput = tickOutput;
     }
 
     public GTRecipeBuilder(GTRecipe toCopy, GTRecipeType recipeType) {
         this.id = toCopy.id;
         this.recipeType = recipeType;
-        toCopy.inputs.forEach((k, v) -> this.input.put(k, new ArrayList<>(v)));
-        toCopy.outputs.forEach((k, v) -> this.output.put(k, new ArrayList<>(v)));
-        toCopy.tickInputs.forEach((k, v) -> this.tickInput.put(k, new ArrayList<>(v)));
-        toCopy.tickOutputs.forEach((k, v) -> this.tickOutput.put(k, new ArrayList<>(v)));
-        this.inputChanceLogic.putAll(toCopy.inputChanceLogics);
-        this.outputChanceLogic.putAll(toCopy.outputChanceLogics);
-        this.tickInputChanceLogic.putAll(toCopy.tickInputChanceLogics);
-        this.tickOutputChanceLogic.putAll(toCopy.tickOutputChanceLogics);
+        input = toCopy.inputs.copy();
+        output = toCopy.outputs.copy();
+        tickInput = toCopy.tickInputs.copy();
+        tickOutput = toCopy.tickOutputs.copy();
         this.conditions.addAll(toCopy.conditions);
         this.data = toCopy.data.copy();
         this.duration = toCopy.duration;
@@ -157,19 +153,13 @@ public class GTRecipeBuilder {
     }
 
     public GTRecipeBuilder copy(ResourceLocation id) {
-        GTRecipeBuilder copy = new GTRecipeBuilder(id, this.recipeType);
-        this.input.forEach((k, v) -> copy.input.put(k, new ArrayList<>(v)));
-        this.output.forEach((k, v) -> copy.output.put(k, new ArrayList<>(v)));
-        this.tickInput.forEach((k, v) -> copy.tickInput.put(k, new ArrayList<>(v)));
-        this.tickOutput.forEach((k, v) -> copy.tickOutput.put(k, new ArrayList<>(v)));
-        copy.inputChanceLogic.putAll(this.inputChanceLogic);
-        copy.outputChanceLogic.putAll(this.outputChanceLogic);
-        copy.tickInputChanceLogic.putAll(this.tickInputChanceLogic);
-        copy.tickOutputChanceLogic.putAll(this.tickOutputChanceLogic);
+        GTRecipeBuilder copy = new GTRecipeBuilder(id, this.recipeType,
+                input.copy(), output.copy(), tickInput.copy(), tickOutput.copy());
+
         copy.conditions.addAll(this.conditions);
         copy.data = this.data.copy();
+        copy.tier = this.tier;
         copy.duration = this.duration;
-        copy.chance = this.chance;
         copy.perTick = this.perTick;
         copy.recipeCategory = this.recipeCategory;
         copy.onSave = this.onSave;
@@ -181,37 +171,27 @@ public class GTRecipeBuilder {
         return builder.copy(builder.id).onSave(null).recipeType(recipeType).category(recipeCategory);
     }
 
-    protected Content makeContent(Object o) {
-        return new Content(o, chance, maxChance, tierChanceBoost);
-    }
-
     public <T> GTRecipeBuilder input(RecipeCapability<T> capability, T obj) {
         var t = (perTick ? tickInput : input);
-        warnTooManyIngredients(capability, true, t, 1);
-        t.computeIfAbsent(capability, c -> new ArrayList<>()).add(makeContent(capability.of(obj)));
+        t.add(capability, obj);
         return this;
     }
 
     public <T> GTRecipeBuilder input(RecipeCapability<T> capability, T... obj) {
         var t = (perTick ? tickInput : input);
-        warnTooManyIngredients(capability, true, t, obj.length);
-        t.computeIfAbsent(capability, c -> new ArrayList<>())
-                .addAll(Arrays.stream(obj).map(capability::of).map(this::makeContent).toList());
+        t.add(capability, obj);
         return this;
     }
 
     public <T> GTRecipeBuilder output(RecipeCapability<T> capability, T obj) {
         var t = (perTick ? tickOutput : output);
-        warnTooManyIngredients(capability, false, t, 1);
-        t.computeIfAbsent(capability, c -> new ArrayList<>()).add(makeContent(capability.of(obj)));
+        t.add(capability, obj);
         return this;
     }
 
     public <T> GTRecipeBuilder output(RecipeCapability<T> capability, T... obj) {
         var t = (perTick ? tickOutput : output);
-        warnTooManyIngredients(capability, false, t, obj.length);
-        t.computeIfAbsent(capability, c -> new ArrayList<>())
-                .addAll(Arrays.stream(obj).map(capability::of).map(this::makeContent).toList());
+        t.add(capability, obj);
         return this;
     }
 
@@ -229,12 +209,21 @@ public class GTRecipeBuilder {
         return this;
     }
 
+    public GTRecipeBuilder tier(int tier) {
+        if (tier < GTValues.ULV || tier > GTValues.MAX) {
+            throw new RuntimeException("Recipe tier out of range, id: %s".formatted(this.id));
+        }
+        this.tier = tier;
+        return this;
+    }
+
     public GTRecipeBuilder inputEU(long eu) {
         return inputEU(eu, 1);
     }
 
     public GTRecipeBuilder inputEU(long voltage, long amperage) {
-        return input(EURecipeCapability.CAP, new EnergyStack(voltage, amperage));
+        this.tier = GTUtil.getTierByVoltage(voltage);
+        return input(EURecipeCapability.CAP, voltage * amperage);
     }
 
     public GTRecipeBuilder EUt(long eu) {
@@ -266,7 +255,8 @@ public class GTRecipeBuilder {
     }
 
     public GTRecipeBuilder outputEU(long voltage, long amperage) {
-        return output(EURecipeCapability.CAP, new EnergyStack(voltage, amperage));
+        this.tier = GTUtil.getTierByVoltage(voltage);
+        return output(EURecipeCapability.CAP, voltage * amperage);
     }
 
     public GTRecipeBuilder inputCWU(int cwu) {
@@ -309,7 +299,7 @@ public class GTRecipeBuilder {
         if (missingIngredientError(0, true, ItemRecipeCapability.CAP, inputs::isEmpty)) {
             return this;
         }
-        return input(ItemRecipeCapability.CAP, inputs);
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(inputs));
     }
 
     public GTRecipeBuilder inputItems(Ingredient... inputs) {
@@ -322,14 +312,15 @@ public class GTRecipeBuilder {
                 ingredients.add(ingredient);
             }
         }
-        return input(ItemRecipeCapability.CAP, ingredients.toArray(Ingredient[]::new));
+        return input(ItemRecipeCapability.CAP,
+                ingredients.stream().map(ItemIngredient::of).toArray(ItemIngredient[]::new));
     }
 
     public GTRecipeBuilder inputItems(Ingredient inputs, int count) {
         if (missingIngredientError(0, true, ItemRecipeCapability.CAP, inputs::isEmpty)) {
             return this;
         }
-        return input(ItemRecipeCapability.CAP, SizedIngredient.create(inputs, count));
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(inputs, count));
     }
 
     public GTRecipeBuilder inputItems(ItemStack input) {
@@ -337,25 +328,25 @@ public class GTRecipeBuilder {
             return this;
         }
         gatherMaterialInfoFromStack(input);
-        return input(ItemRecipeCapability.CAP, SizedIngredient.create(input));
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(input));
     }
 
     public GTRecipeBuilder inputItems(ItemStack... inputs) {
-        List<Ingredient> ingredients = new ArrayList<>();
+        List<ItemIngredient> ingredients = new ArrayList<>();
         for (int i = 0; i < inputs.length; i++) {
             ItemStack itemStack = inputs[i];
             if (missingIngredientError(i, true, ItemRecipeCapability.CAP, itemStack::isEmpty)) {
                 return this;
             } else {
                 gatherMaterialInfoFromStack(itemStack);
-                ingredients.add(SizedIngredient.create(itemStack));
+                ingredients.add(ItemIngredient.of(itemStack));
             }
         }
-        return input(ItemRecipeCapability.CAP, ingredients.toArray(Ingredient[]::new));
+        return input(ItemRecipeCapability.CAP, ingredients.toArray(ItemIngredient[]::new));
     }
 
     public GTRecipeBuilder inputItems(TagKey<Item> tag, int amount) {
-        return inputItems(SizedIngredient.create(tag, amount));
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(tag, amount));
     }
 
     public GTRecipeBuilder inputItems(TagKey<Item> tag) {
@@ -410,7 +401,7 @@ public class GTRecipeBuilder {
                         "Tried to set input item stack that doesn't exist, id: {}, TagPrefix: {}, Material: {}, Count: {}",
                         id, tagPrefix, material, count);
             }
-            return input(ItemRecipeCapability.CAP, SizedIngredient.create(item));
+            return input(ItemRecipeCapability.CAP, ItemIngredient.of(item));
         }
     }
 
@@ -422,12 +413,12 @@ public class GTRecipeBuilder {
         return inputItems(machine.asStack(count));
     }
 
-    public GTRecipeBuilder inputItemRanged(IntProviderIngredient provider) {
-        return inputItems(provider);
+    public GTRecipeBuilder inputItemRanged(ItemIngredient provider) {
+        return input(ItemRecipeCapability.CAP, provider);
     }
 
     public GTRecipeBuilder inputItemsRanged(ItemStack input, IntProvider intProvider) {
-        return inputItemRanged(IntProviderIngredient.of(input, intProvider));
+        return inputItemRanged(ItemIngredient.ranged(input, intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     public GTRecipeBuilder inputItemsRanged(Item input, IntProvider intProvider) {
@@ -456,7 +447,7 @@ public class GTRecipeBuilder {
             return this;
         }
         gatherMaterialInfoFromStack(stack);
-        return inputItems(NBTPredicateIngredient.of(stack, predicate));
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(stack, predicate));
     }
 
     public GTRecipeBuilder outputItems(ItemStack output, int count) {
@@ -467,20 +458,20 @@ public class GTRecipeBuilder {
         if (missingIngredientError(0, false, ItemRecipeCapability.CAP, output::isEmpty)) {
             return this;
         }
-        return output(ItemRecipeCapability.CAP, SizedIngredient.create(output));
+        return output(ItemRecipeCapability.CAP, ItemIngredient.of(output));
     }
 
     public GTRecipeBuilder outputItems(ItemStack... outputs) {
-        List<Ingredient> ingredients = new ArrayList<>();
+        List<ItemIngredient> ingredients = new ArrayList<>();
         for (int i = 0; i < outputs.length; i++) {
             ItemStack itemStack = outputs[i];
             if (missingIngredientError(i, false, ItemRecipeCapability.CAP, itemStack::isEmpty)) {
                 return this;
             } else {
-                ingredients.add(SizedIngredient.create(itemStack));
+                ingredients.add(ItemIngredient.of(itemStack));
             }
         }
-        return output(ItemRecipeCapability.CAP, ingredients.toArray(Ingredient[]::new));
+        return output(ItemRecipeCapability.CAP, ingredients.toArray(ItemIngredient[]::new));
     }
 
     public GTRecipeBuilder outputItems(Item output, int amount) {
@@ -503,7 +494,7 @@ public class GTRecipeBuilder {
         return outputItems(orePrefix, material, 1);
     }
 
-    public GTRecipeBuilder outputItems(TagPrefix orePrefix, @NotNull Material material, int count) {
+    public GTRecipeBuilder outputItems(TagPrefix orePrefix, Material material, int count) {
         if (orePrefix.isEmpty() || material.isNull()) {
             GTCEu.LOGGER.error(
                     "Tried to set output item stack that doesn't exist, id: {}, TagPrefix: {}, Material: {}, Count: {}",
@@ -537,15 +528,15 @@ public class GTRecipeBuilder {
     }
 
     protected GTRecipeBuilder outputItems(Ingredient ingredient) {
-        return output(ItemRecipeCapability.CAP, ingredient);
+        return output(ItemRecipeCapability.CAP, ItemIngredient.of(ingredient));
     }
 
-    public GTRecipeBuilder outputItemRanged(IntProviderIngredient provider) {
-        return outputItems(provider);
+    public GTRecipeBuilder outputItemRanged(ItemIngredient provider) {
+        return output(ItemRecipeCapability.CAP, provider);
     }
 
     public GTRecipeBuilder outputItemsRanged(ItemStack output, IntProvider intProvider) {
-        return outputItemRanged(IntProviderIngredient.of(output, intProvider));
+        return outputItemRanged(ItemIngredient.ranged(output, intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     public GTRecipeBuilder outputItemsRanged(Item input, IntProvider intProvider) {
@@ -570,131 +561,78 @@ public class GTRecipeBuilder {
     }
 
     public GTRecipeBuilder notConsumable(ItemStack itemStack) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(itemStack);
-        this.chance = lastChance;
-        return this;
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(itemStack).copyWithChance(0));
+    }
+
+    public GTRecipeBuilder notConsumable(TagKey<Item> tag) {
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(tag).copyWithChance(0));
     }
 
     public GTRecipeBuilder notConsumable(Ingredient ingredient) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(ingredient);
-        this.chance = lastChance;
-        return this;
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(ingredient).copyWithChance(0));
     }
 
     public GTRecipeBuilder notConsumable(Item item) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(item);
-        this.chance = lastChance;
-        return this;
+        return notConsumable(new ItemStack(item));
     }
 
     public GTRecipeBuilder notConsumable(Supplier<? extends Item> item) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(item);
-        this.chance = lastChance;
-        return this;
+        return notConsumable(item.get());
     }
 
     public GTRecipeBuilder notConsumable(TagPrefix orePrefix, Material material) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(orePrefix, material);
-        this.chance = lastChance;
-        return this;
+        return notConsumable(orePrefix, material, 1);
     }
 
     public GTRecipeBuilder notConsumable(TagPrefix orePrefix, Material material, int count) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputItems(orePrefix, material, count);
-        this.chance = lastChance;
-        return this;
+        return input(ItemRecipeCapability.CAP, ItemIngredient.of(orePrefix, material, count).copyWithChance(0));
     }
 
     public GTRecipeBuilder notConsumableFluid(FluidStack fluid) {
-        return notConsumableFluid(FluidIngredient.of(
-                TagUtil.createFluidTag(BuiltInRegistries.FLUID.getKey(fluid.getFluid()).getPath()), fluid.getAmount()));
+        return input(FluidRecipeCapability.CAP, FluidIngredient.of(fluid).copyWithChance(0));
     }
 
     public GTRecipeBuilder notConsumableFluid(FluidIngredient ingredient) {
-        int lastChance = this.chance;
-        this.chance = 0;
-        inputFluids(ingredient);
-        this.chance = lastChance;
-        return this;
+        return input(FluidRecipeCapability.CAP, ingredient.copyWithChance(0));
     }
 
     public GTRecipeBuilder circuitMeta(int configuration) {
         if (configuration < 0 || configuration > IntCircuitBehaviour.CIRCUIT_MAX) {
             GTCEu.LOGGER.error("Circuit configuration must be in the bounds 0 - 32");
         }
-        return notConsumable(IntCircuitIngredient.of(configuration));
+        return input(ItemRecipeCapability.CAP, ItemIngredient.circuit(configuration));
     }
 
-    public GTRecipeBuilder chancedInput(SizedIngredient stack, int chance, int tierChanceBoost) {
+    public GTRecipeBuilder chancedInput(ItemIngredient stack, int chance, int tierChanceBoost) {
         if (checkChanceAndPrintError(chance)) {
             return this;
         }
-        int lastChance = this.chance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.tierChanceBoost = tierChanceBoost;
-        inputItems(stack);
-        this.chance = lastChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-        return this;
+        return input(ItemRecipeCapability.CAP, stack.copyWithChance(chance));
     }
 
     public GTRecipeBuilder chancedInput(FluidIngredient stack, int chance, int tierChanceBoost) {
         if (checkChanceAndPrintError(chance)) {
             return this;
         }
-        int lastChance = this.chance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.tierChanceBoost = tierChanceBoost;
-        inputFluids(stack);
-        this.chance = lastChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-        return this;
+        return input(FluidRecipeCapability.CAP, stack.copyWithChance(chance));
     }
 
-    public GTRecipeBuilder chancedOutput(SizedIngredient stack, int chance, int tierChanceBoost) {
+    public GTRecipeBuilder chancedOutput(ItemIngredient stack, int chance, int tierChanceBoost) {
         if (checkChanceAndPrintError(chance)) {
             return this;
         }
-        int lastChance = this.chance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.tierChanceBoost = tierChanceBoost;
-        outputItems(stack);
-        this.chance = lastChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-        return this;
+        return output(ItemRecipeCapability.CAP, stack.copyWithChance(chance));
     }
 
     public GTRecipeBuilder chancedOutput(FluidIngredient stack, int chance, int tierChanceBoost) {
         if (checkChanceAndPrintError(chance)) {
             return this;
         }
-        int lastChance = this.chance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.tierChanceBoost = tierChanceBoost;
-        outputFluids(stack);
-        this.chance = lastChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-        return this;
+        return output(FluidRecipeCapability.CAP, stack.copyWithChance(chance));
     }
 
     public GTRecipeBuilder chancedInput(ItemStack stack, int chance, int tierChanceBoost) {
-        return chancedInput(SizedIngredient.create(stack), chance, tierChanceBoost);
+        return chancedInput(ItemIngredient.of(stack), chance, tierChanceBoost);
     }
 
     public GTRecipeBuilder chancedInput(FluidStack stack, int chance, int tierChanceBoost) {
@@ -702,7 +640,7 @@ public class GTRecipeBuilder {
     }
 
     public GTRecipeBuilder chancedOutput(ItemStack stack, int chance, int tierChanceBoost) {
-        return chancedOutput(SizedIngredient.create(stack), chance, tierChanceBoost);
+        return chancedOutput(ItemIngredient.of(stack), chance, tierChanceBoost);
     }
 
     public GTRecipeBuilder chancedOutput(FluidStack stack, int chance, int tierChanceBoost) {
@@ -740,33 +678,22 @@ public class GTRecipeBuilder {
             return this;
         }
 
-        if (0 >= chance || chance > ChanceLogic.getMaxChancedValue()) {
+        if (0 >= chance || chance > 10000) {
             GTCEu.LOGGER.error("Chance cannot be less or equal to 0 or more than {}. Actual: {}.",
-                    ChanceLogic.getMaxChancedValue(), chance, new Throwable());
+                    10000, chance, new Throwable());
             return this;
         }
-        if (chance >= maxChance || maxChance > ChanceLogic.getMaxChancedValue()) {
+        if (chance >= maxChance || maxChance > 10000) {
             GTCEu.LOGGER.error("Max Chance cannot be less or equal to Chance or more than {}. Actual: {}.",
-                    ChanceLogic.getMaxChancedValue(), maxChance, new Throwable());
+                    10000, maxChance, new Throwable());
             return this;
         }
 
-        int scalar = Math.floorDiv(ChanceLogic.getMaxChancedValue(), maxChance);
+        int scalar = Math.floorDiv(10000, maxChance);
         chance *= scalar;
         maxChance *= scalar;
 
-        int lastChance = this.chance;
-        int lastMaxChance = this.maxChance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.maxChance = maxChance;
-        this.tierChanceBoost = tierChanceBoost;
-        outputItems(stack);
-        this.chance = lastChance;
-        this.maxChance = lastMaxChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-
-        return this;
+        return chancedOutput(stack, chance, tierChanceBoost);
     }
 
     public GTRecipeBuilder chancedOutput(TagPrefix prefix, Material material, int count, String fraction,
@@ -809,77 +736,22 @@ public class GTRecipeBuilder {
             return this;
         }
 
-        if (0 >= chance || chance > ChanceLogic.getMaxChancedValue()) {
+        if (0 >= chance || chance > 10000) {
             GTCEu.LOGGER.error("Chance cannot be less or equal to 0 or more than {}. Actual: {}.",
-                    ChanceLogic.getMaxChancedValue(), chance, new Throwable());
+                    10000, chance, new Throwable());
             return this;
         }
-        if (chance >= maxChance || maxChance > ChanceLogic.getMaxChancedValue()) {
+        if (chance >= maxChance || maxChance > 10000) {
             GTCEu.LOGGER.error("Max Chance cannot be less or equal to Chance or more than {}. Actual: {}.",
-                    ChanceLogic.getMaxChancedValue(), maxChance, new Throwable());
+                    10000, maxChance, new Throwable());
             return this;
         }
 
-        int scalar = Math.floorDiv(ChanceLogic.getMaxChancedValue(), maxChance);
+        int scalar = Math.floorDiv(10000, maxChance);
         chance *= scalar;
         maxChance *= scalar;
 
-        int lastChance = this.chance;
-        int lastMaxChance = this.maxChance;
-        int lastTierChanceBoost = this.tierChanceBoost;
-        this.chance = chance;
-        this.maxChance = maxChance;
-        this.tierChanceBoost = tierChanceBoost;
-        outputFluids(stack);
-        this.chance = lastChance;
-        this.maxChance = lastMaxChance;
-        this.tierChanceBoost = lastTierChanceBoost;
-
-        return this;
-    }
-
-    /**
-     * Set a chanced output logic for a specific capability.
-     * all capabilities default to OR logic if not set.
-     *
-     * @param cap   the {@link RecipeCapability} to set the logic for
-     * @param logic the {@link ChanceLogic} to use
-     * @return this builder
-     */
-    public GTRecipeBuilder chancedOutputLogic(RecipeCapability<?> cap, ChanceLogic logic) {
-        this.outputChanceLogic.put(cap, logic);
-        return this;
-    }
-
-    public GTRecipeBuilder chancedItemOutputLogic(ChanceLogic logic) {
-        return chancedOutputLogic(ItemRecipeCapability.CAP, logic);
-    }
-
-    public GTRecipeBuilder chancedFluidOutputLogic(ChanceLogic logic) {
-        return chancedOutputLogic(FluidRecipeCapability.CAP, logic);
-    }
-
-    public GTRecipeBuilder chancedInputLogic(RecipeCapability<?> cap, ChanceLogic logic) {
-        this.inputChanceLogic.put(cap, logic);
-        return this;
-    }
-
-    public GTRecipeBuilder chancedItemInputLogic(ChanceLogic logic) {
-        return chancedInputLogic(ItemRecipeCapability.CAP, logic);
-    }
-
-    public GTRecipeBuilder chancedFluidInputLogic(ChanceLogic logic) {
-        return chancedInputLogic(FluidRecipeCapability.CAP, logic);
-    }
-
-    public GTRecipeBuilder chancedTickOutputLogic(RecipeCapability<?> cap, ChanceLogic logic) {
-        this.tickOutputChanceLogic.put(cap, logic);
-        return this;
-    }
-
-    public GTRecipeBuilder chancedTickInputLogic(RecipeCapability<?> cap, ChanceLogic logic) {
-        this.tickInputChanceLogic.put(cap, logic);
-        return this;
+        return chancedOutput(stack, chance, tierChanceBoost);
     }
 
     public GTRecipeBuilder inputFluids(@NotNull Material material, int amount) {
@@ -891,11 +763,10 @@ public class GTRecipeBuilder {
             return this;
         }
         var matStack = ChemicalHelper.getMaterial(input.getFluid());
-        if (!matStack.isNull() && chance != 0 && chance == maxChance) {
+        if (!matStack.isNull()) {
             tempFluidStacks.add(new MaterialStack(matStack, input.getAmount() * GTValues.M / GTValues.L));
         }
-        return input(FluidRecipeCapability.CAP, FluidIngredient.of(
-                TagUtil.createFluidTag(BuiltInRegistries.FLUID.getKey(input.getFluid()).getPath()),
+        return input(FluidRecipeCapability.CAP, FluidIngredient.of(input.getFluid(),
                 input.getAmount(), input.getTag()));
     }
 
@@ -908,28 +779,26 @@ public class GTRecipeBuilder {
             } else {
                 var matStack = ChemicalHelper.getMaterial(fluid.getFluid());
                 if (!matStack.isNull()) {
-                    if (chance == maxChance && chance != 0) {
-                        tempFluidStacks.add(new MaterialStack(matStack, fluid.getAmount() * GTValues.M / GTValues.L));
-                    }
+                    tempFluidStacks.add(new MaterialStack(matStack, fluid.getAmount() * GTValues.M / GTValues.L));
                 }
 
-                TagKey<Fluid> tag = TagUtil.createFluidTag(BuiltInRegistries.FLUID.getKey(fluid.getFluid()).getPath());
-                ingredients.add(FluidIngredient.of(tag, fluid.getAmount(), fluid.getTag()));
+                ingredients.add(FluidIngredient.of(fluid.getFluid(), fluid.getAmount(), fluid.getTag()));
             }
         }
         return input(FluidRecipeCapability.CAP, ingredients.toArray(FluidIngredient[]::new));
     }
 
-    public GTRecipeBuilder inputFluidsRanged(IntProviderFluidIngredient provider) {
+    public GTRecipeBuilder inputFluidsRanged(FluidIngredient provider) {
         return inputFluids(provider);
     }
 
     protected GTRecipeBuilder inputFluidsRanged(FluidIngredient input, IntProvider intProvider) {
-        return inputFluidsRanged(IntProviderFluidIngredient.of(input, intProvider));
+        return inputFluidsRanged(input.copyWithMultiplier(1).isRanged() ? input :
+                FluidIngredient.ranged(input.toStack(), intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     public GTRecipeBuilder inputFluidsRanged(FluidStack input, IntProvider intProvider) {
-        return inputFluidsRanged(FluidIngredient.of(input), intProvider);
+        return inputFluidsRanged(FluidIngredient.ranged(input, intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     public GTRecipeBuilder inputFluids(FluidIngredient... inputs) {
@@ -949,16 +818,17 @@ public class GTRecipeBuilder {
         return output(FluidRecipeCapability.CAP, outputs);
     }
 
-    public GTRecipeBuilder outputFluidsRanged(IntProviderFluidIngredient provider) {
+    public GTRecipeBuilder outputFluidsRanged(FluidIngredient provider) {
         return outputFluids(provider);
     }
 
     protected GTRecipeBuilder outputFluidsRanged(FluidIngredient output, IntProvider intProvider) {
-        return outputFluidsRanged(IntProviderFluidIngredient.of(output, intProvider));
+        return outputFluidsRanged(
+                FluidIngredient.ranged(output.toStack(), intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     public GTRecipeBuilder outputFluidsRanged(FluidStack output, IntProvider intProvider) {
-        return outputFluidsRanged(FluidIngredient.of(output), intProvider);
+        return outputFluidsRanged(FluidIngredient.ranged(output, intProvider.getMinValue(), intProvider.getMaxValue()));
     }
 
     //////////////////////////////////////
@@ -1254,86 +1124,6 @@ public class GTRecipeBuilder {
         return addCondition(new AdjacentBlockCondition(isReverse, List.copyOf(blocks)));
     }
 
-    /**
-     * @deprecated use {@link #adjacentBlocks(Block...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    public GTRecipeBuilder adjacentBlock(Block... blocks) {
-        return adjacentBlock(false, blocks);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(boolean, Block...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    public GTRecipeBuilder adjacentBlock(boolean isReverse, Block... blocks) {
-        if (blocks.length > GTUtil.NON_CORNER_NEIGHBOURS.size()) {
-            GTCEu.LOGGER.error("Adjacent block condition has too many blocks, not adding to recipe. id: {}", this.id);
-            return this;
-        }
-        return addCondition(AdjacentBlockCondition.fromBlocks(blocks).setReverse(isReverse));
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(TagKey...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    @SafeVarargs
-    public final GTRecipeBuilder adjacentBlock(TagKey<Block>... tags) {
-        return adjacentBlocks(tags);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(boolean, TagKey...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    @SafeVarargs
-    public final GTRecipeBuilder adjacentBlock(boolean isReverse, TagKey<Block>... tags) {
-        return adjacentBlocks(isReverse, tags);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(TagKey...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    @SafeVarargs
-    public final GTRecipeBuilder adjacentBlockTag(TagKey<Block>... tags) {
-        return adjacentBlocks(tags);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(boolean, TagKey...)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    @SafeVarargs
-    public final GTRecipeBuilder adjacentBlockTag(boolean isReverse, TagKey<Block>... tags) {
-        return adjacentBlocks(isReverse, tags);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(Collection)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    public GTRecipeBuilder adjacentBlock(Collection<HolderSet<Block>> blocks) {
-        return adjacentBlocks(blocks);
-    }
-
-    /**
-     * @deprecated use {@link #adjacentBlocks(Collection, boolean)} instead
-     */
-    @ApiStatus.ScheduledForRemoval(inVersion = "8.0.0")
-    @Deprecated(since = "7.2.1", forRemoval = true)
-    public GTRecipeBuilder adjacentBlock(Collection<HolderSet<Block>> blocks, boolean isReverse) {
-        return adjacentBlocks(blocks, isReverse);
-    }
-
     public GTRecipeBuilder daytime(boolean isNight) {
         return addCondition(new DaytimeCondition().setReverse(isNight));
     }
@@ -1422,7 +1212,7 @@ public class GTRecipeBuilder {
      * @param researchId the researchId for the recipe
      * @return this
      */
-    public GTRecipeBuilder researchWithoutRecipe(@NotNull String researchId) {
+    public GTRecipeBuilder researchWithoutRecipe(String researchId) {
         return researchWithoutRecipe(researchId, ResearchManager.getDefaultScannerItem());
     }
 
@@ -1456,7 +1246,7 @@ public class GTRecipeBuilder {
      * @param researchStack the stack to use for research
      * @return this
      */
-    public GTRecipeBuilder scannerResearch(@NotNull ItemStack researchStack) {
+    public GTRecipeBuilder scannerResearch(ItemStack researchStack) {
         return scannerResearch(b -> b.researchStack(researchStack));
     }
 
@@ -1508,34 +1298,10 @@ public class GTRecipeBuilder {
     }
 
     public void toJson(JsonObject json) {
-        var ops = RegistryOps.create(JsonOps.INSTANCE, GTRegistries.builtinRegistry());
-        JsonObject serialized = GTRecipeSerializer.CODEC.encodeStart(ops, buildRawRecipe())
-                .getOrThrow(false, GTCEu.LOGGER::error).getAsJsonObject();
+        JsonObject serialized = GTRecipeSerializer.SERIALIZER.toJson(buildRawRecipe());
         for (String key : serialized.keySet()) {
             json.add(key, serialized.get(key));
         }
-    }
-
-    public JsonObject capabilitiesToJson(Map<RecipeCapability<?>, List<Content>> contents) {
-        JsonObject jsonObject = new JsonObject();
-        contents.forEach((cap, list) -> {
-            JsonArray contentsJson = new JsonArray();
-            for (Content content : list) {
-                contentsJson.add(cap.serializer.toJsonContent(content));
-            }
-            jsonObject.add(GTRegistries.RECIPE_CAPABILITIES.getKey(cap), contentsJson);
-        });
-        return jsonObject;
-    }
-
-    public JsonObject chanceLogicsToJson(Map<RecipeCapability<?>, ChanceLogic> chanceLogics) {
-        JsonObject jsonObject = new JsonObject();
-        chanceLogics.forEach((cap, logic) -> {
-            String capId = GTRegistries.RECIPE_CAPABILITIES.getKey(cap);
-            String logicId = GTRegistries.CHANCE_LOGICS.getKey(logic);
-            jsonObject.addProperty(capId, logicId);
-        });
-        return jsonObject;
     }
 
     public FinishedRecipe build() {
@@ -1574,6 +1340,8 @@ public class GTRecipeBuilder {
         if (onSave != null) {
             onSave.accept(this, consumer);
         }
+        warnTooManyIngredients(true, input);
+        warnTooManyIngredients(false, output);
         ResearchCondition condition = this.conditions.stream().filter(ResearchCondition.class::isInstance).findAny()
                 .map(ResearchCondition.class::cast).orElse(null);
         if (condition != null) {
@@ -1609,18 +1377,15 @@ public class GTRecipeBuilder {
     private void gatherMaterialInfoFromStack(ItemStack input) {
         var matInfo = ItemMaterialData.getMaterialInfo(input.getItem());
         var unresolvedMatInfo = ItemMaterialData.UNRESOLVED_ITEM_MATERIAL_INFO.get(input);
-        if (chance == maxChance && chance != 0) {
-            if (unresolvedMatInfo != null) {
-                tempItemStacks.add(input);
+        if (unresolvedMatInfo != null) {
+            tempItemStacks.add(input);
+        }
+        if (matInfo != null) {
+            for (var matStack : matInfo.getMaterials()) {
+                tempItemMaterialStacks.add(matStack.multiply(input.getCount()));
             }
-            if (matInfo != null) {
-                for (var matStack : matInfo.getMaterials()) {
-                    tempItemMaterialStacks.add(matStack.multiply(input.getCount()));
-                }
-            } else if (unresolvedMatInfo == null) {
-                tempItemStacks.add(input);
-            }
-
+        } else if (unresolvedMatInfo == null) {
+            tempItemStacks.add(input);
         }
     }
 
@@ -1628,23 +1393,14 @@ public class GTRecipeBuilder {
         var itemOutputs = output.getOrDefault(ItemRecipeCapability.CAP, new ArrayList<>());
         var itemInputs = input.getOrDefault(ItemRecipeCapability.CAP, new ArrayList<>());
         if (itemOutputs.size() == 1 && (!itemInputs.isEmpty() || !tempFluidStacks.isEmpty())) {
-            var currOutput = ItemRecipeCapability.CAP.of(itemOutputs.get(0).content);
+            var currOutput = itemOutputs.get(0);
             Item out = null;
             int outputCount = 0;
 
-            if (currOutput instanceof IntProviderIngredient intProvider) {
-                ItemStack[] items = intProvider.getInner().getItems();
-                if (items.length > 0) {
-                    out = items[0].getItem();
-                    // use the max amount of items for decomp info so dupes can't happen
-                    outputCount = intProvider.getCountProvider().getMaxValue();
-                }
-            } else if (!currOutput.isEmpty()) {
-                ItemStack[] items = currOutput.getItems();
-                if (items.length > 0) {
-                    out = items[0].getItem();
-                    outputCount = items[0].getCount();
-                }
+            ItemStack[] items = currOutput.getItems();
+            if (items.length > 0 && !items[0].isEmpty()) {
+                out = items[0].getItem();
+                outputCount = currOutput.getCount();
             }
 
             if (out == null || out == Items.AIR) {
@@ -1679,23 +1435,14 @@ public class GTRecipeBuilder {
     private void removeExistingMaterialInfo() {
         var itemOutputs = output.get(ItemRecipeCapability.CAP);
         if (itemOutputs.size() == 1) {
-            var currOutput = ItemRecipeCapability.CAP.of(itemOutputs.get(0).content);
+            var currOutput = itemOutputs.get(0);
             Item out = null;
             int outputCount = 0;
 
-            if (currOutput instanceof IntProviderIngredient intProvider) {
-                ItemStack[] items = intProvider.getInner().getItems();
-                if (items.length > 0) {
-                    out = items[0].getItem();
-                    // use the max amount of items for decomp info so dupes can't happen
-                    outputCount = intProvider.getCountProvider().getMaxValue();
-                }
-            } else if (!currOutput.isEmpty()) {
-                ItemStack[] items = currOutput.getItems();
-                if (items.length > 0) {
-                    out = items[0].getItem();
-                    outputCount = items[0].getCount();
-                }
+            ItemStack[] items = currOutput.getItems();
+            if (items.length > 0 && !items[0].isEmpty()) {
+                out = items[0].getItem();
+                outputCount = currOutput.getCount();
             }
 
             if (out == null || out == Items.AIR) {
@@ -1713,26 +1460,36 @@ public class GTRecipeBuilder {
         }
     }
 
-    public GTRecipe buildRawRecipe() {
-        return new GTRecipe(recipeType, id.withPrefix(recipeType.registryName.getPath() + "/"),
+    public GTRecipeDefinition buildRawRecipe() {
+        return new GTRecipeDefinition(id.withPrefix(recipeType.registryName.getPath() + "/"), recipeType,
+                recipeCategory,
                 input, output, tickInput, tickOutput,
-                inputChanceLogic, outputChanceLogic, tickInputChanceLogic, tickOutputChanceLogic,
-                conditions, List.of(), data, duration, recipeCategory);
+                duration, conditions, data, tier);
     }
 
-    protected void warnTooManyIngredients(RecipeCapability<?> capability,
-                                          boolean isInput,
-                                          Map<RecipeCapability<?>, List<Content>> table,
-                                          int addedEntries) {
-        var recipeCapabilityMax = isInput ? recipeType.maxInputs : recipeType.maxOutputs;
-        if (!recipeCapabilityMax.containsKey(capability)) return;
+    public GTRecipe buildRuntime() {
+        return new GTRecipe(recipeType, id.withPrefix(recipeType.registryName.getPath() + "/"),
+                input, output, tickInput, tickOutput, conditions,
+                data, tier, duration, recipeCategory);
+    }
 
-        int max = recipeCapabilityMax.getInt(capability);
-        if (table.getOrDefault(capability, List.of()).size() + addedEntries > max) {
-            String io = isInput ? "inputs" : "outputs";
-            GTCEu.LOGGER.warn("Recipe {} is trying to add more {} than its recipe type can support, Max {} {}: {}",
-                    id, io, capability.name, io, max);
-        }
+    protected void warnTooManyIngredients(boolean isInput,
+                                          ContentListMap table) {
+        var recipeCapabilityMax = isInput ? recipeType.maxInputs : recipeType.maxOutputs;
+        table.forEachEntry(new ContentListMap.EntryConsumer() {
+
+            @Override
+            public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
+                if (!recipeCapabilityMax.containsKey(capability)) return;
+                int max = recipeCapabilityMax.getInt(capability);
+                if (contents.size() > max) {
+                    String io = isInput ? "inputs" : "outputs";
+                    GTCEu.LOGGER.warn(
+                            "Recipe {} is trying to add more {} than its recipe type can support, Max {} {}: {}",
+                            id, io, capability.name, io, max);
+                }
+            }
+        });
     }
 
     protected boolean missingIngredientError(int index, boolean isInput,
@@ -1742,7 +1499,7 @@ public class GTRecipeBuilder {
             if (perTick) {
                 io = "Tick " + io.toLowerCase(Locale.ROOT);
             }
-            int size = (perTick ? tickOutput : output).getOrDefault(cap, List.of()).size();
+            int size = (perTick ? tickOutput : output).getOrDefault((RecipeCapability) cap, List.of()).size();
             GTCEu.LOGGER.error("{} {} {} of recipe {} is empty", io, cap.name, size + index, id);
             return true;
         }
@@ -1750,9 +1507,9 @@ public class GTRecipeBuilder {
     }
 
     protected boolean checkChanceAndPrintError(int chance) {
-        if (0 >= chance || chance > ChanceLogic.getMaxChancedValue()) {
+        if (0 >= chance || chance > 10000) {
             GTCEu.LOGGER.error("Chance cannot be less or equal to 0 or more than {}. Actual: {}.",
-                    ChanceLogic.getMaxChancedValue(), chance, new Throwable());
+                    10000, chance, new Throwable());
             return true;
         }
         return false;
@@ -1761,10 +1518,10 @@ public class GTRecipeBuilder {
     //////////////////////////////////////
     // ******* Quick Query *******//
     //////////////////////////////////////
-    public EnergyStack EUt() {
-        if (!tickInput.containsKey(EURecipeCapability.CAP)) return EnergyStack.EMPTY;
-        if (tickInput.get(EURecipeCapability.CAP).isEmpty()) return EnergyStack.EMPTY;
-        return EURecipeCapability.CAP.of(tickInput.get(EURecipeCapability.CAP).get(0).content);
+    public long EUt() {
+        if (!tickInput.containsKey(EURecipeCapability.CAP)) return 0;
+        if (tickInput.get(EURecipeCapability.CAP).isEmpty()) return 0;
+        return tickInput.get(EURecipeCapability.CAP).get(0);
     }
 
     public int getSolderMultiplier() {
@@ -1782,12 +1539,14 @@ public class GTRecipeBuilder {
      * @param researchFluid the fluid stack to scan for research
      * @param dataStack     the stack to contain the data
      * @param duration      the duration of the recipe
+     * @param tier          the tier of the recipe
      * @param EUt           the EUt of the recipe
      * @param CWUt          how much computation per tick this recipe needs if in Research Station
      */
-    public record ResearchRecipeEntry(@NotNull String researchId,
-                                      @NotNull ItemStack researchItem, @NotNull FluidStack researchFluid,
-                                      @NotNull ItemStack dataStack, int duration, EnergyStack EUt, int CWUt) {
+    public record ResearchRecipeEntry(String researchId,
+                                      ItemStack researchItem, FluidStack researchFluid,
+                                      ItemStack dataStack, int duration,
+                                      int tier, long EUt, int CWUt) {
 
     }
 }

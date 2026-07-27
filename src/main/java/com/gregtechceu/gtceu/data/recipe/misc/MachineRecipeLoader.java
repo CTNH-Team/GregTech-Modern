@@ -17,7 +17,6 @@ import com.gregtechceu.gtceu.common.data.GTBlocks;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.common.data.GTMachines;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
-import com.gregtechceu.gtceu.common.data.machines.GTAEMachines;
 import com.gregtechceu.gtceu.common.data.machines.GTMachineUtils;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.recipe.CustomTags;
@@ -1590,28 +1589,18 @@ public class MachineRecipeLoader {
         for (int tier : GTMachineUtils.MULTI_HATCH_TIERS) {
             var tierName = VN[tier].toLowerCase(Locale.ROOT);
 
-            var importHatch4x = FLUID_IMPORT_HATCH_4X[tier];
-            var exportHatch4x = FLUID_EXPORT_HATCH_4X[tier];
-            var importHatch9x = FLUID_IMPORT_HATCH_9X[tier];
-            var exportHatch9x = FLUID_EXPORT_HATCH_9X[tier];
+            var importHatch = FLUID_IMPORT_HATCH_MULTI[tier];
+            var exportHatch = FLUID_EXPORT_HATCH_MULTI[tier];
 
             VanillaRecipeHelper.addShapedRecipe(
                     provider, "fluid_hatch_4x_output_to_input_" + tierName,
-                    importHatch4x.asStack(), "d", "B",
-                    'B', exportHatch4x.asStack());
+                    importHatch.asStack(), "d", "B",
+                    'B', exportHatch.asStack());
             VanillaRecipeHelper.addShapedRecipe(
                     provider, "fluid_hatch_4x_input_to_output_" + tierName,
-                    exportHatch4x.asStack(), "d", "B",
-                    'B', importHatch4x.asStack());
+                    exportHatch.asStack(), "d", "B",
+                    'B', importHatch.asStack());
 
-            VanillaRecipeHelper.addShapedRecipe(
-                    provider, "fluid_hatch_9x_output_to_input_" + tierName,
-                    importHatch9x.asStack(), "d", "B",
-                    'B', exportHatch9x.asStack());
-            VanillaRecipeHelper.addShapedRecipe(
-                    provider, "fluid_hatch_9x_input_to_output_" + tierName,
-                    exportHatch9x.asStack(), "d", "B",
-                    'B', importHatch9x.asStack());
         }
 
         for (int tier : GTMachineUtils.DUAL_HATCH_TIERS) {
@@ -1645,18 +1634,20 @@ public class MachineRecipeLoader {
                 "d", "B", 'B', STEAM_EXPORT_BUS.asStack());
 
         if (GTCEu.Mods.isAE2Loaded()) {
-            VanillaRecipeHelper.addShapedRecipe(provider, "me_fluid_hatch_output_to_input",
-                    GTAEMachines.FLUID_IMPORT_HATCH_ME.asStack(), "d", "B", 'B',
-                    GTAEMachines.FLUID_EXPORT_HATCH_ME.asStack());
-            VanillaRecipeHelper.addShapedRecipe(provider, "me_fluid_hatch_input_to_output",
-                    GTAEMachines.FLUID_EXPORT_HATCH_ME.asStack(), "d", "B", 'B',
-                    GTAEMachines.FLUID_IMPORT_HATCH_ME.asStack());
-            VanillaRecipeHelper.addShapedRecipe(provider, "me_item_bus_output_to_input",
-                    GTAEMachines.ITEM_IMPORT_BUS_ME.asStack(), "d", "B", 'B',
-                    GTAEMachines.ITEM_EXPORT_BUS_ME.asStack());
-            VanillaRecipeHelper.addShapedRecipe(provider, "me_item_bus_input_to_output",
-                    GTAEMachines.ITEM_EXPORT_BUS_ME.asStack(), "d", "B", 'B',
-                    GTAEMachines.ITEM_IMPORT_BUS_ME.asStack());
+            // spotless:off
+//            VanillaRecipeHelper.addShapedRecipe(provider, "me_fluid_hatch_output_to_input",
+//                    GTAEMachines.FLUID_IMPORT_HATCH_ME.asStack(), "d", "B", 'B',
+//                    GTAEMachines.FLUID_EXPORT_HATCH_ME.asStack());
+//            VanillaRecipeHelper.addShapedRecipe(provider, "me_fluid_hatch_input_to_output",
+//                    GTAEMachines.FLUID_EXPORT_HATCH_ME.asStack(), "d", "B", 'B',
+//                    GTAEMachines.FLUID_IMPORT_HATCH_ME.asStack());
+//            VanillaRecipeHelper.addShapedRecipe(provider, "me_item_bus_output_to_input",
+//                    GTAEMachines.ITEM_IMPORT_BUS_ME.asStack(), "d", "B", 'B',
+//                    GTAEMachines.ITEM_EXPORT_BUS_ME.asStack());
+//            VanillaRecipeHelper.addShapedRecipe(provider, "me_item_bus_input_to_output",
+//                    GTAEMachines.ITEM_EXPORT_BUS_ME.asStack(), "d", "B", 'B',
+//                    GTAEMachines.ITEM_IMPORT_BUS_ME.asStack());
+            // spotless:on
         }
     }
 }

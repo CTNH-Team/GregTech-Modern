@@ -1,15 +1,14 @@
 package com.gregtechceu.gtceu.common.machine.trait.customlogic;
 
 import com.gregtechceu.gtceu.api.GTValues;
-import com.gregtechceu.gtceu.api.capability.recipe.IO;
-import com.gregtechceu.gtceu.api.capability.recipe.IRecipeCapabilityHolder;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.data.chemical.material.Material;
 import com.gregtechceu.gtceu.api.data.tag.TagPrefix;
 import com.gregtechceu.gtceu.api.item.IGTTool;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.common.data.GTItems;
 import com.gregtechceu.gtceu.common.data.GTMaterialItems;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
@@ -30,8 +29,8 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
     INSTANCE;
 
     @Override
-    public @Nullable GTRecipe createCustomRecipe(IRecipeCapabilityHolder holder) {
-        var recipeHandlers = holder.getCapabilitiesFlat(IO.IN, ItemRecipeCapability.CAP);
+    public @Nullable GTRecipeDefinition createCustomRecipe(RecipeHandlerGroup holder) {
+        var recipeHandlers = holder.getInputHandlerMap().get(ItemRecipeCapability.CAP);
         for (var handler : recipeHandlers) {
             for (var content : handler.getContents()) {
                 if (!(content instanceof ItemStack stack)) continue;
@@ -43,7 +42,7 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
         return null;
     }
 
-    public @Nullable GTRecipe search(ItemStack stack) {
+    public @Nullable GTRecipeDefinition search(ItemStack stack) {
         var turbineBehaviour = TurbineRotorBehaviour.getBehaviour(stack);
         if (turbineBehaviour != null) {
             float durability = 1.f - (float) turbineBehaviour.getPartDamage(stack) /
@@ -63,9 +62,9 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
         return null;
     }
 
-    public @Nullable GTRecipe applyDurabilityRecipe(String id, ItemStack inputStack, @NotNull Material mat,
-                                                    float fullAmount, float durability, long voltage,
-                                                    int durationFactor) {
+    public @Nullable GTRecipeDefinition applyDurabilityRecipe(String id, ItemStack inputStack, @NotNull Material mat,
+                                                              float fullAmount, float durability, long voltage,
+                                                              int durationFactor) {
         float outputAmount = (durability * fullAmount);
         int dustAmount = (int) outputAmount;
         int leftover = (int) ((outputAmount - (float) dustAmount) * 36.f);
@@ -93,8 +92,8 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
     public void buildRepresentativeRecipes() {
         ItemStack stack = GTItems.TURBINE_ROTOR.asStack();
         stack.setHoverName(Component.translatable("gtceu.auto_decomp.rotor"));
-        GTRecipe rotorRecipe;
-        GTRecipe pickaxeRecipe;
+        GTRecipeDefinition rotorRecipe;
+        GTRecipeDefinition pickaxeRecipe;
         float durability = 0.75f;
         var turbineBehaviour = TurbineRotorBehaviour.getBehaviour(stack);
         assert turbineBehaviour != null : "Default Turbine Stack doesn't have Turbine Behaviour";
@@ -104,7 +103,7 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
         rotorRecipe = applyDurabilityRecipe("rotor_decomp", stack, turbineBehaviour.getPartMaterial(stack),
                 (float) (turbineBlade.materialAmount() * 8) / GTValues.M, durability, GTValues.VH[GTValues.EV], 1);
         assert rotorRecipe != null : "Default Turbine Decomp recipe couldn't be generated";
-        rotorRecipe.setId(rotorRecipe.getId().withPrefix("/"));
+        rotorRecipe = rotorRecipe.withId(rotorRecipe.getId().withPrefix("/"));
 
         // noinspection DataFlowIssue
         stack = GTMaterialItems.TOOL_ITEMS.get(GTMaterials.Iron, GTToolType.PICKAXE).asStack();
@@ -115,7 +114,7 @@ public enum MaceratorLogic implements GTRecipeType.ICustomRecipeLogic {
                 GTValues.VH[GTValues.LV], 2);
 
         assert pickaxeRecipe != null : "Default Tool Decomp recipe couldn't be generated";
-        pickaxeRecipe.setId(pickaxeRecipe.getId().withPrefix("/"));
+        pickaxeRecipe = pickaxeRecipe.withId(pickaxeRecipe.getId().withPrefix("/"));
         MACERATOR_RECYCLING.addRecipe(pickaxeRecipe);
         MACERATOR_RECYCLING.addRecipe(rotorRecipe);
     }

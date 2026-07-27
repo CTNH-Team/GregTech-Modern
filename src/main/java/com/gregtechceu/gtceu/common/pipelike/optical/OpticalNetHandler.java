@@ -1,7 +1,6 @@
 package com.gregtechceu.gtceu.common.pipelike.optical;
 
-import com.gregtechceu.gtceu.api.capability.IDataAccessHatch;
-import com.gregtechceu.gtceu.api.capability.IOpticalComputationProvider;
+import com.gregtechceu.gtceu.api.capability.IDataAccessMachine;
 import com.gregtechceu.gtceu.api.capability.IOpticalDataAccessHatch;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.common.blockentity.OpticalPipeBlockEntity;
@@ -14,9 +13,7 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-
-public class OpticalNetHandler implements IDataAccessHatch, IOpticalComputationProvider {
+public class OpticalNetHandler implements IDataAccessMachine {
 
     private final OpticalPipeBlockEntity pipe;
     private final Level world;
@@ -37,33 +34,18 @@ public class OpticalNetHandler implements IDataAccessHatch, IOpticalComputationP
     }
 
     @Override
-    public boolean isRecipeAvailable(@NotNull GTRecipe recipe, @NotNull Collection<IDataAccessHatch> seen) {
-        boolean isAvailable = traverseRecipeAvailable(recipe, seen);
+    public boolean isRecipeAvailable(@NotNull GTRecipe recipe) {
+        var dataHatch = getDataHatch();
+        if (dataHatch == null || !dataHatch.isTransmitter()) return false;
+        boolean isAvailable = dataHatch.isRecipeAvailable(recipe);
         if (isAvailable) setPipesActive();
         return isAvailable;
     }
 
     @Override
-    public boolean isCreative() {
-        return false;
-    }
-
-    @Override
-    public int requestCWUt(int cwut, boolean simulate, @NotNull Collection<IOpticalComputationProvider> seen) {
-        if (cwut == 0) return 0;
-        int provided = traverseRequestCWUt(cwut, simulate, seen);
-        if (provided > 0) setPipesActive();
-        return provided;
-    }
-
-    @Override
-    public int getMaxCWUt(@NotNull Collection<IOpticalComputationProvider> seen) {
-        return traverseMaxCWUt(seen);
-    }
-
-    @Override
-    public boolean canBridge(@NotNull Collection<IOpticalComputationProvider> seen) {
-        return traverseCanBridge(seen);
+    public void notifyListeners() {
+        var dataHatch = getDataHatch();
+        if (dataHatch != null && !dataHatch.isTransmitter()) dataHatch.notifyListeners();
     }
 
     private void setPipesActive() {
@@ -78,48 +60,12 @@ public class OpticalNetHandler implements IDataAccessHatch, IOpticalComputationP
         return net == null || pipe == null || pipe.isInValid();
     }
 
-    private boolean traverseRecipeAvailable(@NotNull GTRecipe recipe, @NotNull Collection<IDataAccessHatch> seen) {
-        if (isNetInvalidForTraversal()) return false;
-
-        OpticalRoutePath inv = net.getNetData(pipe.getPipePos(), facing);
-        if (inv == null) return false;
-
-        IOpticalDataAccessHatch hatch = inv.getDataHatch();
-        if (hatch == null || seen.contains(hatch)) return false;
-
-        if (hatch.isTransmitter()) {
-            return hatch.isRecipeAvailable(recipe, seen);
-        }
-        return false;
-    }
-
-    private int traverseRequestCWUt(int cwut, boolean simulate, @NotNull Collection<IOpticalComputationProvider> seen) {
-        IOpticalComputationProvider provider = getComputationProvider(seen);
-        if (provider == null) return 0;
-        return provider.requestCWUt(cwut, simulate, seen);
-    }
-
-    private int traverseMaxCWUt(@NotNull Collection<IOpticalComputationProvider> seen) {
-        IOpticalComputationProvider provider = getComputationProvider(seen);
-        if (provider == null) return 0;
-        return provider.getMaxCWUt(seen);
-    }
-
-    private boolean traverseCanBridge(@NotNull Collection<IOpticalComputationProvider> seen) {
-        IOpticalComputationProvider provider = getComputationProvider(seen);
-        if (provider == null) return true; // nothing found, so don't report a problem, just pass quietly
-        return provider.canBridge(seen);
-    }
-
-    @Nullable
-    private IOpticalComputationProvider getComputationProvider(@NotNull Collection<IOpticalComputationProvider> seen) {
+    IOpticalDataAccessHatch getDataHatch() {
         if (isNetInvalidForTraversal()) return null;
 
         OpticalRoutePath inv = net.getNetData(pipe.getPipePos(), facing);
         if (inv == null) return null;
 
-        IOpticalComputationProvider hatch = inv.getComputationHatch();
-        if (hatch == null || seen.contains(hatch)) return null;
-        return hatch;
+        return inv.getDataHatch();
     }
 }

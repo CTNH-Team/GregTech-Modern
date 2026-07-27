@@ -114,6 +114,9 @@ public class GTNetwork {
         register(SPacketProspectBedrockFluid.class, SPacketProspectBedrockFluid::new, NetworkDirection.PLAY_TO_CLIENT);
         register(SPacketSendWorldID.class, SPacketSendWorldID::new, NetworkDirection.PLAY_TO_CLIENT);
         register(SPacketNotifyCapeChange.class, SPacketNotifyCapeChange::new, NetworkDirection.PLAY_TO_CLIENT);
+        register(SPacketNetworkDebug.class, SPacketNetworkDebug::new, NetworkDirection.PLAY_TO_CLIENT);
+        register(SPacketLargeStackContainer.class, SPacketLargeStackContainer::new, NetworkDirection.PLAY_TO_CLIENT);
+        register(SPacketLargeStackSlot.class, SPacketLargeStackSlot::new, NetworkDirection.PLAY_TO_CLIENT);
         register(SCPacketShareProspection.class, SCPacketShareProspection::new, null);
     }
 }

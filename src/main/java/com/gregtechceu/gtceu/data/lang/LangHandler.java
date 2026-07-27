@@ -46,6 +46,7 @@ public class LangHandler {
         provider.add("recipe.capability.eu.name", "GTCEu Energy");
         provider.add("recipe.capability.fluid.name", "Fluid");
         provider.add("recipe.capability.item.name", "Item");
+        provider.add("recipe.capability.cwu.name", "Computation");
         multiLang(provider, "gtceu.oc.tooltip", "Min: %s", "Left click to increase the OC",
                 "Right click to decrease the OC", "Middle click to reset the OC",
                 "Hold Shift to change by Perfect OC");
@@ -837,6 +838,8 @@ public class LangHandler {
         provider.add("behavior.portable_scanner.mode.show_electrical_info", "Show electrical info");
         provider.add("behavior.portable_scanner.mode.show_recipe_info", "Show recipe info");
         provider.add("behavior.portable_scanner.mode.show_environmental_info", "Show environmental info");
+        provider.add("behavior.portable_scanner.mode.show_network_debug", "Show network debug");
+        provider.add("behavior.portable_scanner.network_debug.synced", "Network debug data synced");
         provider.add("behavior.item_magnet.enabled", "§aMagnetic Field Enabled");
         provider.add("behavior.item_magnet.disabled", "§cMagnetic Field Disabled");
         provider.add("behavior.data_item.title", "§n%s Construction Data:");
@@ -914,6 +917,7 @@ public class LangHandler {
         provider.add("gtceu.universal.tooltip.energy_storage_capacity", "§cEnergy Capacity: §r%d EU");
         provider.add("gtceu.universal.tooltip.energy_tier_range", "§aAllowed Voltage Tiers: §f%s §f- %s");
         provider.add("gtceu.universal.tooltip.item_storage_capacity", "§6Item Slots: §f%d");
+        provider.add("gtceu.universal.tooltip.item_storage_multiplier", "§6Item Stack Multiplier: §f%d");
         provider.add("gtceu.universal.tooltip.item_storage_total", "§6Item Capacity: §f%d items");
         provider.add("gtceu.universal.tooltip.item_stored", "§dItem Stored: §f%s, %d items");
         provider.add("gtceu.universal.tooltip.item_transfer_rate", "§bTransfer Rate: §f%d items/s");
@@ -962,8 +966,8 @@ public class LangHandler {
         provider.add("gtceu.recipe.cleanroom", "Requires %s");
         provider.add("gtceu.recipe.environmental_hazard.reverse", "§cArea must be free of %s");
         provider.add("gtceu.recipe.environmental_hazard", "§cArea must have %s");
-        provider.add("gtceu.recipe.cleanroom.display_name", "Cleanroom");
-        provider.add("gtceu.recipe.cleanroom_sterile.display_name", "Sterile Cleanroom");
+        provider.add("gtceu.recipe.cleanroom.display_name", "§eCleanroom§r");
+        provider.add("gtceu.recipe.cleanroom_sterile.display_name", "§dSterile Cleanroom§r");
         provider.add("gtceu.recipe.research", "Requires Research");
         provider.add("gtceu.recipe.scan_for_research", "Scan for Assembly Line");
         provider.add("gtceu.recipe.computation_per_tick", "Min. Computation: %s CWU/t");
@@ -1268,6 +1272,8 @@ public class LangHandler {
         provider.add("gtceu.gui.cover_setting.title", "Cover Settings");
         provider.add("gtceu.gui.output_setting.title", "Output Settings");
         provider.add("gtceu.gui.circuit.title", "Circuit Settings");
+        provider.add("gtceu.gui.refund_all_item", "Returns all items to the container in front");
+        provider.add("gtceu.gui.refund_all_fluid", "Returns all fluids to the container in front");
         multiLang(provider, "gtceu.gui.output_setting.tooltips", "left-click to tune the item auto output",
                 "right-click to tune the fluid auto output.");
         provider.add("gtceu.gui.item_auto_output.allow_input.enabled",
@@ -1331,6 +1337,18 @@ public class LangHandler {
         provider.add("gtceu.gui.content.chance_boosted_logic", "Chance at Tier: %s%% (%s)");
         provider.add("gtceu.gui.content.count_range", "%s-%sx");
         provider.add("gtceu.gui.content.fluid_range", "%s-%smB");
+        provider.add("gtceu.gui.large_stack.amount", "Amount: %s / %s");
+        provider.add("gtceu.gui.allow_same.enabled", "§aEnabled");
+        provider.add("gtceu.gui.allow_same.disabled", "§cDisabled");
+        provider.add("gtceu.gui.allow_same.not_allowed", "NOT ");
+        provider.add("gtceu.gui.allow_same.item_input.title", "Input Slot Protect");
+        provider.add("gtceu.gui.allow_same.item_input.tooltip", "Allow same items to occupy multiple input slots");
+        provider.add("gtceu.gui.allow_same.item_output.title", "Output Slot Protect");
+        provider.add("gtceu.gui.allow_same.item_output.tooltip", "Allow same items to occupy multiple output slots");
+        provider.add("gtceu.gui.allow_same.fluid_input.title", "Input Tank Protect");
+        provider.add("gtceu.gui.allow_same.fluid_input.tooltip", "Allow same fluids to occupy multiple input tanks");
+        provider.add("gtceu.gui.allow_same.fluid_output.title", "Output Tank Protect");
+        provider.add("gtceu.gui.allow_same.fluid_output.tooltip", "Allow same fluids to occupy multiple output tanks");
         provider.add("gtceu.gui.content.range", "%s-%s");
         provider.add("gtceu.gui.content.times_item", "x %s");
 

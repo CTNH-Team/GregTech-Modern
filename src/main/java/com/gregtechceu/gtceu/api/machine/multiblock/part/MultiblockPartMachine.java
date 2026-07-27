@@ -4,11 +4,11 @@ import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDistinctPart;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.IRecipeHandlerTrait;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerList;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
 
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
@@ -43,7 +43,7 @@ public class MultiblockPartMachine extends MetaMachine implements IMultiPart {
     protected final Set<BlockPos> controllerPositions = new ObjectOpenHashSet<>(8);
     protected final SortedSet<IMultiController> controllers = new ReferenceLinkedOpenHashSet<>(8);
 
-    private @Nullable RecipeHandlerList handlerList;
+    protected @Nullable RecipeHandlerList handlerList;
 
     public MultiblockPartMachine(IMachineBlockEntity holder) {
         super(holder);
@@ -93,7 +93,7 @@ public class MultiblockPartMachine extends MetaMachine implements IMultiPart {
             List<IRecipeHandler<?>> handlers = new ArrayList<>();
             IO handlerIO = null;
             for (var trait : traits) {
-                if (trait instanceof IRecipeHandlerTrait<?> rht) {
+                if (trait instanceof IRecipeHandler<?> rht) {
                     if (handlerIO == null) handlerIO = rht.getHandlerIO();
                     handlers.add(rht);
                 }
@@ -101,8 +101,10 @@ public class MultiblockPartMachine extends MetaMachine implements IMultiPart {
 
             if (handlers.isEmpty()) {
                 handlerList = RecipeHandlerList.NO_DATA;
+            } else if (this instanceof IDistinctPart distinctPart) {
+                handlerList = RecipeHandlerList.of(this::getPaintingColor, distinctPart::isDistinct, handlers);
             } else {
-                handlerList = RecipeHandlerList.of(handlerIO, getPaintingColor(), handlers);
+                handlerList = RecipeHandlerList.of(this::getPaintingColor, handlers);
             }
         }
         return handlerList;

@@ -11,15 +11,13 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.TankWidget;
 import com.gregtechceu.gtceu.api.recipe.*;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.api.sound.ExistingSoundEntry;
 import com.gregtechceu.gtceu.common.machine.multiblock.electric.FusionReactorMachine;
 import com.gregtechceu.gtceu.common.machine.trait.customlogic.*;
 import com.gregtechceu.gtceu.common.recipe.condition.AdjacentFluidCondition;
 import com.gregtechceu.gtceu.data.recipe.builder.GTRecipeBuilder;
-import com.gregtechceu.gtceu.integration.kjs.GTRegistryInfo;
 import com.gregtechceu.gtceu.integration.xei.entry.fluid.FluidEntryList;
 import com.gregtechceu.gtceu.integration.xei.entry.fluid.FluidHolderSetList;
 import com.gregtechceu.gtceu.integration.xei.handlers.fluid.CycleFluidEntryHandler;
@@ -39,6 +37,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.ModLoader;
 
 import java.util.ArrayList;
@@ -213,13 +212,13 @@ public class GTRecipeTypes {
                                 .isEmpty()) {
                     recipeBuilder.copy(new ResourceLocation(recipeBuilder.id.toString() + "_water"))
                             .inputFluids(GTMaterials.Water.getFluid((int) GTMath.clamp(
-                                    recipeBuilder.duration * recipeBuilder.EUt().getTotalEU() / 320, 4, 1000)))
+                                    recipeBuilder.duration * recipeBuilder.EUt() / 320, 4, 1000)))
                             .duration(recipeBuilder.duration * 2)
                             .save(provider);
 
                     recipeBuilder.copy(new ResourceLocation(recipeBuilder.id.toString() + "_distilled_water"))
                             .inputFluids(GTMaterials.DistilledWater.getFluid((int) GTMath.clamp(
-                                    recipeBuilder.duration * recipeBuilder.EUt().getTotalEU() / 426, 3, 750)))
+                                    recipeBuilder.duration * recipeBuilder.EUt() / 426, 3, 750)))
                             .duration((int) (recipeBuilder.duration * 1.5))
                             .save(provider);
 
@@ -227,7 +226,7 @@ public class GTRecipeTypes {
                     // buildAndRegister call.
                     // Adding a second call will result in duplicate recipe generation attempts
                     recipeBuilder.inputFluids(GTMaterials.Lubricant.getFluid((int) GTMath.clamp(
-                            recipeBuilder.duration * recipeBuilder.EUt().getTotalEU() / 1280, 1, 250)));
+                            recipeBuilder.duration * recipeBuilder.EUt() / 1280, 1, 250)));
                 }
             });
 
@@ -391,7 +390,6 @@ public class GTRecipeTypes {
             .setSlotOverlay(false, false, GuiTextures.INT_CIRCUIT_OVERLAY)
             .setSlotOverlay(true, true, GuiTextures.CENTRIFUGE_OVERLAY)
             .setProgressBar(GuiTextures.PROGRESS_BAR_GAS_COLLECTOR, LEFT_TO_RIGHT)
-            .setOffsetVoltageText(true)
             .setSound(GTSoundEntries.COOLING);
 
     public final static GTRecipeType AIR_SCRUBBER_RECIPES = register("air_scrubber", ELECTRIC)
@@ -405,6 +403,7 @@ public class GTRecipeTypes {
             .setSlotOverlay(false, false, GuiTextures.SCANNER_OVERLAY)
             .setSlotOverlay(true, false, GuiTextures.RESEARCH_STATION_OVERLAY)
             .setScanner(true)
+            .setOverclockable(false)
             .setMaxTooltips(4)
             .setSound(GTValues.FOOLS.getAsBoolean() ? GTSoundEntries.SCIENCE : GTSoundEntries.COMPUTATION);
 
@@ -419,7 +418,7 @@ public class GTRecipeTypes {
                 List<HolderSet<Fluid>> fluids = new ArrayList<>();
                 for (RecipeCondition condition : recipe.conditions) {
                     if (condition instanceof AdjacentFluidCondition adjacentFluid) {
-                        fluids.addAll(adjacentFluid.getOrInitFluids(recipe));
+                        fluids.addAll(adjacentFluid.getOrInitFluids());
                     }
                 }
                 if (fluids.isEmpty()) {
@@ -537,24 +536,21 @@ public class GTRecipeTypes {
             .onRecipeBuild((recipeBuilder, provider) -> {
                 if (recipeBuilder.data.getBoolean("disable_distillery")) return;
                 if (recipeBuilder.output.containsKey(FluidRecipeCapability.CAP)) {
-                    Content inputContent = recipeBuilder.input.get(FluidRecipeCapability.CAP).get(0);
-                    FluidIngredient input = FluidRecipeCapability.CAP.of(inputContent.getContent());
+                    FluidIngredient input = recipeBuilder.input.get(FluidRecipeCapability.CAP).get(0);
                     ItemStack[] outputs = recipeBuilder.output.containsKey(ItemRecipeCapability.CAP) ?
-                            ItemRecipeCapability.CAP
-                                    .of(recipeBuilder.output.get(ItemRecipeCapability.CAP).get(0).getContent())
-                                    .getItems() :
-                            null;
+                            recipeBuilder.output.get(ItemRecipeCapability.CAP).get(0).getItems() : null;
                     ItemStack outputItem = outputs == null || outputs.length == 0 ? ItemStack.EMPTY : outputs[0];
-                    if (input.isEmpty()) return;
-                    List<Content> contents = recipeBuilder.output.get(FluidRecipeCapability.CAP);
+                    if (input.getFluids().length == 0) return;
+                    List<FluidIngredient> contents = recipeBuilder.output.get(FluidRecipeCapability.CAP);
                     for (int i = 0; i < contents.size(); ++i) {
-                        Content outputContent = contents.get(i);
-                        FluidIngredient output = FluidRecipeCapability.CAP.of(outputContent.getContent());
-                        if (output.isEmpty()) continue;
+                        FluidIngredient output = contents.get(i);
+                        FluidStack outputStack = output.toStack();
+                        if (outputStack.isEmpty()) continue;
                         GTRecipeBuilder builder = DISTILLERY_RECIPES
                                 .recipeBuilder(recipeBuilder.id.getPath() + "_to_" +
-                                        BuiltInRegistries.FLUID.getKey(output.getStacks()[0].getFluid()).getPath())
-                                .EUt(Math.max(1, recipeBuilder.EUt().voltage() / 4), recipeBuilder.EUt().amperage())
+                                        BuiltInRegistries.FLUID.getKey(outputStack.getFluid()).getPath())
+                                .EUt(recipeBuilder.EUt())
+                                .tier(recipeBuilder.tier)
                                 .circuitMeta(i + 1);
 
                         int ratio = RecipeHelper.getRatioForDistillery(input, output, outputItem);
@@ -564,17 +560,13 @@ public class GTRecipeTypes {
                         boolean fluidsDivisible = RecipeHelper.isFluidStackDivisibleForDistillery(input, ratio) &&
                                 RecipeHelper.isFluidStackDivisibleForDistillery(output, ratio);
 
-                        FluidIngredient dividedInputFluid = input.copy();
-                        dividedInputFluid.setAmount(Math.max(1, dividedInputFluid.getAmount() / ratio));
-                        FluidIngredient dividedOutputFluid = output.copy();
-                        dividedOutputFluid.setAmount(Math.max(1, dividedOutputFluid.getAmount() / ratio));
+                        FluidIngredient dividedInputFluid = copyFluidWithAmountPreservingChance(input,
+                                Math.max(1, input.getAmount() / ratio));
+                        FluidIngredient dividedOutputFluid = copyFluidWithAmountPreservingChance(output,
+                                Math.max(1, output.getAmount() / ratio));
 
                         if (shouldDivide && fluidsDivisible) {
-                            builder.chance(inputContent.chance)
-                                    .tierChanceBoost(inputContent.tierChanceBoost)
-                                    .inputFluids(dividedInputFluid)
-                                    .chance(outputContent.chance)
-                                    .tierChanceBoost(outputContent.tierChanceBoost)
+                            builder.inputFluids(dividedInputFluid)
                                     .outputFluids(dividedOutputFluid)
                                     .duration(Math.max(1, recipeDuration / ratio));
                         } else if (!shouldDivide) {
@@ -582,11 +574,7 @@ public class GTRecipeTypes {
                                 builder.outputItems(outputItem);
                             }
                             builder.conditions.addAll(recipeBuilder.conditions);
-                            builder.chance(inputContent.chance)
-                                    .tierChanceBoost(inputContent.tierChanceBoost)
-                                    .inputFluids(input)
-                                    .chance(outputContent.chance)
-                                    .tierChanceBoost(outputContent.tierChanceBoost)
+                            builder.inputFluids(input)
                                     .outputFluids(output)
                                     .duration(recipeDuration)
                                     .save(provider);
@@ -657,7 +645,6 @@ public class GTRecipeTypes {
             .setEUIO(IO.IN)
             .setProgressBar(GuiTextures.PROGRESS_BAR_FUSION, LEFT_TO_RIGHT)
             .setSound(GTSoundEntries.ARC)
-            .setOffsetVoltageText(true)
             .setMaxTooltips(4)
             .setUiBuilder(FusionReactorMachine::addEUToStartLabel);
 
@@ -674,9 +661,6 @@ public class GTRecipeTypes {
 
     public static void init() {
         GCYMRecipeTypes.init();
-        if (GTCEu.Mods.isKubeJSLoaded()) {
-            GTRegistryInfo.registerFor(GTRegistries.RECIPE_TYPES.getRegistryName());
-        }
         ModLoader.get().postEvent(new GTCEuAPI.RegisterEvent<>(GTRegistries.RECIPE_TYPES, GTRecipeType.class));
         GTRegistries.RECIPE_TYPES.freeze();
 
@@ -696,5 +680,10 @@ public class GTRecipeTypes {
 
     public static GTRecipeType get(String name) {
         return GTRegistries.RECIPE_TYPES.get(GTCEu.id(name));
+    }
+
+    private static FluidIngredient copyFluidWithAmountPreservingChance(FluidIngredient ingredient, int amount) {
+        FluidIngredient copy = ingredient.getInner().copyWithAmount(amount);
+        return ingredient.isChanced() ? copy.copyWithChance(ingredient.getChance()) : copy;
     }
 }

@@ -18,12 +18,9 @@ dependencies {
     }
 
     // Recipe Viewers
-    modCompileOnly(forge.bundles.jei)
-    modCompileOnly(forge.bundles.rei)
     modCompileOnly(forge.emi)
 
     // WAILA-likes
-    modCompileOnly(forge.theoneprobe)
     modCompileOnly(forge.jade)
 
     // Curios
@@ -38,10 +35,7 @@ dependencies {
     modCompileOnly(variantOf(forge.create) { classifier("slim") })
     modCompileOnly(forge.flywheel.forge.api)
 
-    // KJS
-    modCompileOnly(forge.kubejs)
     modCompileOnly(forge.architectury)
-    modCompileOnly(forge.rhino)
 
     // Shimmer
     modCompileOnly(forge.shimmer)
@@ -78,10 +72,7 @@ dependencies {
     modLocalRuntime(forge.spark)
     modLocalRuntime(forge.modernfix)
 
-    // Runtime Recipe Viewers - uncomment whichever one you want to use //
     modLocalRuntime(forge.emi)
-//    modLocalRuntime(forge.jei.forge.impl)
-//    modLocalRuntime(forge.bundles.rei.runtime)
 
     // Client-only runtime mods //
     modClientLocalRuntime(forge.embeddium)
@@ -97,8 +88,6 @@ dependencies {
 //    modExtraLocalRuntime(forge.worldstripper)
 //    modExtraLocalRuntime(forge.cc.tweaked.forge.impl) for some reason this breaks create
 
-    modExtraLocalRuntime(forge.bundles.kjs)
-
     modExtraLocalRuntime(forge.ftblibrary)
     modExtraLocalRuntime(forge.ftbteams)
     modExtraLocalRuntime(forge.ftbquests)
@@ -110,6 +99,8 @@ dependencies {
 //    modExtraLocalRuntime(forge.xaerosworldmap)
 //    modExtraLocalRuntime(forge.journeymap.forge)
 //    modExtraLocalRuntime(forge.ftbchunks)
+
+    modExtraLocalRuntime(forge.architectury)
 
     modExtraLocalRuntime(forge.gamestages)
     modExtraLocalRuntime(forge.bookshelf)

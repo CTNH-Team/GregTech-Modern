@@ -3,8 +3,8 @@ package com.gregtechceu.gtceu.client.util;
 import com.gregtechceu.gtceu.api.capability.recipe.FluidRecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.content.Content;
-import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.utils.GTMatrixUtils;
 import com.gregtechceu.gtceu.utils.GTUtil;
 import com.gregtechceu.gtceu.utils.ResearchManager;
@@ -48,7 +48,6 @@ import net.minecraftforge.fluids.FluidStack;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -175,23 +174,22 @@ public class RenderUtil {
         if (recipe == null) {
             return null;
         }
-        var contents = new ObjectArrayList<Content>();
-        var empty = new ArrayList<Content>();
-        contents.addAll(recipe.outputs.getOrDefault(FluidRecipeCapability.CAP, empty));
-        contents.addAll(recipe.inputs.getOrDefault(FluidRecipeCapability.CAP, empty));
+        var contents = new ArrayList<FluidIngredient>();
+        contents.addAll(recipe.outputs.getOrDefault(FluidRecipeCapability.CAP, List.of()));
+        contents.addAll(recipe.inputs.getOrDefault(FluidRecipeCapability.CAP, List.of()));
         if (contents.isEmpty()) {
             return null;
         }
 
         var fluidContent = contents.stream()
-                .filter(content -> content.content instanceof FluidIngredient ingredient && !ingredient.isEmpty())
+                .filter(ingredient -> ingredient.getFluids().length > 0)
                 .findAny();
         if (fluidContent.isEmpty()) {
             return null;
         }
-        var ingredient = (FluidIngredient) fluidContent.get().content;
+        var ingredient = fluidContent.get();
 
-        var stacks = ingredient.getStacks();
+        var stacks = ingredient.getFluids();
         if (stacks.length == 0) {
             return null;
         }
@@ -289,14 +287,14 @@ public class RenderUtil {
         ResearchManager.ResearchItem researchData = ResearchManager.readResearchId(stack);
         if (researchData == null) return false;
 
-        Collection<GTRecipe> recipes = researchData.recipeType().getDataStickEntry(researchData.researchId());
+        Collection<GTRecipeDefinition> recipes = researchData.recipeType().getDataStickEntry(researchData.researchId());
         if (recipes == null || recipes.isEmpty()) return false;
 
         for (var recipe : recipes) {
             // check item outputs first
-            List<Content> outputs = recipe.getOutputContents(ItemRecipeCapability.CAP);
-            if (!outputs.isEmpty()) {
-                ItemStack[] items = ItemRecipeCapability.CAP.of(outputs.get(0).content).getItems();
+            var itemOutputs = recipe.getOutputContents(ItemRecipeCapability.CAP);
+            if (!itemOutputs.isEmpty()) {
+                ItemStack[] items = itemOutputs.get(0).getItems();
                 if (items.length > 0) {
                     ItemStack output = items[0];
                     if (!output.isEmpty() && !GTUtil.isSameItemSameTags(output, stack)) {
@@ -306,9 +304,9 @@ public class RenderUtil {
                 }
             }
             // if there are no item outputs, try to find a fluid output
-            outputs = recipe.getOutputContents(FluidRecipeCapability.CAP);
-            if (!outputs.isEmpty()) {
-                FluidStack[] fluids = FluidRecipeCapability.CAP.of(outputs.get(0).content).getStacks();
+            var fluidOutputs = recipe.getOutputContents(FluidRecipeCapability.CAP);
+            if (!fluidOutputs.isEmpty()) {
+                FluidStack[] fluids = fluidOutputs.get(0).getFluids();
                 if (fluids.length != 0) {
                     FluidStack output = fluids[0];
                     if (!output.isEmpty()) {

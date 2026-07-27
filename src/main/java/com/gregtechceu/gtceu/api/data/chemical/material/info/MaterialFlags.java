@@ -43,8 +43,6 @@ public class MaterialFlags {
     /**
      * Add to material to disable it's unification fully
      */
-    @Deprecated
-    public static final MaterialFlag NO_UNIFICATION = new MaterialFlag.Builder("no_unification").build();
 
     public static final MaterialFlag DISABLE_MATERIAL_RECIPES = new MaterialFlag.Builder("disable_material_recipes")
             .build();
@@ -229,6 +227,10 @@ public class MaterialFlags {
     public static final MaterialFlag DISABLE_ALLOY_PROPERTY = new MaterialFlag.Builder("disable_alloy_property")
             .requireProps(PropertyKey.BLAST, PropertyKey.FLUID)
             .requireFlags(DISABLE_ALLOY_BLAST)
+            .build();
+
+    public static final MaterialFlag DISABLE_EBF_BLAST = new MaterialFlag.Builder("disable_ebf")
+            .requireProps(PropertyKey.BLAST)
             .build();
 
     /////////////////

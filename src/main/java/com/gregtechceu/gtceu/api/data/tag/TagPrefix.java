@@ -22,7 +22,6 @@ import com.gregtechceu.gtceu.common.data.GTMaterialItems;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.recipe.CustomTags;
-import com.gregtechceu.gtceu.integration.kjs.GTRegistryInfo;
 import com.gregtechceu.gtceu.integration.xei.widgets.GTOreByProduct;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.memoization.GTMemoizer;
@@ -78,9 +77,6 @@ public class TagPrefix {
 
     public static void init() {
         AddonFinder.getAddons().forEach(IGTAddon::registerTagPrefixes);
-        if (GTCEu.Mods.isKubeJSLoaded()) {
-            GTRegistryInfo.registerFor(GTRegistryInfo.TAG_PREFIX.registryKey);
-        }
     }
 
     public static TagPrefix get(String name) {
@@ -96,49 +92,56 @@ public class TagPrefix {
     public static final TagPrefix ore = oreTagPrefix("stone", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("%s Ore")
             .registerOre(
-                    Blocks.STONE::defaultBlockState, () -> GTMaterials.Stone, BlockBehaviour.Properties.of()
+                    Blocks.STONE::defaultBlockState, () -> GTMaterials.Stone,
+                    () -> BlockBehaviour.Properties.copy(Blocks.STONE)
                             .mapColor(MapColor.STONE).requiresCorrectToolForDrops().strength(3.0F, 3.0F),
                     new ResourceLocation("block/stone"), false, false, true);
 
     public static final TagPrefix oreGranite = oreTagPrefix("granite", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Granite %s Ore")
             .registerOre(
-                    Blocks.GRANITE::defaultBlockState, () -> GTMaterials.Granite, BlockBehaviour.Properties.of()
+                    Blocks.GRANITE::defaultBlockState, () -> GTMaterials.Granite,
+                    () -> BlockBehaviour.Properties.copy(Blocks.GRANITE)
                             .mapColor(MapColor.DIRT).requiresCorrectToolForDrops().strength(3.0F, 3.0F),
-                    new ResourceLocation("block/granite"));
+                    new ResourceLocation("block/granite"), false, false, false);
 
     public static final TagPrefix oreDiorite = oreTagPrefix("diorite", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Diorite %s Ore")
             .registerOre(
-                    Blocks.DIORITE::defaultBlockState, () -> GTMaterials.Diorite, BlockBehaviour.Properties.of()
+                    Blocks.DIORITE::defaultBlockState, () -> GTMaterials.Diorite,
+                    () -> BlockBehaviour.Properties.copy(Blocks.DIORITE)
                             .mapColor(MapColor.QUARTZ).requiresCorrectToolForDrops().strength(3.0F, 3.0F),
-                    new ResourceLocation("block/diorite"));
+                    new ResourceLocation("block/diorite"), false, false, false);
 
     public static final TagPrefix oreAndesite = oreTagPrefix("andesite", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Andesite %s Ore")
             .registerOre(
-                    Blocks.ANDESITE::defaultBlockState, () -> GTMaterials.Andesite, BlockBehaviour.Properties.of()
+                    Blocks.ANDESITE::defaultBlockState, () -> GTMaterials.Andesite,
+                    () -> BlockBehaviour.Properties.copy(Blocks.ANDESITE)
                             .mapColor(MapColor.DIRT).requiresCorrectToolForDrops().strength(3.0F, 3.0F),
-                    new ResourceLocation("block/andesite"));
+                    new ResourceLocation("block/andesite"), false, false, false);
 
     public static final TagPrefix oreRedGranite = oreTagPrefix("red_granite", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Red Granite %s Ore")
             .registerOre(() -> GTBlocks.RED_GRANITE.getDefaultState(), () -> GTMaterials.GraniteRed,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.TERRACOTTA_RED).requiresCorrectToolForDrops()
+                    () -> BlockBehaviour.Properties.copy(Blocks.STONE).mapColor(MapColor.TERRACOTTA_RED)
+                            .requiresCorrectToolForDrops()
                             .strength(3.0F, 3.0F),
-                    GTCEu.id("block/red_granite"));
+                    GTCEu.id("block/red_granite"), false, false, false);
 
     public static final TagPrefix oreMarble = oreTagPrefix("marble", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Marble %s Ore")
             .registerOre(
-                    () -> GTBlocks.MARBLE.getDefaultState(), () -> GTMaterials.Marble, BlockBehaviour.Properties.of()
+                    () -> GTBlocks.MARBLE.getDefaultState(), () -> GTMaterials.Marble,
+                    () -> BlockBehaviour.Properties.copy(Blocks.STONE)
                             .mapColor(MapColor.QUARTZ).requiresCorrectToolForDrops().strength(3.0F, 3.0F),
-                    GTCEu.id("block/marble"));
+                    GTCEu.id("block/marble"), false, false, false);
 
     public static final TagPrefix oreDeepslate = oreTagPrefix("deepslate", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Deepslate %s Ore")
             .registerOre(
-                    Blocks.DEEPSLATE::defaultBlockState, () -> GTMaterials.Deepslate, BlockBehaviour.Properties.of()
+                    Blocks.DEEPSLATE::defaultBlockState, () -> GTMaterials.Deepslate,
+                    () -> BlockBehaviour.Properties.copy(Blocks.DEEPSLATE)
                             .mapColor(MapColor.DEEPSLATE).requiresCorrectToolForDrops().strength(4.5F, 3.0F)
                             .sound(SoundType.DEEPSLATE),
                     new ResourceLocation("block/deepslate"), false, false, true);
@@ -146,51 +149,52 @@ public class TagPrefix {
     public static final TagPrefix oreTuff = oreTagPrefix("tuff", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Tuff %s Ore")
             .registerOre(
-                    Blocks.TUFF::defaultBlockState, () -> GTMaterials.Tuff, BlockBehaviour.Properties.of()
+                    Blocks.TUFF::defaultBlockState, () -> GTMaterials.Tuff,
+                    () -> BlockBehaviour.Properties.copy(Blocks.TUFF)
                             .mapColor(MapColor.TERRACOTTA_GRAY).requiresCorrectToolForDrops().strength(3.0F, 3.0F)
                             .sound(SoundType.TUFF),
-                    new ResourceLocation("block/tuff"));
+                    new ResourceLocation("block/tuff"), false, false, false);
 
     public static final TagPrefix oreSand = oreTagPrefix("sand", BlockTags.MINEABLE_WITH_SHOVEL)
             .langValue("Sand %s Ore")
             .registerOre(Blocks.SAND::defaultBlockState, () -> GTMaterials.SiliconDioxide,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.SAND).instrument(NoteBlockInstrument.SNARE)
+                    () -> BlockBehaviour.Properties.copy(Blocks.SAND)
                             .strength(0.5F).sound(SoundType.SAND),
                     new ResourceLocation("block/sand"), false, true, false);
 
     public static final TagPrefix oreRedSand = oreTagPrefix("redSand", BlockTags.MINEABLE_WITH_SHOVEL)
             .langValue("Red Sand %s Ore")
             .registerOre(Blocks.RED_SAND::defaultBlockState, () -> GTMaterials.SiliconDioxide,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_ORANGE).instrument(NoteBlockInstrument.SNARE)
+                    () -> BlockBehaviour.Properties.copy(Blocks.RED_SAND)
                             .strength(0.5F).sound(SoundType.SAND),
                     new ResourceLocation("block/red_sand"), false, true, false);
 
     public static final TagPrefix oreGravel = oreTagPrefix("gravel", BlockTags.MINEABLE_WITH_SHOVEL)
             .langValue("Gravel %s Ore")
             .registerOre(Blocks.GRAVEL::defaultBlockState, () -> GTMaterials.Flint,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.STONE).instrument(NoteBlockInstrument.SNARE)
+                    () -> BlockBehaviour.Properties.copy(Blocks.GRAVEL)
                             .strength(0.6F).sound(SoundType.GRAVEL),
                     new ResourceLocation("block/gravel"), false, true, false);
 
     public static final TagPrefix oreBasalt = oreTagPrefix("basalt", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Basalt %s Ore")
             .registerOre(Blocks.BASALT::defaultBlockState, () -> GTMaterials.Basalt,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    () -> BlockBehaviour.Properties.copy(Blocks.BASALT)
                             .instrument(NoteBlockInstrument.BASEDRUM).requiresCorrectToolForDrops().strength(2.5F, 4.2F)
                             .sound(SoundType.BASALT),
-                    new ResourceLocation("block/basalt"), true);
+                    new ResourceLocation("block/basalt"), true, false, false);
 
     public static final TagPrefix oreNetherrack = oreTagPrefix("netherrack", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Nether %s Ore")
             .registerOre(Blocks.NETHERRACK::defaultBlockState, () -> GTMaterials.Netherrack,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.NETHER).instrument(NoteBlockInstrument.BASEDRUM)
+                    () -> BlockBehaviour.Properties.copy(Blocks.NETHERRACK)
                             .requiresCorrectToolForDrops().strength(3.0F, 3.0F).sound(SoundType.NETHER_ORE),
                     new ResourceLocation("block/netherrack"), true, false, true);
 
     public static final TagPrefix oreBlackstone = oreTagPrefix("blackstone", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("Blackstone %s Ore")
             .registerOre(Blocks.BLACKSTONE::defaultBlockState, () -> GTMaterials.Blackstone,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_BLACK)
+                    () -> BlockBehaviour.Properties.copy(Blocks.BLACKSTONE)
                             .instrument(NoteBlockInstrument.BASEDRUM).requiresCorrectToolForDrops()
                             .strength(3.0F, 3.0F),
                     new ResourceLocation("block/blackstone"), true, false, false);
@@ -198,7 +202,7 @@ public class TagPrefix {
     public static final TagPrefix oreEndstone = oreTagPrefix("endstone", BlockTags.MINEABLE_WITH_PICKAXE)
             .langValue("End %s Ore")
             .registerOre(Blocks.END_STONE::defaultBlockState, () -> GTMaterials.Endstone,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.SAND).instrument(NoteBlockInstrument.BASEDRUM)
+                    () -> BlockBehaviour.Properties.copy(Blocks.END_STONE)
                             .requiresCorrectToolForDrops().strength(4.5F, 9.0F),
                     new ResourceLocation("block/end_stone"), true, false, true);
 
@@ -773,35 +777,35 @@ public class TagPrefix {
 
     // Pipes
     public static final TagPrefix pipeTinyFluid = new TagPrefix("pipeTinyFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Tiny %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M / 2)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeSmallFluid = new TagPrefix("pipeSmallFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Small %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeNormalFluid = new TagPrefix("pipeNormalFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Normal %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 3)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeLargeFluid = new TagPrefix("pipeLargeFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Large %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 6)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeHugeFluid = new TagPrefix("pipeHugeFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Huge %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 12)
@@ -809,14 +813,14 @@ public class TagPrefix {
             .enableRecycling();
 
     public static final TagPrefix pipeQuadrupleFluid = new TagPrefix("pipeQuadrupleFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Quadruple %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 4)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeNonupleFluid = new TagPrefix("pipeNonupleFluid")
-            .itemTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.FLUID_PIPE_BLOCKS)
             .langValue("Nonuple %s Fluid Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 9)
@@ -824,28 +828,28 @@ public class TagPrefix {
             .enableRecycling();
 
     public static final TagPrefix pipeSmallItem = new TagPrefix("pipeSmallItem")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
             .langValue("Small %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeNormalItem = new TagPrefix("pipeNormalItem")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
             .langValue("Normal %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 3)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeLargeItem = new TagPrefix("pipeLargeItem")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
             .langValue("Large %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 6)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeHugeItem = new TagPrefix("pipeHugeItem")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
             .langValue("Huge %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M * 12)
@@ -853,30 +857,30 @@ public class TagPrefix {
             .enableRecycling();
 
     public static final TagPrefix pipeSmallRestrictive = new TagPrefix("pipeSmallRestrictive")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS)
             .langValue("Small Restrictive %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH)
             .materialAmount(GTValues.M)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeNormalRestrictive = new TagPrefix("pipeNormalRestrictive")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Normal Restrictive %s Item Pipe")
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Normal Restrictive %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH).materialAmount(GTValues.M * 3)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeLargeRestrictive = new TagPrefix("pipeLargeRestrictive")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Large Restrictive %s Item Pipe")
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Large Restrictive %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH).materialAmount(GTValues.M * 6)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix pipeHugeRestrictive = new TagPrefix("pipeHugeRestrictive")
-            .itemTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Huge Restrictive %s Item Pipe")
+            .blockTable(() -> GTMaterialBlocks.ITEM_PIPE_BLOCKS).langValue("Huge Restrictive %s Item Pipe")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WRENCH).materialAmount(GTValues.M * 12)
             .unificationEnabled(true)
             .enableRecycling();
 
     // Wires and cables
-    public static final TagPrefix wireGtHex = new TagPrefix("wireGtHex").itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+    public static final TagPrefix wireGtHex = new TagPrefix("wireGtHex").blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("16x %s Wire")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 8)
@@ -884,7 +888,7 @@ public class TagPrefix {
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix wireGtOctal = new TagPrefix("wireGtOctal")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("8x %s Wire")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 4)
@@ -892,7 +896,7 @@ public class TagPrefix {
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix wireGtQuadruple = new TagPrefix("wireGtQuadruple")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("4x %s Wire")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 2)
@@ -900,7 +904,7 @@ public class TagPrefix {
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix wireGtDouble = new TagPrefix("wireGtDouble")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("2x %s Wire")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M)
@@ -908,7 +912,7 @@ public class TagPrefix {
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix wireGtSingle = new TagPrefix("wireGtSingle")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("1x %s Wire")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M / 2)
@@ -917,34 +921,34 @@ public class TagPrefix {
             .enableRecycling();
 
     public static final TagPrefix cableGtHex = new TagPrefix("cableGtHex")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("16x %s Cable")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 8)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix cableGtOctal = new TagPrefix("cableGtOctal")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("8x %s Cable")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 4)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix cableGtQuadruple = new TagPrefix("cableGtQuadruple")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS).langValue("4x %s Cable")
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS).langValue("4x %s Cable")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M * 2)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix cableGtDouble = new TagPrefix("cableGtDouble")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("2x %s Cable")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M)
             .unificationEnabled(true)
             .enableRecycling();
     public static final TagPrefix cableGtSingle = new TagPrefix("cableGtSingle")
-            .itemTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
+            .blockTable(() -> GTMaterialBlocks.CABLE_BLOCKS)
             .langValue("1x %s Cable")
             .miningToolTag(CustomTags.MINEABLE_WITH_CONFIG_VALID_PICKAXE_WIRE_CUTTER)
             .materialAmount(GTValues.M / 2)
@@ -971,7 +975,7 @@ public class TagPrefix {
     }
 
     public record OreType(Supplier<BlockState> stoneType, Supplier<Material> material,
-                          Supplier<BlockBehaviour.Properties> template, ResourceLocation baseModelLocation,
+                          Supplier<BlockBehaviour.Properties> properties, ResourceLocation baseModelLocation,
                           boolean isDoubleDrops, boolean isSand, boolean shouldDropAsItem) {}
 
     public record BlockProperties(Supplier<Supplier<RenderType>> renderType,
@@ -1029,13 +1033,16 @@ public class TagPrefix {
 
     @Setter
     private Supplier<Table<TagPrefix, Material, ? extends Supplier<? extends ItemLike>>> itemTable;
+    @Setter
+    private Supplier<Table<TagPrefix, Material, ? extends Supplier<? extends Block>>> blockTable;
 
     @Nullable
     @Getter
     @Setter
     private BiConsumer<Material, List<Component>> tooltip;
 
-    private final Map<Material, Supplier<? extends ItemLike>[]> ignoredMaterials = new HashMap<>();
+    private final Map<Material, Supplier<? extends ItemLike>[]> ignoredItems = new HashMap<>();
+    private final Map<Material, Supplier<? extends Block>[]> ignoredBlocks = new HashMap<>();
     private final Object2FloatMap<Material> materialAmounts = new Object2FloatOpenHashMap<>();
 
     @Getter
@@ -1078,28 +1085,10 @@ public class TagPrefix {
     }
 
     public TagPrefix registerOre(Supplier<BlockState> stoneType, Supplier<Material> material,
-                                 BlockBehaviour.Properties properties, ResourceLocation baseModelLocation) {
-        return registerOre(stoneType, material, properties, baseModelLocation, false);
-    }
-
-    public TagPrefix registerOre(Supplier<BlockState> stoneType, Supplier<Material> material,
-                                 BlockBehaviour.Properties properties, ResourceLocation baseModelLocation,
-                                 boolean doubleDrops) {
-        return registerOre(stoneType, material, properties, baseModelLocation, false, false, false);
-    }
-
-    public TagPrefix registerOre(Supplier<BlockState> stoneType, Supplier<Material> material,
-                                 BlockBehaviour.Properties properties, ResourceLocation baseModelLocation,
-                                 boolean doubleDrops, boolean isSand, boolean shouldDropAsItem) {
-        return registerOre(stoneType, material, () -> properties, baseModelLocation, false, isSand,
-                shouldDropAsItem);
-    }
-
-    public TagPrefix registerOre(Supplier<BlockState> stoneType, Supplier<Material> material,
                                  Supplier<BlockBehaviour.Properties> properties, ResourceLocation baseModelLocation,
                                  boolean doubleDrops, boolean isSand, boolean shouldDropAsItem) {
         ORES.put(this,
-                new OreType(stoneType, material, properties, baseModelLocation, false, isSand, shouldDropAsItem));
+                new OreType(stoneType, material, properties, baseModelLocation, doubleDrops, isSand, shouldDropAsItem));
         if (shouldDropAsItem) {
             GTOreByProduct.addOreByProductPrefix(this);
         }
@@ -1205,12 +1194,28 @@ public class TagPrefix {
     }
 
     public boolean hasItemTable() {
-        return itemTable != null;
+        return itemTable != null || blockTable != null;
+    }
+
+    public boolean hasBlockTable() {
+        return blockTable != null;
     }
 
     @SuppressWarnings("unchecked")
     public Supplier<ItemLike> getItemFromTable(Material material) {
-        return (Supplier<ItemLike>) itemTable.get().get(this, material);
+        if (itemTable != null) {
+            var table = itemTable.get();
+            return table == null ? null : (Supplier<ItemLike>) table.get(this, material);
+        }
+        Supplier<Block> block = getBlockFromTable(material);
+        return block == null ? null : () -> block.get().asItem();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Supplier<Block> getBlockFromTable(Material material) {
+        if (blockTable == null) return null;
+        var table = blockTable.get();
+        return table == null ? null : (Supplier<Block>) table.get(this, material);
     }
 
     public boolean doGenerateItem() {
@@ -1220,7 +1225,7 @@ public class TagPrefix {
     public boolean doGenerateItem(Material material) {
         return generateItem && !isIgnored(material) &&
                 (generationCondition == null || generationCondition.test(material)) ||
-                (hasItemTable() && this.itemTable.get() != null && getItemFromTable(material) != null);
+                (hasItemTable() && getItemFromTable(material) != null);
     }
 
     public boolean doGenerateBlock() {
@@ -1230,7 +1235,7 @@ public class TagPrefix {
     public boolean doGenerateBlock(Material material) {
         return generateBlock && !isIgnored(material) &&
                 (generationCondition == null || generationCondition.test(material)) ||
-                hasItemTable() && this.itemTable.get() != null && getItemFromTable(material) != null;
+                hasBlockTable() && getBlockFromTable(material) != null;
     }
 
     public MaterialIconType getMaterialIconType(Material material) {
@@ -1274,46 +1279,65 @@ public class TagPrefix {
     }
 
     public boolean isIgnored(Material material) {
-        return ignoredMaterials.containsKey(material);
+        return ignoredItems.containsKey(material) || ignoredBlocks.containsKey(material);
     }
 
     @SafeVarargs
     public final void setIgnored(Material material, Supplier<? extends ItemLike>... items) {
-        ignoredMaterials.put(material, items);
+        ignoredItems.put(material, items);
         if (items.length > 0) {
-            ItemMaterialData.registerMaterialEntries(Arrays.asList(items), this, material);
+            ItemMaterialData.registerItemMaterialEntries(Arrays.asList(items), this, material);
         }
     }
 
     @SuppressWarnings("unchecked")
     public void setIgnored(Material material, ItemLike... items) {
-        // go through setIgnoredBlock to wrap if this is a block prefix
         if (this.doGenerateBlock()) {
-            this.setIgnoredBlock(material,
-                    Arrays.stream(items).filter(Block.class::isInstance).map(Block.class::cast).toArray(Block[]::new));
-        } else {
-            this.setIgnored(material,
-                    Arrays.stream(items).map(item -> (Supplier<ItemLike>) () -> item).toArray(Supplier[]::new));
+            Block[] blocks = Arrays.stream(items).filter(Block.class::isInstance).map(Block.class::cast)
+                    .toArray(Block[]::new);
+            if (blocks.length != items.length) {
+                throw new IllegalArgumentException(
+                        "TagPrefix '%s' generates blocks, so setIgnored(Material, ItemLike...) only accepts Block instances. Use setIgnoredBlock for deferred or external blocks."
+                                .formatted(name));
+            }
+            this.setIgnoredBlock(material, blocks);
+            return;
         }
+
+        this.setIgnored(material,
+                Arrays.stream(items).map(item -> (Supplier<ItemLike>) () -> item).toArray(Supplier[]::new));
     }
 
     @SuppressWarnings("unchecked")
     public void setIgnoredBlock(Material material, Block... items) {
-        this.setIgnored(material, Arrays.stream(items).map(block -> GTMemoizer.memoizeBlockSupplier(() -> block))
+        this.setIgnoredBlock(material, Arrays.stream(items).map(block -> GTMemoizer.memoizeBlockSupplier(() -> block))
                 .toArray(Supplier[]::new));
+    }
+
+    @SafeVarargs
+    public final void setIgnoredBlock(Material material, Supplier<? extends Block>... blocks) {
+        ignoredBlocks.put(material, blocks);
+        if (blocks.length > 0) {
+            ItemMaterialData.registerBlockMaterialEntries(Arrays.asList(blocks), this, material);
+        }
     }
 
     @SuppressWarnings("unchecked")
     public void setIgnored(Material material) {
-        this.ignoredMaterials.put(material, new Supplier[0]);
+        this.ignoredItems.put(material, new Supplier[0]);
     }
 
     public void removeIgnored(Material material) {
-        ignoredMaterials.remove(material);
+        ignoredItems.remove(material);
+        ignoredBlocks.remove(material);
     }
 
-    public Map<Material, Supplier<? extends ItemLike>[]> getIgnored() {
-        return new HashMap<>(ignoredMaterials);
+    public Map<Material, Supplier<? extends ItemLike>[]> getIgnoredItems() {
+        return new HashMap<>(ignoredItems);
+    }
+
+    public Map<Material, Supplier<? extends Block>[]> getIgnoredBlocks() {
+        return new HashMap<>(ignoredBlocks);
     }
 
     public boolean isAmountModified(Material material) {

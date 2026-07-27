@@ -7,7 +7,7 @@ import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
-import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
@@ -45,7 +45,7 @@ public class PrimitivePumpMachine extends MultiblockControllerMachine {
 
             for (var handlerList : handlerLists) {
                 var recipeCap = handlerList.getCapability(FluidRecipeCapability.CAP);
-                if (handlerList.getHandlerIO().support(IO.OUT) && !recipeCap.isEmpty()) {
+                if (!recipeCap.isEmpty()) {
                     fluidTank = (NotifiableFluidTank) recipeCap.get(0);
                     long tankCapacity = fluidTank.getTankCapacity(0);
                     if (tankCapacity == FluidType.BUCKET_VOLUME) {

@@ -1,7 +1,6 @@
 package com.gregtechceu.gtceu.api.recipe.lookup.ingredient.fluid;
 
-import com.gregtechceu.gtceu.api.recipe.ingredient.FluidIngredient;
-import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderFluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
 
 import net.minecraftforge.fluids.FluidStack;
@@ -29,16 +28,10 @@ public class FluidStackMapIngredient extends AbstractMapIngredient {
     @NotNull
     public static List<AbstractMapIngredient> from(@NotNull FluidIngredient ingredient) {
         List<AbstractMapIngredient> ingredients = new ObjectArrayList<>();
-        for (FluidIngredient.Value value : ingredient.values) {
-            if (value instanceof FluidIngredient.FluidValue fluidValue) {
-                FluidStack stack = new FluidStack(fluidValue.fluid(),
-                        // wait. that's illegal.
-                        (ingredient instanceof IntProviderFluidIngredient provider ?
-                                provider.getCountProvider().getMaxValue() :
-                                ingredient.getAmount()),
-                        ingredient.getNbt());
-                ingredients.add(new FluidStackMapIngredient(stack, ingredient));
-            }
+        var value = ingredient.getValue();
+        if (value instanceof FluidIngredient.FluidValue fluidValue) {
+            FluidStack stack = new FluidStack(fluidValue.getFluid(), ingredient.getAmount(), value.nbt());
+            ingredients.add(new FluidStackMapIngredient(stack, ingredient));
         }
         return ingredients;
     }
@@ -50,7 +43,7 @@ public class FluidStackMapIngredient extends AbstractMapIngredient {
 
     @Override
     protected int hash() {
-        return stack.hashCode();
+        return stack.getFluid().hashCode();
     }
 
     @Override

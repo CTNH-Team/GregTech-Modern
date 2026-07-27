@@ -65,7 +65,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
  */
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class SimpleTieredMachine extends WorkableTieredMachine
+public class SimpleTieredMachine extends RecipeTieredMachine
                                  implements IAutoOutputBoth, IFancyUIMachine, IHasCircuitSlot {
 
     @Persisted
@@ -315,19 +315,19 @@ public class SimpleTieredMachine extends WorkableTieredMachine
     //////////////////////////////////////
 
     @Override
-    public void attachConfigurators(ConfiguratorPanel configuratorPanel) {
-        IFancyUIMachine.super.attachConfigurators(configuratorPanel);
-
+    public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
         if (hasAutoOutputFluid()) {
-            configuratorPanel.attachConfigurators(createAutoOutputFluidConfigurator());
+            left.attachConfigurators(createAutoOutputFluidConfigurator());
         }
         if (hasAutoOutputItem()) {
-            configuratorPanel.attachConfigurators(createAutoOutputItemConfigurator());
+            left.attachConfigurators(createAutoOutputItemConfigurator());
         }
 
         if (isCircuitSlotEnabled()) {
-            configuratorPanel.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
+            left.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
         }
+
+        super.attachConfigurators(left, right);
     }
 
     private IFancyConfigurator createAutoOutputFluidConfigurator() {
@@ -396,8 +396,6 @@ public class SimpleTieredMachine extends WorkableTieredMachine
                     storages.put(IO.OUT, ItemRecipeCapability.CAP, tieredMachine.exportItems.storage);
                     storages.put(IO.IN, FluidRecipeCapability.CAP, tieredMachine.importFluids);
                     storages.put(IO.OUT, FluidRecipeCapability.CAP, tieredMachine.exportFluids);
-                    storages.put(IO.IN, CWURecipeCapability.CAP, tieredMachine.importComputation);
-                    storages.put(IO.OUT, CWURecipeCapability.CAP, tieredMachine.exportComputation);
 
                     tieredMachine.getRecipeType().getRecipeUI().createEditableUITemplate(false, false).setupUI(template,
                             new GTRecipeTypeUI.RecipeHolder(tieredMachine.recipeLogic::getProgressPercent,

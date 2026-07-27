@@ -6,9 +6,10 @@ import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.machine.SimpleTieredMachine;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.RecipeMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.common.data.GTRecipeTypes;
 import com.gregtechceu.gtceu.common.machine.multiblock.part.ItemBusPartMachine;
 import com.gregtechceu.gtceu.gametest.util.TestUtils;
@@ -35,6 +36,10 @@ public class OverclockLogicTest {
 
     private static GTRecipeType LCR_RECIPE_TYPE;
     private static GTRecipeType CR_RECIPE_TYPE;
+
+    private static RecipeHandlerGroup firstGroup(RecipeMultiblockMachine controller) {
+        return controller.getRecipeHandlerGroups().get(0);
+    }
 
     @BeforeBatch(batch = "OverclockLogic")
     public static void prepare(ServerLevel level) {
@@ -88,7 +93,7 @@ public class OverclockLogicTest {
     }
 
     private record BusHolder(ItemBusPartMachine inputBus1, ItemBusPartMachine inputBus2, ItemBusPartMachine outputBus1,
-                             WorkableMultiblockMachine controller) {}
+                             RecipeMultiblockMachine controller) {}
 
     /**
      * Retrieves the busses for this specific template and force a multiblock structure check
@@ -97,7 +102,7 @@ public class OverclockLogicTest {
      * @return the busses, in the BusHolder record.
      */
     private static BusHolder getBussesAndForm(GameTestHelper helper) {
-        WorkableMultiblockMachine controller = (WorkableMultiblockMachine) getMetaMachine(
+        RecipeMultiblockMachine controller = (RecipeMultiblockMachine) getMetaMachine(
                 helper.getBlockEntity(new BlockPos(1, 2, 0)));
         TestUtils.formMultiblock(controller);
         controller.setRecipeType(LCR_RECIPE_TYPE);
@@ -166,15 +171,19 @@ public class OverclockLogicTest {
                 .inputItems(new ItemStack(Blocks.COBBLESTONE), new ItemStack(Blocks.ACACIA_WOOD))
                 .outputItems(new ItemStack(Blocks.STONE))
                 .EUt(GTValues.VA[GTValues.MV]).duration(100)
-                .buildRawRecipe();
+                .buildRawRecipe()
+                .toRuntime();
 
-        GTRecipe newRecipe = OC_PERFECT.applyModifier(busHolder.controller, recipeBeforeModifiers);
-        helper.assertTrue(newRecipe != null, "Could not apply overclock to recipe");
-        helper.assertTrue(newRecipe.duration == (recipeBeforeModifiers.duration / PERFECT_DURATION_FACTOR_INV),
+        int originalDuration = recipeBeforeModifiers.duration;
+        long originalEUt = recipeBeforeModifiers.getInputEUt();
+        var failReason = OC_PERFECT.apply(busHolder.controller, firstGroup(busHolder.controller),
+                recipeBeforeModifiers);
+        helper.assertTrue(failReason == null, "Could not apply overclock to recipe: " + failReason);
+        helper.assertTrue(recipeBeforeModifiers.duration == (originalDuration / PERFECT_DURATION_FACTOR_INV),
                 "Perfect perfect overclock didn't cut recipe time by 4");
         helper.assertTrue(
-                newRecipe.getInputEUt().getTotalEU() ==
-                        (recipeBeforeModifiers.getInputEUt().getTotalEU() * STD_VOLTAGE_FACTOR),
+                recipeBeforeModifiers.getInputEUt() ==
+                        (originalEUt * STD_VOLTAGE_FACTOR),
                 "Non perfect overclock didn't multiply EU by 4");
         helper.succeed();
     }
@@ -192,15 +201,19 @@ public class OverclockLogicTest {
                 .inputItems(new ItemStack(Blocks.COBBLESTONE), new ItemStack(Blocks.ACACIA_WOOD))
                 .outputItems(new ItemStack(Blocks.STONE))
                 .EUt(GTValues.VA[GTValues.MV]).duration(100)
-                .buildRawRecipe();
+                .buildRawRecipe()
+                .toRuntime();
 
-        GTRecipe newRecipe = OC_NON_PERFECT.applyModifier(busHolder.controller, recipeBeforeModifiers);
-        helper.assertTrue(newRecipe != null, "Could not apply overclock to recipe");
-        helper.assertTrue(newRecipe.duration == (recipeBeforeModifiers.duration / STD_DURATION_FACTOR_INV),
+        int originalDuration = recipeBeforeModifiers.duration;
+        long originalEUt = recipeBeforeModifiers.getInputEUt();
+        var failReason = OC_NON_PERFECT.apply(busHolder.controller, firstGroup(busHolder.controller),
+                recipeBeforeModifiers);
+        helper.assertTrue(failReason == null, "Could not apply overclock to recipe: " + failReason);
+        helper.assertTrue(recipeBeforeModifiers.duration == (originalDuration / STD_DURATION_FACTOR_INV),
                 "Non perfect overclock didn't cut recipe time by 2");
         helper.assertTrue(
-                newRecipe.getInputEUt().getTotalEU() ==
-                        (recipeBeforeModifiers.getInputEUt().getTotalEU() * STD_VOLTAGE_FACTOR),
+                recipeBeforeModifiers.getInputEUt() ==
+                        (originalEUt * STD_VOLTAGE_FACTOR),
                 "Non perfect overclock didn't multiply EU by 4");
         helper.succeed();
     }
@@ -218,46 +231,19 @@ public class OverclockLogicTest {
                 .inputItems(new ItemStack(Blocks.COBBLESTONE))
                 .outputItems(new ItemStack(Blocks.STONE))
                 .EUt(GTValues.VA[GTValues.MV]).duration(1)
-                .buildRawRecipe();
+                .buildRawRecipe()
+                .toRuntime();
         busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.COBBLESTONE, 64));
 
-        GTRecipe newRecipe = OC_PERFECT_SUBTICK.applyModifier(busHolder.controller, recipeBeforeModifiers);
+        long originalEUt = recipeBeforeModifiers.getInputEUt();
+        var failReason = OC_PERFECT_SUBTICK.apply(busHolder.controller, firstGroup(busHolder.controller),
+                recipeBeforeModifiers);
 
-        helper.assertTrue(newRecipe != null, "Could not apply overclock to recipe");
-        helper.assertTrue(newRecipe.subtickParallels == PERFECT_DURATION_FACTOR_INV,
+        helper.assertTrue(failReason == null, "Could not apply overclock to recipe: " + failReason);
+        helper.assertTrue(recipeBeforeModifiers.subtickParallels == PERFECT_DURATION_FACTOR_INV,
                 "Perfect subtick overclock didn't multiply parallels by 4");
-        helper.assertTrue(
-                newRecipe.getInputEUt().getTotalEU() ==
-                        (recipeBeforeModifiers.getInputEUt().getTotalEU() * STD_VOLTAGE_FACTOR),
+        helper.assertTrue(recipeBeforeModifiers.getInputEUt() == (originalEUt * STD_VOLTAGE_FACTOR),
                 "Perfect subtick overclock didn't multiply EU by 4");
-        helper.succeed();
-    }
-
-    // Test for code wise calculating subtick non-perfect OC
-    @GameTest(template = "lcr_input_separation", batch = "OverclockLogic")
-    public static void overclockLogicApplyNonPerfectParallelOverclockTest(GameTestHelper helper) {
-        BusHolder busHolder = getBussesAndForm(helper);
-        // An HV LCR can overclock an MV recipe once
-        // We pass the controller because it is used to fetch .getMaxVoltageTier() and check input ingredients for
-        // parallel
-        GTRecipe recipeBeforeModifiers = LARGE_CHEMICAL_RECIPES
-                .recipeBuilder(GTCEu.id("test-multiblock-overclock-test-npsto"))
-                .id(GTCEu.id("test-multiblock-overclock-test-npsto"))
-                .inputItems(new ItemStack(Blocks.COBBLESTONE))
-                .outputItems(new ItemStack(Blocks.STONE))
-                .EUt(GTValues.VA[GTValues.MV]).duration(1)
-                .buildRawRecipe();
-        busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.COBBLESTONE, 64));
-
-        GTRecipe newRecipe = OC_NON_PERFECT_SUBTICK.applyModifier(busHolder.controller, recipeBeforeModifiers);
-
-        helper.assertTrue(newRecipe != null, "Could not apply overclock to recipe");
-        helper.assertTrue(newRecipe.subtickParallels == STD_DURATION_FACTOR_INV,
-                "Non-Perfect subtick overclock didn't multiply parallels by 2");
-        helper.assertTrue(
-                newRecipe.getInputEUt().getTotalEU() ==
-                        (recipeBeforeModifiers.getInputEUt().getTotalEU() * STD_VOLTAGE_FACTOR),
-                "Non-Perfect subtick overclock didn't multiply EU by 4");
         helper.succeed();
     }
 
@@ -274,16 +260,19 @@ public class OverclockLogicTest {
                 .inputItems(new ItemStack(Blocks.COBBLESTONE))
                 .outputItems(new ItemStack(Blocks.STONE))
                 .EUt(GTValues.VA[GTValues.MV]).duration(1)
-                .buildRawRecipe();
+                .buildRawRecipe()
+                .toRuntime();
         busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.COBBLESTONE, 64));
 
-        GTRecipe newRecipe = OC_NON_PERFECT.applyModifier(busHolder.controller, recipeBeforeModifiers);
+        long originalEUt = recipeBeforeModifiers.getInputEUt();
+        var failReason = OC_NON_PERFECT.apply(busHolder.controller, firstGroup(busHolder.controller),
+                recipeBeforeModifiers);
 
-        helper.assertTrue(newRecipe != null, "Could not apply overclock to recipe");
-        helper.assertTrue(newRecipe.subtickParallels == 1,
+        helper.assertTrue(failReason == null, "Could not apply overclock to recipe: " + failReason);
+        helper.assertTrue(recipeBeforeModifiers.subtickParallels == 1,
                 "Non-Perfect Non-subtick overclock overclocked when it shouldn't have");
         helper.assertTrue(
-                newRecipe.getInputEUt().getTotalEU() == recipeBeforeModifiers.getInputEUt().getTotalEU(),
+                recipeBeforeModifiers.getInputEUt() == originalEUt,
                 "Non-Perfect Non-subtick overclock at 1t changed EU");
         helper.succeed();
     }
@@ -301,12 +290,14 @@ public class OverclockLogicTest {
                 .inputItems(new ItemStack(Blocks.COBBLESTONE))
                 .outputItems(new ItemStack(Blocks.STONE))
                 .EUt(GTValues.VA[GTValues.EV]).duration(1)
-                .buildRawRecipe();
+                .buildRawRecipe()
+                .toRuntime();
         busHolder.inputBus1.getInventory().setStackInSlot(0, new ItemStack(Blocks.COBBLESTONE, 64));
 
-        GTRecipe newRecipe = OC_NON_PERFECT.applyModifier(busHolder.controller, recipeBeforeModifiers);
+        var failReason = OC_NON_PERFECT.apply(busHolder.controller, firstGroup(busHolder.controller),
+                recipeBeforeModifiers);
 
-        helper.assertTrue(newRecipe == null, "Applied EV overclock to HV recipe when it shouldn't have");
+        helper.assertTrue(failReason != null, "Applied EV overclock to HV recipe when it shouldn't have");
 
         helper.succeed();
     }

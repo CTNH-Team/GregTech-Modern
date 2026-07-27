@@ -1,21 +1,13 @@
 package com.gregtechceu.gtceu.api.machine.multiblock;
 
+import com.gregtechceu.gtceu.api.block.ActiveBlock;
 import com.gregtechceu.gtceu.api.block.property.GTBlockStateProperties;
-import com.gregtechceu.gtceu.api.capability.recipe.IO;
-import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
-import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.ICleanroomProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IMufflableMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IWorkableMultiController;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.IRecipeHandlerTrait;
-import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeHandlerList;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
 
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
@@ -24,20 +16,18 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
 import lombok.Getter;
 import lombok.Setter;
-import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.VisibleForTesting;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -46,25 +36,10 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class WorkableMultiblockMachine extends MultiblockControllerMachine
                                                 implements IWorkableMultiController, IMufflableMachine {
 
-    @Nullable
-    @Getter
-    @Setter
-    private ICleanroomProvider cleanroom;
     @Getter
     @Persisted
     @DescSynced
-    public final RecipeLogic recipeLogic;
-    @Getter
-    private final GTRecipeType[] recipeTypes;
-    @Getter
-    @Setter
-    @Persisted
-    private int activeRecipeType;
-    @Getter
-    protected final Map<IO, List<RecipeHandlerList>> capabilitiesProxy;
-    @Getter
-    protected final Map<IO, Map<RecipeCapability<?>, List<IRecipeHandler<?>>>> capabilitiesFlat;
-    protected final List<ISubscription> traitSubscriptions;
+    public final WorkLogic workLogic;
     @Getter
     @Setter
     @Persisted
@@ -74,19 +49,11 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     @Nullable
     @Getter
     protected LongSet activeBlocks;
-
-    @Getter
-    @Persisted
-    @DescSynced
-    protected VoidingMode voidingMode = VoidingMode.VOID_NONE;
+    protected final List<ISubscription> traitSubscriptions;
 
     public WorkableMultiblockMachine(IMachineBlockEntity holder, Object... args) {
         super(holder);
-        this.recipeTypes = getDefinition().getRecipeTypes();
-        this.activeRecipeType = 0;
-        this.recipeLogic = createRecipeLogic(args);
-        this.capabilitiesProxy = new EnumMap<>(IO.class);
-        this.capabilitiesFlat = new EnumMap<>(IO.class);
+        this.workLogic = createWorkLogic(args);
         this.traitSubscriptions = new ArrayList<>();
     }
 
@@ -99,11 +66,10 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         super.onUnload();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        recipeLogic.inValid();
     }
 
-    protected RecipeLogic createRecipeLogic(Object... args) {
-        return new RecipeLogic(this);
+    protected WorkLogic createWorkLogic(Object... args) {
+        return new WorkLogic(this);
     }
 
     //////////////////////////////////////
@@ -112,54 +78,22 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
-        // attach parts' traits
-        activeBlocks = getMultiblockState().getMatchContext().getOrDefault("vaBlocks", LongSets.emptySet());
-        capabilitiesProxy.clear();
-        capabilitiesFlat.clear();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        Long2ObjectMap<IO> ioMap = getMultiblockState().getMatchContext().getOrCreate("ioMap",
-                Long2ObjectMaps::emptyMap);
-        for (IMultiPart part : getParts()) {
-            IO io = ioMap.getOrDefault(part.self().getPos().asLong(), IO.BOTH);
-            if (io == IO.NONE) continue;
-
-            var handlerLists = part.getRecipeHandlers();
-            for (var handlerList : handlerLists) {
-                if (!handlerList.isValid(io)) continue;
-                this.addHandlerList(handlerList);
-                traitSubscriptions.add(handlerList.subscribe(recipeLogic::updateTickSubscription));
-            }
-        }
-
-        // attach self traits
-        Map<IO, List<IRecipeHandler<?>>> ioTraits = new EnumMap<>(IO.class);
-        for (MachineTrait trait : getTraits()) {
-            if (trait instanceof IRecipeHandlerTrait<?> handlerTrait) {
-                ioTraits.computeIfAbsent(handlerTrait.getHandlerIO(), i -> new ArrayList<>()).add(handlerTrait);
-            }
-        }
-
-        for (var entry : ioTraits.entrySet()) {
-            var handlerList = RecipeHandlerList.of(entry.getKey(), entry.getValue());
-            this.addHandlerList(handlerList);
-            traitSubscriptions.add(handlerList.subscribe(recipeLogic::updateTickSubscription));
-        }
-        // schedule recipe logic
-        recipeLogic.updateTickSubscription();
+        activeBlocks = getMultiblockState().getMatchContext().getOrDefault("vaBlocks", LongSets.emptySet());
+        workLogic.updateTickSubscription();
     }
 
     @Override
     public void onStructureInvalid() {
+        // reset first to ensure part work state are changed
+        workLogic.reset();
         super.onStructureInvalid();
         updateActiveBlocks(false);
         activeBlocks = null;
-        capabilitiesProxy.clear();
-        capabilitiesFlat.clear();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        // reset recipe Logic
-        recipeLogic.resetRecipeLogic();
+        workLogic.updateTickSubscription();
     }
 
     @Override
@@ -167,14 +101,15 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         super.onPartUnload();
         updateActiveBlocks(false);
         activeBlocks = null;
-        capabilitiesProxy.clear();
-        capabilitiesFlat.clear();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        // fine some parts invalid now.
-        // but we shouldn't reset recipe logic rn.
-        // if it's due to chunk unload, we should just wait for it to be valid again.
-        recipeLogic.updateTickSubscription();
+        workLogic.updateTickSubscription();
+    }
+
+    @Override
+    public boolean shouldIgnoreChange(BlockPos pos, BlockState state) {
+        return isFormed() && activeBlocks != null && state.getBlock() instanceof ActiveBlock &&
+                activeBlocks.contains(pos.asLong());
     }
 
     //////////////////////////////////////
@@ -187,24 +122,9 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         if (previouslyMuffled != isMuffled) {
             previouslyMuffled = isMuffled;
 
-            if (recipeLogic != null)
-                recipeLogic.updateSound();
+            if (workLogic != null)
+                workLogic.updateSound();
         }
-    }
-
-    @Nullable
-    @Override
-    public final GTRecipe doModifyRecipe(GTRecipe recipe) {
-        for (IMultiPart part : getParts()) {
-            recipe = part.modifyRecipe(recipe);
-            if (recipe == null) return null;
-        }
-        return getRealRecipe(recipe);
-    }
-
-    @Nullable
-    protected GTRecipe getRealRecipe(GTRecipe recipe) {
-        return self().getDefinition().getRecipeModifier().applyModifier(self(), recipe);
     }
 
     public void updateActiveBlocks(boolean active) {
@@ -223,15 +143,10 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     }
 
     @Override
-    public boolean keepSubscribing() {
-        return false;
-    }
-
-    @Override
-    public void notifyStatusChanged(RecipeLogic.Status oldStatus, RecipeLogic.Status newStatus) {
-        IWorkableMultiController.super.notifyStatusChanged(oldStatus, newStatus);
-        if (newStatus == RecipeLogic.Status.WORKING || oldStatus == RecipeLogic.Status.WORKING) {
-            updateActiveBlocks(newStatus == RecipeLogic.Status.WORKING);
+    public void notifyWorkStatusChanged(WorkLogic.Status oldStatus, WorkLogic.Status newStatus) {
+        IWorkableMultiController.super.notifyWorkStatusChanged(oldStatus, newStatus);
+        if (newStatus == WorkLogic.Status.WORKING || oldStatus == WorkLogic.Status.WORKING) {
+            updateActiveBlocks(newStatus == WorkLogic.Status.WORKING);
         }
         for (IMultiPart part : getParts()) {
             MachineRenderState state = part.self().getRenderState();
@@ -241,45 +156,36 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         }
     }
 
-    @Override
-    public boolean isRecipeLogicAvailable() {
-        return isFormed && !getMultiblockState().hasError();
-    }
-
-    @Override
     public void afterWorking() {
         for (IMultiPart part : getParts()) {
             part.afterWorking(this);
         }
-        IWorkableMultiController.super.afterWorking();
     }
 
-    @Override
-    public boolean beforeWorking(@Nullable GTRecipe recipe) {
+    @Nullable
+    public Component beforeWorking() {
         for (IMultiPart part : getParts()) {
-            if (!part.beforeWorking(this)) {
-                return false;
+            Component failReason = part.beforeWorking(this);
+            if (failReason != null) {
+                return failReason;
             }
         }
-        return IWorkableMultiController.super.beforeWorking(recipe);
+        return null;
     }
 
-    @Override
     public boolean onWorking() {
         for (IMultiPart part : getParts()) {
             if (!part.onWorking(this)) {
                 return false;
             }
         }
-        return IWorkableMultiController.super.onWorking();
+        return true;
     }
 
-    @Override
     public void onWaiting() {
         for (IMultiPart part : getParts()) {
             part.onWaiting(this);
         }
-        IWorkableMultiController.super.onWaiting();
     }
 
     @Override
@@ -289,30 +195,11 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
                 part.onPaused(this);
             }
         }
-        IWorkableMultiController.super.setWorkingEnabled(isWorkingAllowed);
-    }
-
-    @NotNull
-    public GTRecipeType getRecipeType() {
-        return recipeTypes[activeRecipeType];
-    }
-
-    /**
-     * Sets a recipe type of the machine.
-     * FOR INTERNAL / TESTING USE ONLY!
-     * NOT SUPPORTED FOR PRODUCTION USE!
-     *
-     * @param newType The new recipe type
-     */
-    @ApiStatus.Internal
-    @VisibleForTesting
-    public void setRecipeType(GTRecipeType newType) {
-        recipeTypes[activeRecipeType] = newType;
+        getWorkLogic().setWorkingEnabled(isWorkingAllowed);
     }
 
     @Override
-    public void setVoidingMode(VoidingMode mode) {
-        voidingMode = mode;
-        getRecipeLogic().updateTickSubscription();
+    public boolean isWorkLogicAvailable() {
+        return isFormed && !getMultiblockState().hasError();
     }
 }

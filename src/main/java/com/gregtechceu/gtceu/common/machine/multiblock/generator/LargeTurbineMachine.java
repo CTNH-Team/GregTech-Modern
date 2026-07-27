@@ -5,14 +5,11 @@ import com.gregtechceu.gtceu.api.capability.ITurbineMachine;
 import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IRotorHolderMachine;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.RecipeElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.api.recipe.ingredient.EnergyStack;
-import com.gregtechceu.gtceu.api.recipe.modifier.ModifierFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.modifier.ParallelLogic;
 import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
@@ -32,7 +29,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class LargeTurbineMachine extends WorkableElectricMultiblockMachine implements ITieredMachine, ITurbineMachine {
+public class LargeTurbineMachine extends RecipeElectricMultiblockMachine implements ITurbineMachine {
 
     public static final int MIN_DURABILITY_TO_WARN = 10;
 
@@ -114,7 +111,7 @@ public class LargeTurbineMachine extends WorkableElectricMultiblockMachine imple
     @Override
     public long getCurrentProduction() {
         return isActive() && recipeLogic.getLastRecipe() != null ?
-                recipeLogic.getLastRecipe().getOutputEUt().voltage() : 0;
+                recipeLogic.getLastRecipe().getOutputEUt() : 0;
     }
 
     @Override
@@ -138,40 +135,43 @@ public class LargeTurbineMachine extends WorkableElectricMultiblockMachine imple
      *
      * @param machine a {@link LargeTurbineMachine}
      * @param recipe  recipe
-     * @return A {@link ModifierFunction} for the given Turbine Multiblock and recipe
+     * @return the failure reason, or {@code null} on success
      */
-    public static ModifierFunction recipeModifier(@NotNull MetaMachine machine, @NotNull GTRecipe recipe) {
+    public static @Nullable Component recipeModifier(@NotNull MetaMachine machine, RecipeHandlerGroup group,
+                                                     @NotNull GTRecipe recipe) {
         if (!(machine instanceof LargeTurbineMachine turbineMachine)) {
             return RecipeModifier.nullWrongType(LargeTurbineMachine.class, machine);
         }
 
+        if (turbineMachine.getTier() <= recipe.tier)
+            return Component.translatable("gtceu.recipe_modifier.insufficient_voltage");
+
         var rotorHolder = turbineMachine.getRotorHolder();
-        if (rotorHolder == null) return ModifierFunction.NULL;
+        if (rotorHolder == null) return Component.translatable("gtceu.recipe_modifier.missing_valid_turbine_rotor");
 
-        EnergyStack EUt = recipe.getOutputEUt();
-        long turbineMaxVoltage = turbineMachine.getOverclockVoltage();
         double holderEfficiency = rotorHolder.getTotalEfficiency() / 100.0;
+        if (holderEfficiency <= 0) return Component.translatable("gtceu.recipe_modifier.missing_valid_turbine_rotor");
 
-        if (EUt.isEmpty() || turbineMaxVoltage <= EUt.voltage() || holderEfficiency <= 0) return ModifierFunction.NULL;
+        long EUt = recipe.getOutputEUt();
+        if (EUt <= 0) return RecipeModifier.DEFAULT_FAILURE;
 
         // get the amount of parallel required to match the desired output voltage
         // Max Parallel is Ceilinged not Floored to ensure the output voltage is actually met,
         // at the cost of slightly increased fuel
-        int maxParallel = (int) (turbineMaxVoltage / EUt.getTotalEU());
-        if (turbineMaxVoltage % EUt.getTotalEU() != 0) maxParallel++;
+        long turbineMaxVoltage = turbineMachine.getOverclockVoltage();
+        int maxParallel = (int) (turbineMaxVoltage / EUt);
+        if (turbineMaxVoltage % EUt != 0) maxParallel++;
 
-        int actualParallel = ParallelLogic.getParallelAmountFast(turbineMachine, recipe, maxParallel);
+        int actualParallel = ParallelLogic.getParallelAmountFast(group, recipe, maxParallel);
         double eutMultiplier = (maxParallel == actualParallel) ?
-                turbineMachine.productionBoost() * turbineMaxVoltage / EUt.voltage() :
-                turbineMachine.productionBoost() * actualParallel;
+                turbineMachine.productionBoost() * turbineMaxVoltage / (EUt * actualParallel) :
+                turbineMachine.productionBoost();
 
-        return ModifierFunction.builder()
-                .inputModifier(ContentModifier.multiplier(actualParallel))
-                .outputModifier(ContentModifier.multiplier(actualParallel))
-                .eutMultiplier(eutMultiplier)
-                .parallels(actualParallel)
-                .durationMultiplier(holderEfficiency)
-                .build();
+        recipe.multiplyAllContents(actualParallel);
+        recipe.multiplyEUt(eutMultiplier);
+        recipe.parallels *= actualParallel;
+        recipe.multiplyDuration(holderEfficiency);
+        return null;
     }
 
     @Override

@@ -1,7 +1,6 @@
 package com.gregtechceu.gtceu.api.machine;
 
 import com.gregtechceu.gtceu.api.block.IMachineBlock;
-import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.data.RotationState;
 import com.gregtechceu.gtceu.api.gui.editor.EditableMachineUI;
 import com.gregtechceu.gtceu.api.item.MetaMachineItem;
@@ -26,8 +25,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import it.unimi.dsi.fastutil.objects.Reference2IntMap;
-import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -72,14 +69,14 @@ public class MachineDefinition implements Supplier<IMachineBlock> {
     private int defaultPaintingColor;
     @Getter
     @Setter
-    private RecipeModifier recipeModifier;
+    private RecipeModifier[] recipeModifiers;
     @Getter
     @Setter
     private boolean alwaysTryModifyRecipe;
     @NotNull
     @Getter
     @Setter
-    private BiPredicate<IRecipeLogicMachine, GTRecipe> beforeWorking = (machine, recipe) -> true;
+    private BiFunction<IRecipeLogicMachine, GTRecipe, Component> beforeWorking = (machine, recipe) -> null;
     @NotNull
     @Getter
     @Setter
@@ -125,9 +122,6 @@ public class MachineDefinition implements Supplier<IMachineBlock> {
     @Getter
     @Setter
     private EditableMachineUI editableUI;
-    @Getter
-    @Setter
-    private Reference2IntMap<RecipeCapability<?>> recipeOutputLimits = new Reference2IntOpenHashMap<>();
 
     @Getter
     @Setter(onMethod_ = @ApiStatus.Internal)

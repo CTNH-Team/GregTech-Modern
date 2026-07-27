@@ -1,15 +1,15 @@
 package com.gregtechceu.gtceu.api.machine.multiblock;
 
 import com.gregtechceu.gtceu.api.GTValues;
-import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.recipe.FluidRecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
-import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
-import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderFluidIngredient;
-import com.gregtechceu.gtceu.api.recipe.ingredient.IntProviderIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.IChancedIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.RangedFluidIngredient;
+import com.gregtechceu.gtceu.api.recipe.ingredient.item.RangedItemIngredient;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
@@ -103,15 +103,14 @@ public class MultiblockDisplayText {
          * <br>
          * Added if the structure is formed and if the passed energy container has greater than zero capacity.
          */
-        public Builder addEnergyUsageLine(IEnergyContainer energyContainer) {
+        public Builder addEnergyUsageLine(EnergyContainerList energyContainer) {
             if (!isStructureFormed)
                 return this;
             if (energyContainer != null && energyContainer.getEnergyCapacity() > 0) {
-                long maxVoltage = Math.max(energyContainer.getInputVoltage(), energyContainer.getOutputVoltage());
-
-                String energyFormatted = FormattingUtil.formatNumbers(maxVoltage);
+                long totalEUt = energyContainer.getTotalEUt();
+                String energyFormatted = FormattingUtil.formatNumbers(totalEUt);
                 // wrap in text component to keep it from being formatted
-                byte voltageTier = GTUtil.getFloorTierByVoltage(maxVoltage);
+                byte voltageTier = GTUtil.getFloorTierByVoltage(totalEUt);
                 Component voltageName = Component.literal(
                         GTValues.VNF[voltageTier]);
 
@@ -316,14 +315,6 @@ public class MultiblockDisplayText {
             return this;
         }
 
-        /**
-         * Adds a progress line based on the recipe logic.
-         *
-         * @param recipeLogic The recipe logic that provides the progress info
-         *
-         * @see #addProgressLine(double, double, double)
-         * @see #addCustomProgressLine(RecipeLogic)
-         */
         public Builder addProgressLine(RecipeLogic recipeLogic) {
             if (recipeLogic.hasCustomProgressLine()) {
                 return this.addCustomProgressLine(recipeLogic);
@@ -331,6 +322,11 @@ public class MultiblockDisplayText {
                 return this.addProgressLine(recipeLogic.getProgress(), recipeLogic.getMaxProgress(),
                         recipeLogic.getProgressPercent());
             }
+        }
+
+        public Builder addProgressLine(double currentDuration, double maxDuration) {
+            return maxDuration == 0 ? this :
+                    addProgressLine(currentDuration, maxDuration, currentDuration / maxDuration);
         }
 
         /**
@@ -360,7 +356,7 @@ public class MultiblockDisplayText {
          * <p>
          * Added if structure if formed and the machine is active.
          *
-         * @param recipeLogic The recipe logic that provides the line
+         * @param recipeLogic The work logic that provides the line
          */
         public Builder addCustomProgressLine(RecipeLogic recipeLogic) {
             if (!isStructureFormed || !isActive)
@@ -375,7 +371,7 @@ public class MultiblockDisplayText {
         public Builder addRecipeFailReasonLine(RecipeLogic recipeLogic) {
             if (!isStructureFormed || !recipeLogic.isIdle())
                 return this;
-            var reasons = recipeLogic.getFailureReasons();
+            var reasons = recipeLogic.getFailureReasonsMap().values();
             if (!reasons.isEmpty()) {
                 textList.add(Component.translatable("gtceu.recipe_logic.setup_fail").withStyle(ChatFormatting.RED));
                 for (var reason : reasons) {
@@ -422,7 +418,7 @@ public class MultiblockDisplayText {
             if (!isStructureFormed || !isActive)
                 return this;
             if (recipe != null) {
-                int recipeTier = RecipeHelper.getPreOCRecipeEuTier(recipe);
+                int recipeTier = recipe.tier;
                 int chanceTier = recipeTier + recipe.ocLevel;
                 var function = recipe.getType().getChanceFunction();
                 double maxDurationSec = (double) recipe.duration / 20.0;
@@ -439,27 +435,30 @@ public class MultiblockDisplayText {
                     double countD = 1;
                     // number of items output which is actually displayed. Can be either a number, or a range.
                     Component displaycount;
-                    if (item.content instanceof IntProviderIngredient provider) {
+                    if (item instanceof RangedItemIngredient ranged) {
                         rounded = true;
-                        stack = provider.getMaxSizeStack();
+                        ItemStack[] stacks = ranged.getInner().getItems();
+                        if (stacks.length == 0 || stacks[0].isEmpty()) continue;
+                        stack = stacks[0].copyWithCount(ranged.getCount());
                         displaycount = Component.translatable("gtceu.gui.content.range",
-                                provider.getCountProvider().getMinValue(),
-                                provider.getCountProvider().getMaxValue());
-                        if (item.chance < item.maxChance) {
-                            countD = countD * runs * function.getBoostedChance(item, recipeTier, chanceTier) /
-                                    item.maxChance;
+                                ranged.getMinCount(), ranged.getCount());
+                        if (item.isChanced()) {
+                            countD = countD * runs *
+                                    function.getBoostedChance(item.getChance(), recipeTier, chanceTier) /
+                                    IChancedIngredient.MAX_CHANCE;
                         }
-                        countD = countD * provider.getMidRoll();
+                        countD = countD * ((ranged.getMinCount() + ranged.getCount()) / 2.0);
                     } else {
-                        var stacks = ItemRecipeCapability.CAP.of(item.content).getItems();
+                        var stacks = item.getItems();
                         if (stacks.length == 0) continue;
                         stack = stacks[0];
                         count = stack.getCount();
                         countD *= count;
-                        if (item.chance < item.maxChance) {
+                        if (item.isChanced()) {
                             rounded = true;
-                            countD = countD * runs * function.getBoostedChance(item, recipeTier, chanceTier) /
-                                    item.maxChance;
+                            countD = countD * runs *
+                                    function.getBoostedChance(item.getChance(), recipeTier, chanceTier) /
+                                    IChancedIngredient.MAX_CHANCE;
                         }
                         count = Math.max(1, (int) Math.round(countD));
                         displaycount = Component.literal(String.valueOf(count));
@@ -483,27 +482,31 @@ public class MultiblockDisplayText {
                     double amountD = 1;
                     // amount of fluid output which is actually displayed. Can be either a number, or a range.
                     Component displaycount;
-                    if (fluid.content instanceof IntProviderFluidIngredient provider) {
+                    if (fluid instanceof RangedFluidIngredient ranged) {
                         rounded = true;
-                        stack = provider.getMaxSizeStack();
+                        FluidStack[] stacks = ranged.getInner().getFluids();
+                        if (stacks.length == 0 || stacks[0].isEmpty()) continue;
+                        stack = stacks[0].copy();
+                        stack.setAmount(ranged.getAmount());
                         displaycount = Component.translatable("gtceu.gui.content.range",
-                                provider.getCountProvider().getMinValue(),
-                                provider.getCountProvider().getMaxValue());
-                        if (fluid.chance < fluid.maxChance) {
-                            amountD = amountD * runs * function.getBoostedChance(fluid, recipeTier, chanceTier) /
-                                    fluid.maxChance;
+                                ranged.getMinAmount(), ranged.getAmount());
+                        if (fluid.isChanced()) {
+                            amountD = amountD * runs *
+                                    function.getBoostedChance(fluid.getChance(), recipeTier, chanceTier) /
+                                    IChancedIngredient.MAX_CHANCE;
                         }
-                        amountD = amountD * provider.getMidRoll();
+                        amountD = amountD * ((ranged.getMinAmount() + ranged.getAmount()) / 2.0);
                     } else {
-                        var stacks = FluidRecipeCapability.CAP.of(fluid.content).getStacks();
+                        var stacks = fluid.getFluids();
                         if (stacks.length == 0) continue;
                         stack = stacks[0];
                         amount = stack.getAmount();
                         amountD *= amount;
-                        if (fluid.chance < fluid.maxChance) {
+                        if (fluid.isChanced()) {
                             rounded = true;
-                            amountD = amountD * runs * function.getBoostedChance(fluid, recipeTier, chanceTier) /
-                                    fluid.maxChance;
+                            amountD = amountD * runs *
+                                    function.getBoostedChance(fluid.getChance(), recipeTier, chanceTier) /
+                                    IChancedIngredient.MAX_CHANCE;
                         }
                         amount = Math.max(1, (int) Math.round(amountD));
                         displaycount = Component.literal(String.valueOf(amount));

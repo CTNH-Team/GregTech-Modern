@@ -4,17 +4,18 @@ import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.*;
 import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
+import com.gregtechceu.gtceu.api.computation.ComputationPort;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
-import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.api.misc.EnergyInfoProviderList;
 import com.gregtechceu.gtceu.api.misc.LaserContainerList;
 import com.gregtechceu.gtceu.client.model.IBlockEntityRendererBakedModel;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
+import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
 import com.gregtechceu.gtceu.utils.ManagedFieldHolderMap;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
@@ -31,7 +32,6 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -45,8 +45,6 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
 
-import appeng.api.networking.IInWorldGridNodeHost;
-import appeng.capabilities.Capabilities;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -55,8 +53,9 @@ import java.util.*;
 
 public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlockEntity, IManaged {
 
-    protected static final ManagedFieldHolder MANAGED_FIELD_HOLDER = ManagedFieldHolderMap
-            .createManagedFieldHolder(MetaMachineBlockEntity.class);
+    static {
+        ManagedFieldHolderMap.createManagedFieldHolder(MetaMachineBlockEntity.class);
+    }
 
     public final MultiManagedStorage managedStorage = new MultiManagedStorage();
     @Getter
@@ -84,7 +83,7 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
     }
 
     @Override
-    public ManagedFieldHolder getFieldHolder() {
+    public final ManagedFieldHolder getFieldHolder() {
         return ManagedFieldHolderMap.getManagedFieldHolder(getClass());
     }
 
@@ -191,8 +190,8 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
             }
             var list = getCapabilitiesFromTraits(machine.getTraits(), side, IEnergyContainer.class);
             if (!list.isEmpty()) {
-                return GTCapability.CAPABILITY_ENERGY_CONTAINER.orEmpty(cap,
-                        LazyOptional.of(() -> list.size() == 1 ? list.get(0) : new EnergyContainerList(list)));
+                final IEnergyContainer container = list.get(0);
+                return GTCapability.CAPABILITY_ENERGY_CONTAINER.orEmpty(cap, LazyOptional.of(() -> container));
             }
         } else if (cap == GTCapability.CAPABILITY_ENERGY_INFO_PROVIDER) {
             if (machine instanceof IEnergyInfoProvider energyInfoProvider) {
@@ -247,20 +246,16 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
                 return GTCapability.CAPABILITY_LASER.orEmpty(cap,
                         LazyOptional.of(() -> list.size() == 1 ? list.get(0) : new LaserContainerList(list)));
             }
-        } else if (cap == GTCapability.CAPABILITY_COMPUTATION_PROVIDER) {
-            if (machine instanceof IOpticalComputationProvider computationProvider) {
-                return GTCapability.CAPABILITY_COMPUTATION_PROVIDER.orEmpty(cap,
-                        LazyOptional.of(() -> computationProvider));
-            }
-            var list = getCapabilitiesFromTraits(machine.getTraits(), side, IOpticalComputationProvider.class);
+        } else if (cap == GTCapability.CAPABILITY_COMPUTATION_PORT) {
+            var list = getCapabilitiesFromTraits(machine.getTraits(), side, ComputationPort.class);
             if (!list.isEmpty()) {
-                return GTCapability.CAPABILITY_COMPUTATION_PROVIDER.orEmpty(cap, LazyOptional.of(() -> list.get(0)));
+                return GTCapability.CAPABILITY_COMPUTATION_PORT.orEmpty(cap, LazyOptional.of(() -> list.get(0)));
             }
         } else if (cap == GTCapability.CAPABILITY_DATA_ACCESS) {
-            if (machine instanceof IDataAccessHatch computationProvider) {
+            if (machine instanceof IDataAccessMachine computationProvider) {
                 return GTCapability.CAPABILITY_DATA_ACCESS.orEmpty(cap, LazyOptional.of(() -> computationProvider));
             }
-            var list = getCapabilitiesFromTraits(machine.getTraits(), side, IDataAccessHatch.class);
+            var list = getCapabilitiesFromTraits(machine.getTraits(), side, IDataAccessMachine.class);
             if (!list.isEmpty()) {
                 return GTCapability.CAPABILITY_DATA_ACCESS.orEmpty(cap, LazyOptional.of(() -> list.get(0)));
             }
@@ -282,7 +277,7 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
             }
         }
         if (GTCEu.Mods.isAE2Loaded()) {
-            LazyOptional<?> opt = AE2CallWrapper.getGridNodeHostCapability(cap, machine, side);
+            LazyOptional<?> opt = AE2Compat.getGridNodeHostCapability(cap, machine, side);
             if (opt.isPresent()) {
                 // noinspection unchecked
                 return (LazyOptional<T>) opt;
@@ -321,29 +316,5 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
             }
         }
         return new AABB(worldPosition.offset(-1, 0, -1), worldPosition.offset(2, 2, 2));
-    }
-
-    @Override
-    public void load(CompoundTag tag) {
-        // TagFixer.fixFluidTags(tag);
-        super.load(tag);
-    }
-
-    public static class AE2CallWrapper {
-
-        public static LazyOptional<?> getGridNodeHostCapability(Capability<?> cap, MetaMachine machine,
-                                                                Direction side) {
-            if (cap == Capabilities.IN_WORLD_GRID_NODE_HOST) {
-                if (machine instanceof IInWorldGridNodeHost nodeHost) {
-                    return Capabilities.IN_WORLD_GRID_NODE_HOST.orEmpty(cap, LazyOptional.of(() -> nodeHost));
-                }
-                var list = getCapabilitiesFromTraits(machine.getTraits(), side, IInWorldGridNodeHost.class);
-                if (!list.isEmpty()) {
-                    // TODO wrap list in the future (or not.)
-                    return Capabilities.IN_WORLD_GRID_NODE_HOST.orEmpty(cap, LazyOptional.of(() -> list.get(0)));
-                }
-            }
-            return LazyOptional.empty();
-        }
     }
 }

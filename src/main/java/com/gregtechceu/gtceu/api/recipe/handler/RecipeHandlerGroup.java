@@ -1,0 +1,124 @@
+package com.gregtechceu.gtceu.api.recipe.handler;
+
+import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
+import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
+import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.*;
+import java.util.function.Predicate;
+
+public class RecipeHandlerGroup {
+
+    public static final Comparator<RecipeHandlerGroup> PRIORITY_COMPARATOR = (g1, g2) -> g1.getPriority(IO.IN) -
+            g2.getPriority(IO.IN);
+
+    public static final RecipeHandlerGroup EMPTY = new RecipeHandlerGroup();
+
+    @Getter
+    private final HandlerListMap inputHandlerMap = new HandlerListMap();
+
+    @Getter
+    private final HandlerListMap outputHandlerMap = new HandlerListMap();
+
+    @Getter
+    @Setter
+    @NotNull
+    private Predicate<RecipeCapability<?>> outputVoid = cap -> false;
+
+    @Getter
+    @Setter
+    private int color = RecipeHandlerList.UNDYED;
+
+    public static RecipeHandlerGroup of(int color) {
+        var group = new RecipeHandlerGroup();
+        group.color = color;
+        return group;
+    }
+
+    public static RecipeHandlerGroup of(RecipeHandlerList handlerList) {
+        var group = new RecipeHandlerGroup();
+        group.addHandlerList(handlerList);
+        return group;
+    }
+
+    public void addHandlers(Collection<? extends IRecipeHandler<?>> handlers) {
+        for (var handler : handlers) {
+            if (handler.getHandlerIO().support(IO.IN)) {
+                inputHandlerMap.add(handler);
+            }
+            if (handler.getHandlerIO().support(IO.OUT)) {
+                outputHandlerMap.add(handler);
+            }
+        }
+    }
+
+    public void addHandlerList(RecipeHandlerList handlerList) {
+        addHandlers(handlerList.getAllHandlers());
+    }
+
+    public void handleRecipe(IO io, GTRecipe recipe, ContentListMap contents, boolean simulate) {
+        for (var it = contents.iterator(); it.hasNext();) {
+            var entry = it.next();
+            MutableBoolean b = new MutableBoolean(false);
+            entry.accept(new ContentListMap.EntryConsumer() {
+
+                @Override
+                public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
+                    var handlerList = getCapability(io, capability);
+                    if (handlerList != null) {
+                        for (var handler : handlerList) {
+                            boolean success = handler.handleRecipe(io, recipe, contents, simulate);
+                            if (success) {
+                                b.setValue(true);
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+            if (b.booleanValue()) {
+                it.remove();
+            }
+        }
+    }
+
+    private <T> @Nullable List<IRecipeHandler<T>> getCapability(IO io, RecipeCapability<T> cap) {
+        if (io == IO.IN) {
+            return inputHandlerMap.get(cap);
+        } else if (io == IO.OUT) {
+            return outputHandlerMap.get(cap);
+        } else {
+            throw new RuntimeException("Error IO Type");
+        }
+    }
+
+    List<IRecipeHandler<?>> getCapabilitiesFalt(IO io) {
+        List<IRecipeHandler<?>> list = new ArrayList<>();
+        if (io == IO.IN) {
+            for (var handlers : inputHandlerMap.values()) list.addAll(handlers);
+        } else if (io == IO.OUT) {
+            for (var handlers : outputHandlerMap.values()) list.addAll(handlers);
+        } else {
+            throw new RuntimeException("Error IO Type");
+        }
+        return list;
+    }
+
+    public int getPriority(IO io) {
+        int priority = 0;
+        for (var handler : getCapabilitiesFalt(io)) priority += handler.getPriority();
+        return priority;
+    }
+
+    public boolean isEmpty() {
+        return this == EMPTY || (inputHandlerMap.isEmpty() && outputHandlerMap.isEmpty());
+    }
+}

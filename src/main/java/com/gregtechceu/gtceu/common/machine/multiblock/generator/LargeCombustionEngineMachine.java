@@ -8,15 +8,12 @@ import com.gregtechceu.gtceu.api.gui.fancy.IFancyTooltip;
 import com.gregtechceu.gtceu.api.gui.fancy.TooltipsPanel;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockDisplayText;
-import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.RecipeElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
-import com.gregtechceu.gtceu.api.recipe.content.ContentModifier;
-import com.gregtechceu.gtceu.api.recipe.ingredient.EnergyStack;
-import com.gregtechceu.gtceu.api.recipe.modifier.ModifierFunction;
+import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.modifier.ParallelLogic;
 import com.gregtechceu.gtceu.api.recipe.modifier.RecipeModifier;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
@@ -36,14 +33,13 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Iterator;
 import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMachine implements ITieredMachine {
+public class LargeCombustionEngineMachine extends RecipeElectricMultiblockMachine {
 
     private static final FluidStack OXYGEN_STACK = GTMaterials.Oxygen.getFluid(1);
     private static final FluidStack LIQUID_OXYGEN_STACK = GTMaterials.Oxygen.getFluid(FluidStorageKeys.LIQUID, 4);
@@ -81,7 +77,7 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
     }
 
     public boolean isBoostAllowed() {
-        return getMaxVoltage() >= GTValues.V[getTier() + 1];
+        return energyContainer.getTotalEUt() >= GTValues.V[getTier() + 1];
     }
 
     //////////////////////////////////////
@@ -95,11 +91,11 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
     }
 
     protected GTRecipe getLubricantRecipe() {
-        return GTRecipeBuilder.ofRaw().inputFluids(LUBRICANT_STACK).buildRawRecipe();
+        return GTRecipeBuilder.ofRaw().inputFluids(LUBRICANT_STACK).buildRuntime();
     }
 
     protected GTRecipe getBoostRecipe() {
-        return GTRecipeBuilder.ofRaw().inputFluids(isExtreme() ? LIQUID_OXYGEN_STACK : OXYGEN_STACK).buildRawRecipe();
+        return GTRecipeBuilder.ofRaw().inputFluids(isExtreme() ? LIQUID_OXYGEN_STACK : OXYGEN_STACK).buildRuntime();
     }
 
     /**
@@ -119,28 +115,32 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
      *
      * @param machine a {@link LargeCombustionEngineMachine}
      * @param recipe  recipe
-     * @return A {@link ModifierFunction} for the given Combustion Engine
+     * @return the failure reason, or {@code null} on success
      */
-    public static ModifierFunction recipeModifier(@NotNull MetaMachine machine, @NotNull GTRecipe recipe) {
+    public static @Nullable Component recipeModifier(@NotNull MetaMachine machine, RecipeHandlerGroup group,
+                                                     @NotNull GTRecipe recipe) {
         if (!(machine instanceof LargeCombustionEngineMachine engineMachine)) {
             return RecipeModifier.nullWrongType(LargeCombustionEngineMachine.class, machine);
         }
-        EnergyStack EUt = recipe.getOutputEUt();
+        long EUt = recipe.getOutputEUt();
         // has lubricant
-        if (!EUt.isEmpty() && !engineMachine.isIntakesObstructed() &&
-                RecipeHelper.matchRecipe(engineMachine, engineMachine.getLubricantRecipe()).isSuccess()) {
-            int maxParallel = (int) (engineMachine.getOverclockVoltage() / EUt.getTotalEU()); // get maximum parallel
-            int actualParallel = ParallelLogic.getParallelAmount(engineMachine, recipe, maxParallel);
-            double eutMultiplier = actualParallel * engineMachine.getProductionBoost();
-
-            return ModifierFunction.builder()
-                    .inputModifier(ContentModifier.multiplier(actualParallel))
-                    .outputModifier(ContentModifier.multiplier(actualParallel))
-                    .eutMultiplier(eutMultiplier)
-                    .parallels(actualParallel)
-                    .build();
+        if (EUt <= 0) return RecipeModifier.DEFAULT_FAILURE;
+        if (engineMachine.isIntakesObstructed()) {
+            return Component.translatable("gtceu.multiblock.large_combustion_engine.obstructed");
         }
-        return ModifierFunction.NULL;
+        if (!RecipeHelper.matchRecipe(group, engineMachine.getLubricantRecipe()).isSuccess()) {
+            return Component.translatable("gtceu.recipe_modifier.missing_lubricant");
+        }
+
+        int maxParallel = (int) (engineMachine.getOverclockVoltage() / EUt); // get maximum parallel
+        int actualParallel = ParallelLogic.getParallelAmount(group, recipe, maxParallel);
+
+        if (actualParallel <= 1) return null;
+
+        recipe.multiplyAllContents(actualParallel);
+        recipe.multiplyEUt(engineMachine.getProductionBoost());
+        recipe.parallels *= actualParallel;
+        return null;
     }
 
     @Override
@@ -150,7 +150,7 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
 
         if (runningTimer % 72 == 0) {
             // insufficient lubricant
-            if (!RecipeHelper.handleRecipeIO(this, getLubricantRecipe(), IO.IN, this.recipeLogic.getChanceCaches())
+            if (!RecipeHelper.handleRecipeIO(recipeLogic.getLastGroup(), getLubricantRecipe(), IO.IN)
                     .isSuccess()) {
                 recipeLogic.interruptRecipe();
                 return false;
@@ -159,8 +159,8 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
         // check boost fluid
         if (isBoostAllowed()) {
             var boosterRecipe = getBoostRecipe();
-            this.isOxygenBoosted = RecipeHelper.matchRecipe(this, boosterRecipe).isSuccess() &&
-                    RecipeHelper.handleRecipeIO(this, boosterRecipe, IO.IN, this.recipeLogic.getChanceCaches())
+            this.isOxygenBoosted = RecipeHelper.matchRecipe(recipeLogic.getLastGroup(), boosterRecipe).isSuccess() &&
+                    RecipeHelper.handleRecipeIO(recipeLogic.getLastGroup(), boosterRecipe, IO.IN)
                             .isSuccess();
         }
 
@@ -185,7 +185,7 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
                 .setWorkingStatus(recipeLogic.isWorkingEnabled(), recipeLogic.isActive());
 
         long lastEUt = recipeLogic.getLastRecipe() != null ?
-                recipeLogic.getLastRecipe().getOutputEUt().getTotalEU() : 0;
+                recipeLogic.getLastRecipe().getOutputEUt() : 0;
         if (isExtreme()) {
             builder.addEnergyProductionLine(GTValues.V[tier + 1], lastEUt);
         } else {
@@ -196,7 +196,7 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
             builder.addCurrentEnergyProductionLine(lastEUt);
         }
 
-        builder.addFuelNeededLine(getRecipeFluidInputInfo(), recipeLogic.getDuration());
+        builder.addFuelNeededLine(getRecipeFluidInputInfo(), recipeLogic.getMaxProgress());
 
         if (isFormed && isOxygenBoosted) {
             final var key = isExtreme() ? "gtceu.multiblock.large_combustion_engine.liquid_oxygen_boosted" :
@@ -212,13 +212,11 @@ public class LargeCombustionEngineMachine extends WorkableElectricMultiblockMach
         // Previous Recipe is always null on first world load, so try to acquire a new recipe
         GTRecipe recipe = recipeLogic.getLastRecipe();
         if (recipe == null) {
-            Iterator<GTRecipe> iterator = recipeLogic.searchRecipe();
-            recipe = iterator.hasNext() ? iterator.next() : null;
-            if (recipe == null) return null;
+            return null;
         }
-        FluidStack requiredFluidInput = RecipeHelper.getInputFluids(recipe).get(0);
+        FluidStack requiredFluidInput = RecipeHelper.getInputFluids(recipe, false).get(0);
 
-        long ocAmount = getOverclockVoltage() / recipe.getOutputEUt().getTotalEU();
+        long ocAmount = getOverclockVoltage() / recipe.getOutputEUt();
         int neededAmount = GTMath.saturatedCast(ocAmount * requiredFluidInput.getAmount());
         return ChatFormatting.RED + FormattingUtil.formatNumbers(neededAmount) + "mB";
     }

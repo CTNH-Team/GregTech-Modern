@@ -4,6 +4,7 @@ import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.fancy.IFancyTooltip;
 import com.gregtechceu.gtceu.api.gui.fancy.TooltipsPanel;
+import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.config.ConfigHolder;
@@ -127,25 +128,24 @@ public interface IMaintenanceMachine extends IMultiPart {
     @Override
     default boolean onWorking(IWorkableMultiController controller) {
         calculateMaintenance(this);
-        if (hasMaintenanceProblems()) {
-            controller.getRecipeLogic().markLastRecipeDirty();
+        if (hasMaintenanceProblems() && controller instanceof IRecipeLogicMachine recipeLogicMachine) {
+            recipeLogicMachine.getRecipeLogic().markLastRecipeDirty();
         }
         return true;
     }
 
     @Override
-    default GTRecipe modifyRecipe(GTRecipe recipe) {
+    default Component modifyRecipe(GTRecipe recipe) {
         if (ConfigHolder.INSTANCE.machines.enableMaintenance) {
             if (hasMaintenanceProblems()) {
-                return null;
+                return Component.translatable("gtceu.top.maintenance_broken");
             }
             var durationMultiplier = getDurationMultiplier();
             if (durationMultiplier != 1) {
-                recipe = recipe.copy();
                 recipe.duration = (int) (recipe.duration * durationMultiplier);
             }
         }
-        return recipe;
+        return null;
     }
 
     //////////////////////////////////////

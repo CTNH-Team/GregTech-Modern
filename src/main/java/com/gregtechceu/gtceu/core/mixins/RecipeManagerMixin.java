@@ -3,7 +3,6 @@ package com.gregtechceu.gtceu.core.mixins;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.lookup.MapIngredientPool;
 import com.gregtechceu.gtceu.api.recipe.lookup.RecipeManagerHandler;
-import com.gregtechceu.gtceu.common.item.armor.PowerlessJetpack;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -35,7 +34,6 @@ public abstract class RecipeManagerMixin {
             at = @At(value = "TAIL"))
     private void gtceu$cloneVanillaRecipes(Map<ResourceLocation, JsonElement> map, ResourceManager resourceManager,
                                            ProfilerFiller profiler, CallbackInfo ci) {
-        PowerlessJetpack.FUELS.clear();
         for (RecipeType<?> recipeType : ForgeRegistries.RECIPE_TYPES) {
             if (!(recipeType instanceof GTRecipeType gtRecipeType)) {
                 continue;

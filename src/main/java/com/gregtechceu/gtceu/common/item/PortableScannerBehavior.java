@@ -17,6 +17,7 @@ import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IDataInfoProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IMufflableMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
 import com.gregtechceu.gtceu.common.blockentity.FluidPipeBlockEntity;
@@ -24,6 +25,7 @@ import com.gregtechceu.gtceu.common.capability.EnvironmentalHazardSavedData;
 import com.gregtechceu.gtceu.common.capability.LocalizedHazardSavedData;
 import com.gregtechceu.gtceu.common.data.GTSoundEntries;
 import com.gregtechceu.gtceu.common.network.GTNetwork;
+import com.gregtechceu.gtceu.common.network.packets.SPacketNetworkDebug;
 import com.gregtechceu.gtceu.common.network.packets.prospecting.SPacketProspectBedrockFluid;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
@@ -71,7 +73,8 @@ public class PortableScannerBehavior implements IInteractionItem, IAddInformatio
         SHOW_MACHINE_INFO("behavior.portable_scanner.mode.show_machine_info"),
         SHOW_ELECTRICAL_INFO("behavior.portable_scanner.mode.show_electrical_info"),
         SHOW_RECIPE_INFO("behavior.portable_scanner.mode.show_recipe_info"),
-        SHOW_ENVIRONMENTAL_INFO("behavior.portable_scanner.mode.show_environmental_info");
+        SHOW_ENVIRONMENTAL_INFO("behavior.portable_scanner.mode.show_environmental_info"),
+        SHOW_NETWORK_DEBUG("behavior.portable_scanner.mode.show_network_debug");
 
         private final String langKey;
 
@@ -157,6 +160,13 @@ public class PortableScannerBehavior implements IInteractionItem, IAddInformatio
     }
 
     public int addScannerInfo(Player player, Level level, BlockPos pos, DisplayMode mode, List<Component> list) {
+        if (mode == DisplayMode.SHOW_NETWORK_DEBUG && level instanceof ServerLevel serverLevel &&
+                player instanceof ServerPlayer serverPlayer) {
+            GTNetwork.sendToPlayer(serverPlayer, new SPacketNetworkDebug(serverLevel));
+            list.add(Component.translatable("behavior.portable_scanner.network_debug.synced"));
+            return 0;
+        }
+
         BlockEntity tileEntity = level.getBlockEntity(pos);
         int energyCost = 0;
 
@@ -324,22 +334,23 @@ public class PortableScannerBehavior implements IInteractionItem, IAddInformatio
                 if (recipeLogicCap.isPresent()) {
                     RecipeLogic recipeLogic = recipeLogicCap.get();
                     GTRecipe recipe = recipeLogic.getLastRecipe();
-                    if (recipeLogic.getStatus().equals(RecipeLogic.Status.WAITING)) {
+                    if (recipeLogic.getStatus().equals(WorkLogic.Status.WAITING)) {
                         list.add(Component.translatable("behavior.portable_scanner.divider"));
                         list.add(Component.translatable("gtceu.multiblock.waiting"));
                         list.addAll(recipeLogic.getFancyTooltip());
                     } else if (recipe != null) {
                         list.add(Component.translatable("behavior.portable_scanner.divider"));
-                        var EUt = RecipeHelper.getRealEUtWithIO(recipe);
+                        long EUt = RecipeHelper.getRealEUtWithIO(recipe);
 
                         list.add(Component.translatable(
-                                EUt.isInput() ? "behavior.portable_scanner.workable_consumption" :
+                                EUt > 0 ? "behavior.portable_scanner.workable_consumption" :
                                         "behavior.portable_scanner.workable_production",
                                 // TODO is this supposed to show voltage or total EU/t?
-                                Component.translatable(FormattingUtil.formatNumbers(EUt.getTotalEU()))
+                                Component.translatable(FormattingUtil.formatNumbers(Math.abs(EUt)))
                                         .withStyle(ChatFormatting.RED),
                                 Component.translatable(
-                                        FormattingUtil.formatNumbers(EUt.amperage()))
+                                        FormattingUtil.formatNumbers(
+                                                Math.abs(EUt) / recipeLogic.machine.getDisplayRecipeVoltage()))
                                         .withStyle(ChatFormatting.RED)));
                     }
                 }

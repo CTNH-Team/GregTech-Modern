@@ -12,13 +12,10 @@ import com.gregtechceu.gtceu.api.gui.editor.IEditableUI;
 import com.gregtechceu.gtceu.api.gui.widget.DualProgressWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.TankWidget;
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.RecipeCondition;
-import com.gregtechceu.gtceu.api.recipe.category.GTRecipeCategory;
 import com.gregtechceu.gtceu.integration.emi.recipe.GTRecipeEMICategory;
-import com.gregtechceu.gtceu.integration.jei.recipe.GTRecipeJEICategory;
-import com.gregtechceu.gtceu.integration.rei.recipe.GTRecipeREICategory;
 
 import com.lowdragmc.lowdraglib.gui.editor.configurator.IConfigurableWidget;
 import com.lowdragmc.lowdraglib.gui.editor.data.Resources;
@@ -30,7 +27,6 @@ import com.lowdragmc.lowdraglib.gui.widget.ButtonWidget;
 import com.lowdragmc.lowdraglib.gui.widget.ProgressWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
-import com.lowdragmc.lowdraglib.jei.JEIPlugin;
 import com.lowdragmc.lowdraglib.utils.Position;
 import com.lowdragmc.lowdraglib.utils.Size;
 
@@ -49,7 +45,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntAVLTreeMap;
 import it.unimi.dsi.fastutil.objects.Object2IntSortedMap;
 import lombok.Getter;
 import lombok.Setter;
-import me.shedaniel.rei.api.client.view.ViewSearchBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -59,7 +54,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
-import java.util.stream.Collectors;
 
 @SuppressWarnings("UnusedReturnValue")
 public class GTRecipeTypeUI {
@@ -81,7 +75,7 @@ public class GTRecipeTypeUI {
     private ProgressTexture.FillDirection steamMoveType = ProgressTexture.FillDirection.LEFT_TO_RIGHT;
     @Setter
     @Nullable
-    protected BiConsumer<GTRecipe, WidgetGroup> uiBuilder;
+    protected BiConsumer<GTRecipeDefinition, WidgetGroup> uiBuilder;
     @Setter
     @Getter
     protected int maxTooltips = 3;
@@ -239,28 +233,13 @@ public class GTRecipeTypeUI {
                 progress.add(dualProgressWidget);
             });
             // add recipe button
-            if (!isJEI && (GTCEu.Mods.isREILoaded() || GTCEu.Mods.isJEILoaded() || GTCEu.Mods.isEMILoaded())) {
+            if (!isJEI) {
                 for (Widget widget : progress) {
                     template.addWidget(new ButtonWidget(widget.getPosition().x, widget.getPosition().y,
                             widget.getSize().width, widget.getSize().height, IGuiTexture.EMPTY, cd -> {
                                 if (cd.isRemote) {
-                                    if (GTCEu.Mods.isREILoaded()) {
-                                        ViewSearchBuilder.builder().addCategories(
-                                                recipeType.getCategories().stream()
-                                                        .filter(GTRecipeCategory::isXEIVisible)
-                                                        .map(GTRecipeREICategory::machineCategory)
-                                                        .collect(Collectors.toList()))
-                                                .open();
-                                    } else if (GTCEu.Mods.isJEILoaded()) {
-                                        JEIPlugin.jeiRuntime.getRecipesGui().showTypes(
-                                                recipeType.getCategories().stream()
-                                                        .filter(GTRecipeCategory::isXEIVisible)
-                                                        .map(GTRecipeJEICategory::machineType)
-                                                        .collect(Collectors.toList()));
-                                    } else if (GTCEu.Mods.isEMILoaded()) {
-                                        EmiApi.displayRecipeCategory(
-                                                GTRecipeEMICategory.machineCategory(recipeType.getCategory()));
-                                    }
+                                    EmiApi.displayRecipeCategory(
+                                            GTRecipeEMICategory.machineCategory(recipeType.getCategory()));
                                 }
                             }).setHoverTooltips("gtceu.recipe_type.show_recipes"));
                 }
@@ -279,7 +258,8 @@ public class GTRecipeTypeUI {
                                 widget -> {
                                     var index = WidgetUtils.widgetIdIndex(widget);
                                     cap.applyWidgetInfo(widget, index, isJEI, io, recipeHolder, recipeType, null, null,
-                                            storage, 0, 0);
+                                            storage,
+                                            0, 0);
                                 });
                     }
                 }
@@ -408,7 +388,7 @@ public class GTRecipeTypeUI {
         return maxPropertyCount * 10; // GTRecipeWidget#LINE_HEIGHT
     }
 
-    public void appendJEIUI(GTRecipe recipe, WidgetGroup widgetGroup) {
+    public void appendJEIUI(GTRecipeDefinition recipe, WidgetGroup widgetGroup) {
         if (uiBuilder != null) {
             uiBuilder.accept(recipe, widgetGroup);
         }

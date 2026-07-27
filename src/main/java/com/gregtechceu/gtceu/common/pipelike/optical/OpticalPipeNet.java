@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.common.pipelike.optical;
 import com.gregtechceu.gtceu.api.pipenet.LevelPipeNet;
 import com.gregtechceu.gtceu.api.pipenet.Node;
 import com.gregtechceu.gtceu.api.pipenet.PipeNet;
+import com.gregtechceu.gtceu.common.computation.ComputationNetworkManager;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -37,13 +38,10 @@ public class OpticalPipeNet extends PipeNet<OpticalPipeProperties> {
     }
 
     @Override
-    public void onNeighbourUpdate(BlockPos fromPos) {
+    protected void onNodeConnectionsUpdate() {
+        super.onNodeConnectionsUpdate();
         NET_DATA.clear();
-    }
-
-    @Override
-    public void onPipeConnectionsUpdate() {
-        NET_DATA.clear();
+        ComputationNetworkManager.get(getLevel()).markTopologyDirty();
     }
 
     @Override
@@ -52,6 +50,18 @@ public class OpticalPipeNet extends PipeNet<OpticalPipeProperties> {
         super.transferNodeData(transferredNodes, parentNet);
         NET_DATA.clear();
         ((OpticalPipeNet) parentNet).NET_DATA.clear();
+    }
+
+    @Override
+    public void onNeighbourUpdate(BlockPos fromPos) {
+        NET_DATA.clear();
+        ComputationNetworkManager.get(getLevel()).markTopologyDirty();
+    }
+
+    @Override
+    public void onPipeConnectionsUpdate() {
+        NET_DATA.clear();
+        ComputationNetworkManager.get(getLevel()).markTopologyDirty();
     }
 
     @Override

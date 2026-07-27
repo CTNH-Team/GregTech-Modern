@@ -1,6 +1,6 @@
 package com.gregtechceu.gtceu.api.recipe.lookup;
 
-import com.gregtechceu.gtceu.api.recipe.GTRecipe;
+import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 
 import net.minecraft.resources.ResourceLocation;
@@ -16,8 +16,7 @@ import java.util.Map;
 /**
  * Internal class handling adding recipes to GT's lookup system.
  * <p>
- * Intended for use by {@link com.gregtechceu.gtceu.core.mixins.RecipeManagerMixin} and
- * {@link com.gregtechceu.gtceu.integration.kjs.GregTechKubeJSPlugin}
+ * Intended for use by {@link com.gregtechceu.gtceu.core.mixins.RecipeManagerMixin}
  */
 @ApiStatus.Internal
 public final class RecipeManagerHandler {
@@ -31,7 +30,7 @@ public final class RecipeManagerHandler {
      */
     public static void addProxyRecipesToLookup(@NotNull Map<ResourceLocation, Recipe<?>> recipesByID,
                                                @NotNull GTRecipeType gtRecipeType, @NotNull RecipeType<?> proxyType,
-                                               @NotNull List<GTRecipe> proxyRecipes) {
+                                               @NotNull List<GTRecipeDefinition> proxyRecipes) {
         var lookup = gtRecipeType.getAdditionHandler();
         proxyRecipes.clear();
         recipesByID.forEach((id, recipe) -> {
@@ -39,9 +38,11 @@ public final class RecipeManagerHandler {
                 // do not add recipes of incompatible type
                 return;
             }
-            GTRecipe gtRecipe = gtRecipeType.toGTrecipe(id, recipe);
-            proxyRecipes.add(gtRecipe);
-            lookup.addStaging(gtRecipe);
+            GTRecipeDefinition gtRecipe = gtRecipeType.toGTrecipe(id, recipe);
+            if (gtRecipe != null) {
+                proxyRecipes.add(gtRecipe);
+                lookup.addStaging(gtRecipe);
+            }
         });
     }
 
@@ -59,7 +60,7 @@ public final class RecipeManagerHandler {
                 // do not add recipes of incompatible type
                 continue;
             }
-            if (r instanceof GTRecipe recipe) {
+            if (r instanceof GTRecipeDefinition recipe) {
                 lookup.addStaging(recipe);
             }
         }
