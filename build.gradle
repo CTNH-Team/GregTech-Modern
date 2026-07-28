@@ -8,7 +8,6 @@ plugins {
     alias libs.plugins.modDevGradle
     //alias libs.plugins.shadow
     alias libs.plugins.spotless
-    alias libs.plugins.lombok
 }
 
 group = maven_group
@@ -99,9 +98,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 
-lombok {
-    version = "1.18.46"
-}
+
 
 jacoco {
     applyTo runGameTestServer
