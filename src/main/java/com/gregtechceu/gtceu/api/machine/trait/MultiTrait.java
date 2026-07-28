@@ -12,8 +12,10 @@ import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
  * to those events.
  * </p>
  *
- * <p>MultiTraits must be attached before the machine's first structure formation,
- * i.e. in the machine constructor, just like ordinary traits.</p>
+ * <p>
+ * MultiTraits must be attached before the machine's first structure formation,
+ * i.e. in the machine constructor, just like ordinary traits.
+ * </p>
  */
 public abstract class MultiTrait extends MachineTrait {
 
