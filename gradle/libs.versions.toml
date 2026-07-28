@@ -22,4 +22,3 @@ mixin                   = { module = "org.spongepowered:mixin", version.ref = "m
 modDevGradle            = { id = "net.neoforged.moddev.legacyforge", version.ref = "modDevGradle" }
 shadow                  = { id = "com.gradleup.shadow", version.ref = "shadow" }
 spotless                = { id = "com.diffplug.spotless", version.ref = "spotless" }
-lombok                  = { id = "io.freefair.lombok", version.ref = "lombok" }
