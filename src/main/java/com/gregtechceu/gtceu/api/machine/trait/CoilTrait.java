@@ -7,15 +7,6 @@ import com.gregtechceu.gtceu.common.block.CoilBlock;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * MultiTrait that captures the multiblock's heating coil type during structure formation.
- * <p>
- * Attach this trait to any multiblock whose recipe modifiers depend on coil tier,
- * temperature, level, or energy discount. The trait reads the {@code "CoilType"} entry
- * from the match context and exposes it through {@link #getCoilType()} and
- * {@link #getCoilTier()}.
- * </p>
- */
 public class CoilTrait extends MultiTrait {
 
     @Getter

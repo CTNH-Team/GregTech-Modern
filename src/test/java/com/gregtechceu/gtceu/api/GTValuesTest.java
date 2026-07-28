@@ -17,14 +17,17 @@ public class GTValuesTest {
     public static void voltageTierTablesStayAligned(GameTestHelper helper) {
         helper.assertTrue(GTValues.TIER_COUNT == GTValues.ALL_TIERS.length, "Tier count does not match the tier table");
         helper.assertTrue(GTValues.TIER_COUNT == GTValues.V.length, "Voltage table does not match the tier table");
-        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VH.length, "Half-voltage table does not match the tier table");
-        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VA.length, "Amperage voltage table does not match the tier table");
-        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VN.length, "Voltage-name table does not match the tier table");
+        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VH.length,
+                "Half-voltage table does not match the tier table");
+        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VA.length,
+                "Amperage voltage table does not match the tier table");
+        helper.assertTrue(GTValues.TIER_COUNT == GTValues.VN.length,
+                "Voltage-name table does not match the tier table");
 
         for (int tier : GTValues.ALL_TIERS) {
             helper.assertTrue(GTValues.V[tier] == (long) GTValues.VH[tier] * 2,
                     "Half voltage is incorrect for tier " + tier);
-            helper.assertTrue(GTValues.VA[tier] == GTValues.V[tier] - GTValues.V[tier] / 16,
+            helper.assertTrue(GTValues.VA[tier] == GTValues.V[tier] - Math.max(1, GTValues.V[tier] / 16),
                     "Cable-loss voltage is incorrect for tier " + tier);
         }
         helper.succeed();

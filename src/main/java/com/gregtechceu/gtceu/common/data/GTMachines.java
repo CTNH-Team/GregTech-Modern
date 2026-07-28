@@ -884,7 +884,7 @@ public class GTMachines {
                                     ItemBusPartMachine.INVENTORY_SIZE[tier]),
                             Component.translatable("gtceu.part_sharing.enabled"))
                     .register(),
-            HV);
+            ALL_TIERS);
 
     public static final MachineDefinition[] FLUID_PASSTHROUGH_HATCH = registerTieredMachines("fluid_passthrough_hatch",
             (holder, tier) -> new FluidHatchPartMachine(holder, tier, IO.BOTH,

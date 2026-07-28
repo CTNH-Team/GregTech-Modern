@@ -65,8 +65,10 @@ public class MaterialPropertiesTest {
         properties.setProperty(PropertyKey.WIRE, wire);
 
         wire.verifyProperty(properties);
-        helper.assertTrue(properties.hasProperty(PropertyKey.DUST), "Wire properties did not add the required dust property");
-        helper.assertFalse(properties.hasProperty(PropertyKey.INGOT), "Wire properties unexpectedly added an ingot property");
+        helper.assertTrue(properties.hasProperty(PropertyKey.DUST),
+                "Wire properties did not add the required dust property");
+        helper.assertFalse(properties.hasProperty(PropertyKey.INGOT),
+                "Wire properties unexpectedly added an ingot property");
         helper.succeed();
     }
 }

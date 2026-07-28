@@ -6,7 +6,7 @@ import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
 
 public interface ICoilMachine extends ITieredMachine, IOverclockMachine {
 
-    int getCoilTier();
-
     ICoilType getCoilType();
+
+    int getCoilTier();
 }
