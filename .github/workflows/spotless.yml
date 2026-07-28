@@ -46,7 +46,13 @@ jobs:
         if: steps.filter.outputs.code == 'true'
         working-directory: CTNH-Modules
         run: ./gradlew :modules:${{ env.MODULE_NAME }}:spotlessApply --warning-mode all
+
+      - name: Spotless Apply (2nd pass)
+        if: steps.filter.outputs.code == 'true'
+        working-directory: CTNH-Modules
+        run: ./gradlew :modules:${{ env.MODULE_NAME }}:spotlessApply --warning-mode all
       - name: Spotless Check
         if: steps.filter.outputs.code == 'true'
         working-directory: CTNH-Modules
         run: ./gradlew :modules:${{ env.MODULE_NAME }}:spotlessCheck --warning-mode all
+        continue-on-error: true

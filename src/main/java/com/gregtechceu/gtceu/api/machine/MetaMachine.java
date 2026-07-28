@@ -505,6 +505,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     public void attachTraits(MachineTrait trait) {
         traits.add(trait);
     }
+
     /**
      * Find the first trait attached to this machine that is an instance of {@code traitClass}.
      *
@@ -522,7 +523,6 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         }
         return null;
     }
-
 
     public void clearInventory(IItemHandlerModifiable inventory) {
         for (int i = 0; i < inventory.getSlots(); i++) {
