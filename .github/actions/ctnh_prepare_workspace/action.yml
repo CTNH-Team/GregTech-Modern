@@ -123,6 +123,15 @@ runs:
         ref: ${{ inputs.ctnh_core_ref }}
         path: CTNH-Modules/modules/CTNH-Core
 
+    - name: Checkout CTNH-Astral
+      if: ${{ inputs.module_name != 'CTNH-Astral' }}
+      uses: actions/checkout@v4
+      with:
+        token: ${{ inputs.token }}
+        repository: ${{ inputs.ctnh_astral_repository }}
+        ref: ${{ inputs.ctnh_astral_ref }}
+        path: CTNH-Modules/modules/CTNH-Astral
+
     - name: Checkout CTNH-Bio
       if: ${{ inputs.module_name != 'CTNH-Bio' }}
       uses: actions/checkout@v4
