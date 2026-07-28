@@ -18,40 +18,55 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    env:
-      MODULE_NAME: GregTech-Modern
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare Workspace
-        uses: ./.github/actions/ctnh_prepare_workspace
+      - name: Check Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
         with:
-          token: ${{ github.token }}
-          module_name: ${{ env.MODULE_NAME }}
+          filters: |
+            code:
+              - 'src/**'
+              - 'gradle/**'
+              - '**/*.gradle'
+              - 'settings.gradle'
+              - 'gradle.properties'
+              - 'dependencies.gradle'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - '.github/**'
+
+      - name: Setup Gradle
+        if: steps.filter.outputs.code == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-scan-publish: true
+          build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+          build-scan-terms-of-use-agree: "yes"
 
       - name: Run JVM unit tests
         id: unit-tests
+        if: steps.filter.outputs.code == 'true'
         continue-on-error: true
-        working-directory: CTNH-Modules
-        run: ./gradlew :modules:${{ env.MODULE_NAME }}:test --no-daemon --stacktrace
+        run: ./gradlew test --no-daemon --stacktrace
 
       - name: Run GameTests
         id: game-tests
+        if: steps.filter.outputs.code == 'true'
         continue-on-error: true
-        working-directory: CTNH-Modules
-        run: ./gradlew :modules:${{ env.MODULE_NAME }}:runGameTestServer --no-daemon --stacktrace
+        run: ./gradlew runGameTestServer --no-daemon --stacktrace
 
       - name: Upload test reports and logs
-        if: ${{ always() }}
+        if: ${{ always() && steps.filter.outputs.code == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.MODULE_NAME }}-test-results
+          name: GregTech-Modern-test-results
           path: |
-            CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/reports/tests/test/**
-            CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/test-results/test/**
-            CTNH-Modules/modules/${{ env.MODULE_NAME }}/run/gametest/logs/**
+            build/reports/tests/test/**
+            build/test-results/test/**
+            run/gametest/logs/**
           if-no-files-found: warn
           retention-days: 15
 
