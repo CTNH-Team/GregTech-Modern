@@ -70,6 +70,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 15
 
+      - name: Verify GameTests completed and passed
+        if: ${{ always() && steps.filter.outputs.code == 'true' }}
+        run: |
+          LOG_FILE=run/gametest/logs/latest.log
+          if [ ! -f "$LOG_FILE" ]; then
+            echo "::error::Game test log not found - server likely crashed before tests ran"
+            exit 1
+          fi
+          if ! grep -q "GAME TESTS COMPLETE" "$LOG_FILE"; then
+            echo "::error::Game test server did not complete - check logs for startup crash"
+            exit 1
+          fi
+          FAILURES=$(grep -oP '[0-9]+(?= required tests failed)' "$LOG_FILE" || echo "0")
+          if [ "$FAILURES" != "0" ]; then
+            echo "::error::${FAILURES} required game test(s) failed"
+            grep "failed!" "$LOG_FILE" | grep -v "optional"
+            exit 1
+          fi
+          echo "All required game tests passed"
+
       - name: Fail when a test suite fails
         if: ${{ steps.unit-tests.outcome == 'failure' || steps.game-tests.outcome == 'failure' }}
         run: exit 1
