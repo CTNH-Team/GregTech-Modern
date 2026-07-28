@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GRADLE_OPTS: "-Xmx4g -XX:+UseParallelGC"
     permissions:
       contents: write
       packages: read
