@@ -1,12 +1,8 @@
 dependencies {
-    annotationProcessor 'org.projectlombok:lombok:1.18.36'
-    compileOnly 'org.projectlombok:lombok:1.18.36'
-    compileOnly(libs.jetbrains.annotations)
-
-    // Fast JVM tests. GameTests are executed separately through runGameTestServer.
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
+    compileOnly(libs.jetbrains.annotations)
 
     // LDLib
     jarJar(modApi(forge.ldlib.get()))

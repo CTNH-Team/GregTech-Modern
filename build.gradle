@@ -8,12 +8,14 @@ plugins {
     alias libs.plugins.modDevGradle
     //alias libs.plugins.shadow
     alias libs.plugins.spotless
+    alias libs.plugins.lombok
 }
 
 group = maven_group
-// Adds a SNAPSHOT suffix when SNAPSHOT is set by the build environment.
-def isSnapshot = providers.environmentVariable("SNAPSHOT").isPresent()
+// Formats the mod version to include the loader, Minecraft version, and '-SNAPSHOT-<timestamp>' if enabled.
+boolean isSnapshot = System.getenv("SNAPSHOT")
 version = "${mod_version}" + (isSnapshot ? "-SNAPSHOT" : "")
+boolean isCI = System.getenv("CI") != null
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -59,7 +61,6 @@ configurations {
 
     renderNurseCfg {
         canBeConsumed = false
-        canBeResolved = true
     }
 }
 
@@ -91,42 +92,14 @@ apply from: "$projectDir/gradle/scripts/docs.gradle"
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
-    options.release = 17
     options.compilerArgs << "-Xlint:-removal"
     options.compilerArgs << "-Xdiags:verbose"
     options.compilerArgs << "-Aquiet=true" // Suppress mixin notes
 }
 
-
-
-
-jacoco {
-    applyTo runGameTestServer
+lombok {
+    version = "1.18.46"
 }
 
-jacocoTestReport {
-    doFirst {
-        try {
-            runGameTestServer.exec()
-        } catch (RuntimeException ignored) {}
-    }
-    doLast {
-        println "Coverage report location:"
-        println " - file://${layout.buildDirectory.dir('coverage').map(a -> a.file('index.html')).get()}"
-        println " - file://${layout.buildDirectory.dir('coverage').map(a -> a.file('coverage.xml')).get()}"
-    }
-    executionData runGameTestServer
-    sourceSets sourceSets.test
-    reports {
-        csv.required = false
-        xml.required = true
-        html.outputLocation = layout.buildDirectory.dir('coverage')
-        xml.outputLocation = layout.buildDirectory.dir('coverage').map(a -> a.file('coverage.xml'))
-    }
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: '**/client/**')
-            fileTree(dir: it, exclude: '**/mixins/**')
-        }))
-    }
-}
+
+
