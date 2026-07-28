@@ -66,7 +66,7 @@ public class GTRecipeModifiers {
     public static final BiFunction<MedicalCondition, Integer, RecipeModifier> ENVIRONMENT_REQUIREMENT = Util
             .memoize((condition, maxAllowedStrength) -> (machine, group, recipe) -> {
                 if (!ConfigHolder.INSTANCE.gameplay.environmentalHazards) return null;
-                if (!(machine.getLevel() instanceof ServerLevel serverLevel)) return RecipeModifier.DEFAULT_FAILURE;
+                if (!(machine.getLevel() instanceof ServerLevel serverLevel)) return ModifierFunction.NULL;
 
                 EnvironmentalHazardSavedData data = EnvironmentalHazardSavedData.getOrCreate(serverLevel);
                 BlockPos machinePos = machine.getPos();
@@ -74,10 +74,10 @@ public class GTRecipeModifiers {
                 if (zone == null) return null;
 
                 float strength = zone.strength();
-                if (strength > maxAllowedStrength) return RecipeModifier.DEFAULT_FAILURE;
+                if (strength > maxAllowedStrength) return ModifierFunction.NULL;
 
                 int multiplier = (1 + (int) (strength * 5 / maxAllowedStrength));
-                if (multiplier > 5) return RecipeModifier.DEFAULT_FAILURE;
+                if (multiplier > 5) return ModifierFunction.NULL;
 
                 recipe.multiplyDuration(multiplier);
                 return null;
