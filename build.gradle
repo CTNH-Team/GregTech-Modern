@@ -99,9 +99,6 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 
-    // Lombok explicit annotation processor for Gradle 9 compat
-    annotationProcessor "org.projectlombok:lombok:1.18.46"
-    compileOnly "org.projectlombok:lombok:1.18.46"
 lombok {
     version = "1.18.46"
 }
