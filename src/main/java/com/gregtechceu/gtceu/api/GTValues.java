@@ -69,7 +69,7 @@ public class GTValues {
     /**
      * The Voltage Tiers adjusted for cable loss. Use this for recipe EU/t to avoid full-amp recipes
      */
-    public static final int[] VA = { 7, 30, 120, 480, 1920, 7680, 30720, 122880, 491520, 1966080, 7864320,
+    public static final int[] VA = { 8, 30, 120, 480, 1920, 7680, 30720, 122880, 491520, 1966080, 7864320,
             31457280, 125829120, 503316480, 2013265920 };
 
     /**
