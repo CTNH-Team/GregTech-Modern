@@ -27,7 +27,7 @@ public class GTValuesTest {
         for (int tier : GTValues.ALL_TIERS) {
             helper.assertTrue(GTValues.V[tier] == (long) GTValues.VH[tier] * 2,
                     "Half voltage is incorrect for tier " + tier);
-            helper.assertTrue(GTValues.VA[tier] == GTValues.V[tier] - GTValues.V[tier] / 16,
+            helper.assertTrue(GTValues.VA[tier] == GTValues.V[tier] - Math.max(1, GTValues.V[tier] / 16),
                     "Cable-loss voltage is incorrect for tier " + tier);
         }
         helper.succeed();
