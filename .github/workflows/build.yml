@@ -13,9 +13,6 @@ jobs:
     permissions:
       contents: write
 
-    env:
-      MODULE_NAME: GregTech-Modern
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,17 +34,17 @@ jobs:
               - 'gradlew.bat'
               - '.github/**'
 
-      - name: Prepare Workspace
+      - name: Setup Gradle
         if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        uses: ./.github/actions/ctnh_prepare_workspace
+        uses: gradle/actions/setup-gradle@v4
         with:
-          token: ${{ github.token }}
-          module_name: ${{ env.MODULE_NAME }}
+          build-scan-publish: true
+          build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+          build-scan-terms-of-use-agree: "yes"
 
       - name: Build
         if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        working-directory: CTNH-Modules
-        run: ./gradlew :modules:${{ env.MODULE_NAME }}:build
+        run: ./gradlew build
 
       - name: Version Suffix
         if: github.event_name != 'release' && (steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch')
@@ -65,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          libs_dir="CTNH-Modules/modules/${MODULE_NAME}/build/libs"
+          libs_dir="build/libs"
           for file in "$libs_dir"/*.jar; do
             [[ -e "$file" ]] || continue
             mv "$file" "${file/.jar/-${VERSION_SUFFIX}.jar}"
@@ -75,8 +72,8 @@ jobs:
         if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.MODULE_NAME }}-jars
-          path: CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/libs/*.jar
+          name: GregTech-Modern-jars
+          path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 15
 
@@ -84,4 +81,4 @@ jobs:
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: CTNH-Modules/modules/${{ env.MODULE_NAME }}/build/libs/*.jar
+          files: build/libs/*.jar

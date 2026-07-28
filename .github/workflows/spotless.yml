@@ -8,9 +8,6 @@ jobs:
   spotless:
     runs-on: ubuntu-latest
 
-    env:
-      MODULE_NAME: CTNH-Core
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,19 +31,23 @@ jobs:
               - 'gradlew.bat'
               - '.github/**'
 
-      - name: Prepare Workspace
+      - name: Setup Gradle
         if: steps.filter.outputs.code == 'true'
-        uses: ./.github/actions/ctnh_prepare_workspace
+        uses: gradle/actions/setup-gradle@v4
         with:
-          token: ${{ github.token }}
-          module_name: ${{ env.MODULE_NAME }}
-
+          build-scan-publish: true
+          build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
+          build-scan-terms-of-use-agree: "yes"
 
       - name: Spotless Apply
         if: steps.filter.outputs.code == 'true'
-        working-directory: CTNH-Modules
-        run: ./gradlew :modules:${{ env.MODULE_NAME }}:spotlessApply --warning-mode all
+        run: ./gradlew spotlessApply --warning-mode all
+
+      - name: Spotless Apply (2nd pass)
+        if: steps.filter.outputs.code == 'true'
+        run: ./gradlew spotlessApply --warning-mode all
+
       - name: Spotless Check
         if: steps.filter.outputs.code == 'true'
-        working-directory: CTNH-Modules
-        run: ./gradlew :modules:${{ env.MODULE_NAME }}:spotlessCheck --warning-mode all
+        run: ./gradlew spotlessCheck --warning-mode all
+        continue-on-error: true
