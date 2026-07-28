@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: read
 
     steps:
       - name: Checkout
@@ -34,8 +35,11 @@ jobs:
               - 'gradlew.bat'
               - '.github/**'
 
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
       - name: Setup Gradle
-        if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         uses: gradle/actions/setup-gradle@v4
         with:
           build-scan-publish: true
