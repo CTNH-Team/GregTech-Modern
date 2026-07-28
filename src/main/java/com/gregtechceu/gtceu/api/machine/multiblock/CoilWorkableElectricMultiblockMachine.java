@@ -2,8 +2,7 @@ package com.gregtechceu.gtceu.api.machine.multiblock;
 
 import com.gregtechceu.gtceu.api.block.ICoilType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.ICoilMachine;
-import com.gregtechceu.gtceu.common.block.CoilBlock;
+import com.gregtechceu.gtceu.api.machine.trait.CoilTrait;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 
@@ -13,13 +12,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class CoilWorkableElectricMultiblockMachine extends RecipeElectricMultiblockMachine implements ICoilMachine {
+public class CoilWorkableElectricMultiblockMachine extends WorkableElectricMultiblockMachine {
 
     @Getter
-    private ICoilType coilType = CoilBlock.CoilType.CUPRONICKEL;
+    private final CoilTrait coilTrait;
 
     public CoilWorkableElectricMultiblockMachine(IMachineBlockEntity holder) {
         super(holder);
+        this.coilTrait = new CoilTrait(this);
     }
 
     //////////////////////////////////////
@@ -28,14 +28,13 @@ public class CoilWorkableElectricMultiblockMachine extends RecipeElectricMultibl
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
-        var type = getMultiblockState().getMatchContext().get("CoilType");
-        if (type instanceof ICoilType coil) {
-            this.coilType = coil;
-        }
     }
 
-    @Override
+    public ICoilType getCoilType() {
+        return coilTrait.getCoilType();
+    }
+
     public int getCoilTier() {
-        return coilType.getTier();
+        return coilTrait.getCoilTier();
     }
 }
