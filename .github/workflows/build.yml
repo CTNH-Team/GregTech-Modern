@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.token }}
-      GRADLE_OPTS: "-Xmx4g -XX:+UseParallelGC"
+      GRADLE_OPTS: "-Dorg.gradle.java.installations.auto-detect=false -Dorg.gradle.java.installations.auto-download=false" "-Xmx4g -XX:+UseParallelGC"
     permissions:
       contents: write
       packages: read

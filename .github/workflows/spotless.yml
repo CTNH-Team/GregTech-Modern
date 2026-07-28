@@ -11,6 +11,8 @@ jobs:
     permissions:
       packages: read
 
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.java.installations.auto-detect=false -Dorg.gradle.java.installations.auto-download=false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
