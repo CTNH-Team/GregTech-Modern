@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.token }}
-      GRADLE_OPTS: "-Xmx4g -XX:+UseParallelGC"
+      
     permissions:
       contents: write
       packages: read
@@ -42,6 +42,12 @@ jobs:
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v3
 
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: '17.0.16'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
