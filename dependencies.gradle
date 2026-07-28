@@ -1,6 +1,6 @@
 dependencies {
-    annotationProcessor 'org.projectlombok:lombok:1.18.38'
-    compileOnly 'org.projectlombok:lombok:1.18.38'
+    annotationProcessor 'org.projectlombok:lombok:1.18.46'
+    compileOnly 'org.projectlombok:lombok:1.18.46'
     compileOnly(libs.jetbrains.annotations)
 
     // Fast JVM tests. GameTests are executed separately through runGameTestServer.
