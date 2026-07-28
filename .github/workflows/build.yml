@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.token }}
-      GRADLE_OPTS: "-Dorg.gradle.java.installations.auto-detect=false -Dorg.gradle.java.installations.auto-download=false" "-Xmx4g -XX:+UseParallelGC"
+       "-Xmx4g -XX:+UseParallelGC"
     permissions:
       contents: write
       packages: read
@@ -42,6 +42,15 @@ jobs:
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v3
 
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17.0.16'
+
+      - name: Clean Gradle JDKs
+        run: rm -rf ~/.gradle/jdks
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -54,7 +63,7 @@ jobs:
         if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./gradlew compileJava
+        run: ./gradlew compileJava --no-parallel --max-workers=1
 
       - name: Version Suffix
         if: github.event_name != 'release' && (steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch')
