@@ -63,7 +63,7 @@ jobs:
         if: steps.filter.outputs.code == 'true' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: ./gradlew compileJava --no-parallel --max-workers=1
+        run: ./gradlew build -x spotlessJavaCheck
 
       - name: Version Suffix
         if: github.event_name != 'release' && (steps.filter.outputs.code == 'true' || github.event_name == 'workflow_dispatch')
