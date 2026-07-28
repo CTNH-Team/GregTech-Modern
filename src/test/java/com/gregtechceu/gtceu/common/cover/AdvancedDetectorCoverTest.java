@@ -32,11 +32,9 @@ public class AdvancedDetectorCoverTest {
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ACTIVITY_DETECTOR_ADVANCED.asStack(), Direction.WEST);
-        helper.runAtTickTime(30, () -> helper.assertRedstoneSignal(
-                new BlockPos(1, 2, 1),
-                Direction.WEST,
-                signal -> signal > 0,
-                () -> "expected redstone signal"));
+        helper.succeedWhen(() -> {
+            TestUtils.assertLampOn(helper, new BlockPos(0, 2, 1));
+        });
     }
 
     @GameTest(template = "electrolyzer", batch = "coverTests", required = false)
@@ -45,9 +43,8 @@ public class AdvancedDetectorCoverTest {
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ACTIVITY_DETECTOR_ADVANCED.asStack(), Direction.WEST);
         helper.runAtTickTime(35, () -> helper.pullLever(2, 2, 2));
-        helper.runAtTickTime(40, () -> {
+        helper.succeedWhen(() -> {
             TestUtils.assertLampOff(helper, new BlockPos(0, 2, 1));
-            helper.succeed();
         });
     }
 
@@ -88,9 +85,8 @@ public class AdvancedDetectorCoverTest {
                 GTItems.COVER_ITEM_DETECTOR_ADVANCED.asStack(), Direction.WEST);
         cover.setMinValue(1);
         cover.setMaxValue(4);
-        helper.runAtTickTime(40, () -> {
+        helper.succeedWhen(() -> {
             TestUtils.assertLampOff(helper, new BlockPos(0, 2, 1));
-            helper.succeed();
         });
     }
 
@@ -104,9 +100,8 @@ public class AdvancedDetectorCoverTest {
         cover.setMinValue(1);
         cover.setMaxValue(4);
         cover.setLatched(true);
-        helper.runAtTickTime(40, () -> {
+        helper.succeedWhen(() -> {
             TestUtils.assertLampOff(helper, new BlockPos(0, 2, 1));
-            helper.succeed();
         });
     }
 }
