@@ -4,12 +4,14 @@ import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.api.computation.ComputationPort;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.utils.energy.FeEnergyContainerWrapper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.energy.IEnergyStorage;
@@ -43,7 +45,27 @@ public class GTCapabilityHelper {
 
     @Nullable
     public static IEnergyContainer getEnergyContainer(Level level, BlockPos pos, @Nullable Direction side) {
-        return getBlockEntityCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, level, pos, side);
+        var returnValue = getBlockEntityCapability(GTCapability.CAPABILITY_ENERGY_CONTAINER, level, pos, side);
+        if (returnValue == null) {
+            if (level != null && pos != null) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be != null) {
+
+                    IEnergyStorage fe = be.getCapability(ForgeCapabilities.ENERGY, side).orElse(null);
+
+                    // Optional unsided fallback for mods that expose FE unsided (kept conservative elsewhere via output
+                    // gating).
+                    if (fe == null) {
+                        fe = be.getCapability(ForgeCapabilities.ENERGY, null).orElse(null);
+                    }
+
+                    if (fe == null || !fe.canReceive()) return returnValue;
+                    returnValue = new FeEnergyContainerWrapper(fe);
+                }
+            }
+        }
+
+        return returnValue;
     }
 
     @Nullable

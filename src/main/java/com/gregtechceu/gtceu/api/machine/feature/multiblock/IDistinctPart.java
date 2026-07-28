@@ -27,6 +27,7 @@ public interface IDistinctPart extends IMultiPart {
                                 .setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW))
                                 .append(Component.translatable(pressed ? "gtceu.multiblock.universal.distinct.yes" :
                                         "gtceu.multiblock.universal.distinct.no")))));
+
         IMultiPart.super.attachConfigurators(left, right);
     }
 }

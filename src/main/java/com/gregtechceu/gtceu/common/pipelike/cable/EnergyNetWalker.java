@@ -6,9 +6,11 @@ import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.api.data.chemical.material.properties.WireProperties;
 import com.gregtechceu.gtceu.api.pipenet.PipeNetWalker;
 import com.gregtechceu.gtceu.common.blockentity.CableBlockEntity;
+import com.gregtechceu.gtceu.utils.energy.EnergyNetDebugStats;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -22,6 +24,13 @@ public class EnergyNetWalker extends PipeNetWalker<CableBlockEntity, WirePropert
 
     @Nullable
     public static List<EnergyRoutePath> createNetData(EnergyNet pipeNet, BlockPos sourcePipe) {
+        if (pipeNet != null) {
+            final Level level = pipeNet.getLevel();
+            if (level != null) {
+                EnergyNetDebugStats.recordNetRebuild(pipeNet, level);
+            }
+        }
+
         try {
             EnergyNetWalker walker = new EnergyNetWalker(pipeNet, sourcePipe, 1, new ArrayList<>());
             walker.traversePipeNet();

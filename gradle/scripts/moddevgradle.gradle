@@ -173,5 +173,6 @@ idea {
 }
 
 tasks.named("test", Test).configure {
+    useJUnitPlatform()
     failOnNoDiscoveredTests = false
 }

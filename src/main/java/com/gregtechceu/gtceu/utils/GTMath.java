@@ -105,7 +105,7 @@ public class GTMath {
         if (values == null || values.length == 0) throw new IllegalArgumentException();
         if (values.length == 1) return values[0];
         if (values.length == 2) return Math.min(values[0], values[1]);
-        float min = Float.MAX_VALUE;
+        float min = Float.POSITIVE_INFINITY;
         for (float i : values) {
             if (i < min) {
                 min = i;
@@ -119,7 +119,7 @@ public class GTMath {
         if (values == null || values.length == 0) throw new IllegalArgumentException();
         if (values.length == 1) return values[0];
         if (values.length == 2) return Math.max(values[0], values[1]);
-        float max = Float.MIN_VALUE;
+        float max = Float.NEGATIVE_INFINITY;
         for (float i : values) {
             if (i > max) {
                 max = i;

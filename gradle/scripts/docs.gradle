@@ -21,9 +21,9 @@ tasks.register('mkdocsServe', Exec) {
 
     workingDir 'docs'
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        commandLine '.\\docs\\.venv\\Scripts\\mkdocs.exe', 'serve'
+        commandLine '.\\.venv\\Scripts\\mkdocs.exe', 'serve'
     } else {
-        commandLine './docs/.venv/bin/mkdocs', 'serve'
+        commandLine './.venv/bin/mkdocs', 'serve'
     }
 }
 
@@ -34,8 +34,8 @@ tasks.register('mkdocsBuild', Exec) {
 
     workingDir 'docs'
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-        commandLine '.\\docs\\.venv\\Scripts\\mkdocs.exe', 'build'
+        commandLine '.\\.venv\\Scripts\\mkdocs.exe', 'build'
     } else {
-        commandLine './docs/.venv/bin/mkdocs', 'build'
+        commandLine './.venv/bin/mkdocs', 'build'
     }
 }

@@ -214,6 +214,13 @@ public class RecipeLogicTest {
 
 ## Running & Debugging Tests
 
+The project has two complementary test suites:
+
+- `./gradlew test` runs fast JUnit tests for deterministic JVM logic.
+- `./gradlew runGameTestServer` starts a dedicated server and runs every registered GameTest.
+
+Run both before submitting a change that affects shared logic or in-game behavior.
+
 1. **Launch the GameTest server**
     - Run the “Game Tests” run configuration.
     - In logs you’ll see registered tests and pass/fail summaries.
