@@ -9,15 +9,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
-/**
- * MultiTrait that discovers a parallel-control hatch from the multiblock's parts
- * during structure formation.
- * <p>
- * Attach this trait to any multiblock that should support parallel recipe processing.
- * The controller's parallel-hatch lookup can then delegate to this trait instead of
- * tracking the hatch manually.
- * </p>
- */
 public class ParallelHatchTrait extends MultiTrait {
 
     @Getter
@@ -45,9 +36,5 @@ public class ParallelHatchTrait extends MultiTrait {
 
     public Optional<IParallelHatch> getOptionalParallelHatch() {
         return Optional.ofNullable(parallelHatch);
-    }
-
-    public int getCurrentParallel() {
-        return parallelHatch != null ? parallelHatch.getCurrentParallel() : 1;
     }
 }

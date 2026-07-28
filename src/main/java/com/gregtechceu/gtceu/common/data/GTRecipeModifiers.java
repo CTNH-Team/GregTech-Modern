@@ -8,7 +8,6 @@ import com.gregtechceu.gtceu.api.data.medicalcondition.MedicalCondition;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IOverclockMachine;
 import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.ICoilMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.multiblock.CoilWorkableElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMachine;
@@ -148,8 +147,29 @@ public class GTRecipeModifiers {
             return new CoilData(coilTrait.getCoilType(), coilTrait.getCoilTier(), tier, ov);
         }
         if (machine instanceof CoilWorkableElectricMultiblockMachine coilMachine) {
-            return new CoilData(coilMachine.getCoilType(), coilMachine.getCoilTier(),
-                    coilMachine.getTier(), coilMachine.getOverclockVoltage());
+            return new CoilData(data.coilType(), data.coilTier(),
+                    data.machineTier(), data.overclockVoltage());
+        }
+        return null;
+    }
+
+    private record CoilData(@NotNull ICoilType coilType, int coilTier, int machineTier, long overclockVoltage) {}
+
+    @Nullable
+    private static CoilData resolveCoil(@NotNull MetaMachine machine) {
+        var coilTrait = machine.getTrait(CoilTrait.class);
+        if (coilTrait != null) {
+            int tier = 0;
+            long ov = 0;
+            if (machine instanceof WorkableElectricMultiblockMachine wembm) {
+                tier = wembm.getTier();
+                ov = wembm.getOverclockVoltage();
+            }
+            return new CoilData(coilTrait.getCoilType(), coilTrait.getCoilTier(), tier, ov);
+        }
+        if (machine instanceof CoilWorkableElectricMultiblockMachine coilMachine) {
+            return new CoilData(data.coilType(), data.coilTier(),
+                    data.machineTier(), data.overclockVoltage());
         }
         return null;
     }
@@ -157,7 +177,8 @@ public class GTRecipeModifiers {
     private record CoilData(@NotNull ICoilType coilType, int coilTier, int machineTier, long overclockVoltage) {}
 
     /**
-     * Recipe Modifier for <b>Cracker Multiblocks</b> - can be used as a valid {@link RecipeModifier}</b> - can be used
+     * Recipe Modifier for <b>Cracker Multiblocks</b></b> - can be used as a valid {@link RecipeModifier}</b> - can be
+     * used
      * as a valid {@link RecipeModifier}
      * <p>
      * Recipe is OC'd via {@link OverclockingLogic#NON_PERFECT_OVERCLOCK}.
@@ -170,18 +191,19 @@ public class GTRecipeModifiers {
      */
     public static @Nullable Component crackerOverclock(@NotNull MetaMachine machine, RecipeHandlerGroup group,
                                                        @NotNull GTRecipe recipe) {
-        if (!(machine instanceof ICoilMachine coilMachine)) {
-            return RecipeModifier.nullWrongType(ICoilMachine.class, machine);
+        var data = resolveCoil(machine);
+        if (data == null) {
+            return RecipeModifier.nullWrongType(CoilWorkableElectricMultiblockMachine.class, machine);
         }
-        if (recipe.tier > coilMachine.getTier()) {
+        if (recipe.tier > data.machineTier()) {
             return Component.translatable("gtceu.recipe_modifier.insufficient_voltage");
         }
 
         var failReason = OverclockingLogic.NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe,
-                coilMachine.getOverclockVoltage());
+                data.overclockVoltage());
         if (failReason != null) return failReason;
-        if (coilMachine.getCoilTier() > 0) {
-            recipe.multiplyEUt(1.0 - coilMachine.getCoilTier() * 0.1);
+        if (data.coilTier() > 0) {
+            recipe.multiplyEUt(1.0 - data.coilTier() * 0.1);
         }
         return null;
     }
@@ -203,25 +225,26 @@ public class GTRecipeModifiers {
      */
     public static @Nullable Component ebfOverclock(@NotNull MetaMachine machine, RecipeHandlerGroup group,
                                                    @NotNull GTRecipe recipe) {
-        if (!(machine instanceof ICoilMachine coilMachine)) {
-            return RecipeModifier.nullWrongType(ICoilMachine.class, machine);
+        var data = resolveCoil(machine);
+        if (data == null) {
+            return RecipeModifier.nullWrongType(CoilWorkableElectricMultiblockMachine.class, machine);
         }
 
-        int blastFurnaceTemperature = coilMachine.getCoilType().getCoilTemperature() +
-                (100 * Math.max(0, coilMachine.getTier() - GTValues.MV));
+        int blastFurnaceTemperature = data.coilType().getCoilTemperature() +
+                (100 * Math.max(0, data.machineTier() - GTValues.MV));
         int recipeTemp = recipe.data.getInt("ebf_temp");
         if (!recipe.data.contains("ebf_temp") || recipeTemp > blastFurnaceTemperature) {
             return Component.translatable("gtceu.recipe_modifier.coil_temperature_too_low");
         }
 
-        if (recipe.tier > coilMachine.getTier()) {
+        if (recipe.tier > data.machineTier()) {
             return Component.translatable("gtceu.recipe_modifier.insufficient_voltage");
         }
 
         recipe.multiplyEUt(getCoilEUtDiscount(recipeTemp, blastFurnaceTemperature));
 
         OverclockingLogic logic = (p, v) -> OverclockingLogic.heatingCoilOC(p, v, recipeTemp, blastFurnaceTemperature);
-        return logic.getModifier(machine, group, recipe, coilMachine.getOverclockVoltage());
+        return logic.getModifier(machine, group, recipe, data.overclockVoltage());
     }
 
     /**
@@ -239,17 +262,18 @@ public class GTRecipeModifiers {
     public static @Nullable Component pyrolyseOvenOverclock(@NotNull MetaMachine machine,
                                                             RecipeHandlerGroup group,
                                                             @NotNull GTRecipe recipe) {
-        if (!(machine instanceof ICoilMachine coilMachine)) {
-            return RecipeModifier.nullWrongType(ICoilMachine.class, machine);
+        var data = resolveCoil(machine);
+        if (data == null) {
+            return RecipeModifier.nullWrongType(CoilWorkableElectricMultiblockMachine.class, machine);
         }
-        if (recipe.tier > coilMachine.getTier()) {
+        if (recipe.tier > data.machineTier()) {
             return Component.translatable("gtceu.recipe_modifier.insufficient_voltage");
         }
 
-        int tier = coilMachine.getCoilTier();
+        int tier = data.coilTier();
         double durationMultiplier = (tier == 0) ? (4.0 / 3.0) : (2.0 / (tier + 1)); // 75% speed with cupro coils
 
-        var failReason = NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe, coilMachine.getOverclockVoltage());
+        var failReason = NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe, data.overclockVoltage());
         if (failReason != null) return failReason;
         recipe.multiplyDuration(durationMultiplier);
         return null;
@@ -276,20 +300,21 @@ public class GTRecipeModifiers {
     public static @Nullable Component multiSmelterParallel(@NotNull MetaMachine machine,
                                                            RecipeHandlerGroup group,
                                                            @NotNull GTRecipe recipe) {
-        if (!(machine instanceof ICoilMachine coilMachine)) {
-            return RecipeModifier.nullWrongType(ICoilMachine.class, machine);
+        var data = resolveCoil(machine);
+        if (data == null) {
+            return RecipeModifier.nullWrongType(CoilWorkableElectricMultiblockMachine.class, machine);
         }
 
-        int maxParallel = 32 * coilMachine.getCoilType().getLevel();
+        int maxParallel = 32 * data.coilType().getLevel();
         int parallels = ParallelLogic.getParallelAmount(group, recipe, maxParallel);
         if (parallels <= 1) return null;
 
         int duration = (int) (128 * 2.0 * parallels / maxParallel);
-        long eut = (long) (4L * maxParallel / (8.0 * coilMachine.getCoilType().getEnergyDiscount()));
+        long eut = (long) (4L * maxParallel / (8.0 * data.coilType().getEnergyDiscount()));
         EURecipeCapability.putEUContent(recipe.tickInputs, Math.max(1, eut));
         recipe.duration = Math.max(1, duration);
 
-        var failReason = NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe, coilMachine.getOverclockVoltage());
+        var failReason = NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe, data.overclockVoltage());
         if (failReason != null) return failReason;
         recipe.multiplyAllContents(parallels);
         recipe.parallels *= parallels;

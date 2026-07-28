@@ -12,7 +12,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class CoilWorkableElectricMultiblockMachine extends RecipeElectricMultiblockMachine implements ICoilMachine {
+public class CoilWorkableElectricMultiblockMachine extends WorkableElectricMultiblockMachine {
 
     @Getter
     private final CoilTrait coilTrait;
@@ -22,9 +22,6 @@ public class CoilWorkableElectricMultiblockMachine extends RecipeElectricMultibl
         this.coilTrait = new CoilTrait(this);
     }
 
-    //////////////////////////////////////
-    // *** Multiblock LifeCycle ***//
-    //////////////////////////////////////
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
@@ -34,7 +31,6 @@ public class CoilWorkableElectricMultiblockMachine extends RecipeElectricMultibl
         return coilTrait.getCoilType();
     }
 
-    @Override
     public int getCoilTier() {
         return coilTrait.getCoilTier();
     }
