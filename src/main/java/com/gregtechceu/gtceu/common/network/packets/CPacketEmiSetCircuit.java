@@ -1,6 +1,5 @@
 package com.gregtechceu.gtceu.common.network.packets;
 
-import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.IntCircuitIngredient;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
@@ -42,13 +41,9 @@ public class CPacketEmiSetCircuit implements GTNetwork.INetPacket {
                 !(player.containerMenu instanceof ModularUIContainer menu) ||
                 !(menu.getModularUI().holder instanceof IHasCircuitSlot circuitMachine) ||
                 !circuitMachine.isCircuitSlotEnabled()) {
-            GTCEu.LOGGER.debug("[EMI Circuit Transfer] rejected: container={}, configuration={}", containerId,
-                    configuration);
             return;
         }
         circuitMachine.getCircuitInventory().setStackInSlot(0, IntCircuitBehaviour.stack(configuration));
         menu.broadcastChanges();
-        GTCEu.LOGGER.debug("[EMI Circuit Transfer] committed: container={}, configuration={}", containerId,
-                configuration);
     }
 }

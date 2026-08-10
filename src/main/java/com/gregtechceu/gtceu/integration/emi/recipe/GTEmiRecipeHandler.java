@@ -1,14 +1,14 @@
 package com.gregtechceu.gtceu.integration.emi.recipe;
 
-import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.FluidRecipeCapability;
+import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.gui.widget.GhostCircuitSlotWidget;
 import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.IntCircuitIngredient;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.common.network.GTNetwork;
-import com.gregtechceu.gtceu.common.network.packets.CPacketEmiSetCircuit;
 import com.gregtechceu.gtceu.common.network.packets.CPacketEmiFluidTransfer;
+import com.gregtechceu.gtceu.common.network.packets.CPacketEmiSetCircuit;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUIContainer;
 import com.lowdragmc.lowdraglib.gui.widget.SlotWidget;
@@ -30,9 +30,9 @@ import dev.emi.emi.api.recipe.handler.EmiCraftContext;
 import dev.emi.emi.api.recipe.handler.StandardRecipeHandler;
 import dev.emi.emi.api.stack.EmiIngredient;
 import dev.emi.emi.api.stack.EmiStack;
-import dev.emi.emi.api.widget.WidgetHolder;
 import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.api.widget.Widget;
+import dev.emi.emi.api.widget.WidgetHolder;
 import dev.emi.emi.platform.EmiClient;
 import dev.emi.emi.registry.EmiRecipeFiller;
 import dev.emi.emi.runtime.EmiDrawContext;
@@ -77,7 +77,8 @@ public class GTEmiRecipeHandler implements StandardRecipeHandler<ModularUIContai
                 for (int i = 0; i < handler.getTanks(); i++) {
                     FluidStack fluid = handler.getFluidInTank(i);
                     if (!fluid.isEmpty()) {
-                        stacks.add(ForgeEmiStack.of(fluid).setAmount((long) fluid.getAmount() * slot.getItem().getCount()));
+                        stacks.add(ForgeEmiStack.of(fluid)
+                                .setAmount((long) fluid.getAmount() * slot.getItem().getCount()));
                     }
                 }
             });
@@ -97,12 +98,13 @@ public class GTEmiRecipeHandler implements StandardRecipeHandler<ModularUIContai
         if (!(recipe instanceof GTEmiRecipe gtRecipe) || !canCraft(recipe, context)) return false;
 
         ItemTransferRecipe itemRecipe = new ItemTransferRecipe(gtRecipe);
-        int itemBatches = Integer.MAX_VALUE;
+        int requestedBatches = Math.max(1, context.getAmount());
+        int itemBatches = requestedBatches;
         if (!itemRecipe.getInputs().isEmpty()) {
             List<ItemStack> stacks = EmiRecipeFiller.getStacks(this, itemRecipe, context.getScreen(),
-                    context.getAmount());
+                    requestedBatches);
             if (stacks == null) return false;
-            itemBatches = getItemBatchCount(itemRecipe, stacks);
+            itemBatches = Math.min(requestedBatches, getItemBatchCount(itemRecipe, stacks));
 
             Minecraft.getInstance().setScreen(context.getScreen());
             if (!EmiClient.onServer) {
@@ -157,7 +159,7 @@ public class GTEmiRecipeHandler implements StandardRecipeHandler<ModularUIContai
     }
 
     private static int getAvailableFluidBatches(ModularUIContainer menu, List<Integer> sourceSlots,
-                                                 List<FluidIngredient> ingredients) {
+                                                List<FluidIngredient> ingredients) {
         long batches = Long.MAX_VALUE;
         for (FluidIngredient ingredient : ingredients) {
             long available = 0;
@@ -203,7 +205,8 @@ public class GTEmiRecipeHandler implements StandardRecipeHandler<ModularUIContai
         for (Widget widget : widgets) {
             if (!(widget instanceof dev.emi.emi.api.widget.SlotWidget slot) || slot.getRecipe() != null) continue;
             for (int i = 0; i < recipe.getInputs().size(); i++) {
-                if (!EmiIngredient.areEqual(slot.getStack(), recipe.getInputs().get(i)) || availability.get(i)) continue;
+                if (!EmiIngredient.areEqual(slot.getStack(), recipe.getInputs().get(i)) || availability.get(i))
+                    continue;
                 Bounds bounds = slot.getBounds();
                 draw.fill(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 1157562368);
                 break;
