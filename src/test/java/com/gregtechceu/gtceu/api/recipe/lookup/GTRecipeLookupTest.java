@@ -7,6 +7,7 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.ItemIngredient;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.fluid.FluidStackMapIngredient;
+import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.CircuitMapIngredient;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.item.ItemMapIngredient;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
 import com.gregtechceu.gtceu.gametest.util.TestUtils;
@@ -36,6 +37,10 @@ public class GTRecipeLookupTest {
     private static final Predicate<GTRecipeDefinition> ALWAYS_FALSE = gtRecipe -> false;
     private static GTRecipeDefinition SMELT_STONE, SMELT_ACACIA_WOOD, SMELT_BIRCH_WOOD, SMELT_CHERRY_WOOD;
     private static GTRecipeDefinition RANGED_INPUT_ITEM, RANGED_INPUT_FLUID, RANGED_INPUT_BOTH;
+    private static GTRecipeDefinition CHEM_NO_CIRCUIT, CHEM_CIRCUIT_1, CHEM_CIRCUIT_2;
+    private static GTRecipeDefinition MULTI_SAME_INPUT_1, MULTI_SAME_INPUT_2;
+    private static GTRecipeDefinition EMPTY_RECIPE;
+    private static GTRecipeDefinition POLYETHYLENE_FROM_OXYGEN;
 
     @BeforeBatch(batch = "GTRecipeLookup")
     public static void prepare(ServerLevel level) {
@@ -72,6 +77,43 @@ public class GTRecipeLookupTest {
                 .inputFluidsRanged(GTMaterials.Iron.getFluid(1), UniformInt.of(0, 4))
                 .outputItems(Items.CHARCOAL, 1)
                 .buildRawRecipe();
+        CHEM_NO_CIRCUIT = recipeType.recipeBuilder("chem_no_circuit")
+                .inputFluids(GTMaterials.Oxygen.getFluid(1000))
+                .inputFluids(GTMaterials.Hydrogen.getFluid(1000))
+                .outputFluids(GTMaterials.Water.getFluid(1000))
+                .buildRawRecipe();
+        CHEM_CIRCUIT_1 = recipeType.recipeBuilder("chem_circuit_1")
+                .inputFluids(GTMaterials.Oxygen.getFluid(1000))
+                .inputFluids(GTMaterials.Hydrogen.getFluid(1000))
+                .circuitMeta(1)
+                .outputFluids(GTMaterials.Water.getFluid(2000))
+                .buildRawRecipe();
+        CHEM_CIRCUIT_2 = recipeType.recipeBuilder("chem_circuit_2")
+                .inputFluids(GTMaterials.Oxygen.getFluid(1000))
+                .inputFluids(GTMaterials.Hydrogen.getFluid(1000))
+                .circuitMeta(2)
+                .outputFluids(GTMaterials.Nitrogen.getFluid(1000))
+                .buildRawRecipe();
+        MULTI_SAME_INPUT_1 = recipeType.recipeBuilder("multi_same_input_1")
+                .inputItems(Items.IRON_INGOT, 1)
+                .outputItems(Items.GOLD_INGOT, 1)
+                .buildRawRecipe();
+        MULTI_SAME_INPUT_2 = recipeType.recipeBuilder("multi_same_input_2")
+                .inputItems(Items.IRON_INGOT, 2)
+                .outputItems(Items.DIAMOND, 1)
+                .buildRawRecipe();
+        EMPTY_RECIPE = recipeType.recipeBuilder("empty_recipe")
+                .duration(20)
+                .EUt(1)
+                .buildRawRecipe();
+        POLYETHYLENE_FROM_OXYGEN = recipeType.recipeBuilder("polyethylene_from_oxygen")
+                .circuitMeta(1)
+                .inputFluids(GTMaterials.Oxygen.getFluid(1000))
+                .inputFluids(GTMaterials.Ethylene.getFluid(1000))
+                .outputFluids(GTMaterials.Polyethylene.getFluid(216))
+                .duration(160)
+                .EUt(30)
+                .buildRawRecipe();
 
         handler.beginStaging();
         for (GTRecipeDefinition recipe : List.of(SMELT_STONE,
@@ -80,7 +122,14 @@ public class GTRecipeLookupTest {
                 SMELT_CHERRY_WOOD,
                 RANGED_INPUT_ITEM,
                 RANGED_INPUT_FLUID,
-                RANGED_INPUT_BOTH)) {
+                RANGED_INPUT_BOTH,
+                CHEM_NO_CIRCUIT,
+                CHEM_CIRCUIT_1,
+                CHEM_CIRCUIT_2,
+                MULTI_SAME_INPUT_1,
+                MULTI_SAME_INPUT_2,
+                EMPTY_RECIPE,
+                POLYETHYLENE_FROM_OXYGEN)) {
             handler.addStaging(recipe);
         }
         handler.completeStaging();
@@ -100,6 +149,10 @@ public class GTRecipeLookupTest {
 
     private static List<AbstractMapIngredient> createIngredients(List<AbstractMapIngredient>... stacks) {
         return Arrays.stream(stacks).flatMap(Collection::stream).toList();
+    }
+
+    private static List<AbstractMapIngredient> createCircuitIngredients(int configuration) {
+        return CircuitMapIngredient.from(configuration);
     }
 
     // Simple recipe test whose lookup should succeed
@@ -223,6 +276,103 @@ public class GTRecipeLookupTest {
             helper.assertTrue(RANGED_INPUT_BOTH.equals(resultRecipe),
                     "GT Recipe should be raged_input_both, instead was " + resultRecipe + ". Failed on check " + i);
         }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupChemicalReactorNoCircuitTest(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)),
+                createIngredients(GTMaterials.Hydrogen.getFluid(1000)));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(CHEM_NO_CIRCUIT.equals(resultRecipe),
+                "GT Recipe should be CHEM_NO_CIRCUIT, instead was " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupChemicalReactorCircuit1Test(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)),
+                createIngredients(GTMaterials.Hydrogen.getFluid(1000)),
+                createCircuitIngredients(1));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(CHEM_CIRCUIT_1.equals(resultRecipe),
+                "GT Recipe should be CHEM_CIRCUIT_1, instead was " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupChemicalReactorCircuit2Test(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)),
+                createIngredients(GTMaterials.Hydrogen.getFluid(1000)),
+                createCircuitIngredients(2));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(CHEM_CIRCUIT_2.equals(resultRecipe),
+                "GT Recipe should be CHEM_CIRCUIT_2, instead was " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupChemicalReactorReversedInputsTest(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Hydrogen.getFluid(1000)),
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(CHEM_NO_CIRCUIT.equals(resultRecipe),
+                "GT Recipe should be CHEM_NO_CIRCUIT, instead was " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupSameIngredientsDifferentRecipesTest(GameTestHelper helper) {
+        var ingredients = createIngredients(new ItemStack(Items.IRON_INGOT, 1));
+        GTRecipeDefinition result1 = DB.find(ingredients, r -> r.inputs
+                .getOrDefault(ItemRecipeCapability.CAP, List.of())
+                .stream()
+                .allMatch(content -> ((ItemIngredient) content).getCount() == 1));
+        helper.assertTrue(MULTI_SAME_INPUT_1.equals(result1),
+                "GT Recipe should be MULTI_SAME_INPUT_1, instead was " + result1);
+
+        GTRecipeDefinition result2 = DB.find(ingredients, r -> r.inputs
+                .getOrDefault(ItemRecipeCapability.CAP, List.of())
+                .stream()
+                .allMatch(content -> ((ItemIngredient) content).getCount() == 2));
+        helper.assertTrue(MULTI_SAME_INPUT_2.equals(result2),
+                "GT Recipe should be MULTI_SAME_INPUT_2, instead was " + result2);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupDoesNotReturnEmptyRecipeTest(GameTestHelper helper) {
+        var ingredients = createIngredients(GTMaterials.Ethylene.getFluid(1000));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(resultRecipe == null,
+                "GT Recipe should be null, instead the empty recipe was returned: " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupPolyethyleneFromOxygenTest(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)),
+                createIngredients(GTMaterials.Ethylene.getFluid(1000)),
+                createCircuitIngredients(1));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(POLYETHYLENE_FROM_OXYGEN.equals(resultRecipe),
+                "GT Recipe should be polyethylene_from_oxygen, instead was " + resultRecipe);
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", batch = "GTRecipeLookup")
+    public static void recipeLookupPolyethyleneFromOxygenWithoutCircuitTest(GameTestHelper helper) {
+        var ingredients = createIngredients(
+                createIngredients(GTMaterials.Oxygen.getFluid(1000)),
+                createIngredients(GTMaterials.Ethylene.getFluid(1000)));
+        GTRecipeDefinition resultRecipe = DB.find(ingredients, ALWAYS_TRUE);
+        helper.assertTrue(resultRecipe == null,
+                "GT Recipe should be null without a circuit, instead was " + resultRecipe);
         helper.succeed();
     }
 }

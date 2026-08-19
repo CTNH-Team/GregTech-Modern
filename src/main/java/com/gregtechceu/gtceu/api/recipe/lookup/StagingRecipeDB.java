@@ -31,6 +31,9 @@ public final class StagingRecipeDB {
         // var frequencies = inputFrequencies();
         for (GTRecipeDefinition recipe : recipes) {
             List<List<AbstractMapIngredient>> flattedContent = flattenedContent(recipe);
+            if (flattedContent.isEmpty()) {
+                continue;
+            }
             // flattedContent.sort(Comparator.comparingInt(frequencies::getInt));
             List<List<AbstractMapIngredient>> inputs = new ArrayList<>(flattedContent.size());
             for (var ingredients : flattedContent) {

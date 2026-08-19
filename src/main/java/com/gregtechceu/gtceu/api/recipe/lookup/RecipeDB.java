@@ -1,16 +1,12 @@
 package com.gregtechceu.gtceu.api.recipe.lookup;
 
-import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.recipe.lookup.ingredient.AbstractMapIngredient;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 
-import net.minecraftforge.registries.ForgeRegistries;
-
-import com.mojang.datafixers.util.Either;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jetbrains.annotations.*;
 
 import java.util.*;
@@ -124,13 +120,27 @@ public final class RecipeDB {
      * @param branch     the branch containing the nodes
      * @return the nodes to search for the ingredient
      */
-    private static @NotNull Map<AbstractMapIngredient, Either<GTRecipeDefinition, Branch>> nodesForIngredient(
-                                                                                                              @NotNull AbstractMapIngredient ingredient,
-                                                                                                              @NotNull Branch branch) {
+    private static @NotNull Map<AbstractMapIngredient, Branch> nodesForIngredient(
+                                                                                  @NotNull AbstractMapIngredient ingredient,
+                                                                                  @NotNull Branch branch) {
         if (ingredient.isSpecialIngredient()) {
             return branch.getSpecialNodes();
         }
         return branch.getNodes();
+    }
+
+    /**
+     * Find the child branch for an ingredient, checking special nodes first if applicable.
+     */
+    private static @Nullable Branch findChildBranch(@NotNull Branch branch,
+                                                    @NotNull AbstractMapIngredient ingredient) {
+        if (ingredient.isSpecialIngredient()) {
+            Branch special = branch.getSpecialNodes().get(ingredient);
+            if (special != null) {
+                return special;
+            }
+        }
+        return branch.getNodes().get(ingredient);
     }
 
     /**
@@ -142,6 +152,9 @@ public final class RecipeDB {
      */
     boolean add(@NotNull GTRecipeDefinition recipe,
                 @NotNull List<@Unmodifiable List<AbstractMapIngredient>> ingredients) {
+        if (ingredients.isEmpty()) {
+            return false;
+        }
         if (addRecursive(recipe, ingredients, rootBranch, 0)) {
             recipe.category.addRecipe(recipe);
             return true;
@@ -162,80 +175,34 @@ public final class RecipeDB {
                                  @NotNull List<@Unmodifiable List<AbstractMapIngredient>> ingredients,
                                  @NotNull Branch branch, int index) {
         if (index >= ingredients.size()) {
+            List<GTRecipeDefinition> branchRecipes = branch.getRecipes();
+            if (!branchRecipes.contains(recipe)) {
+                branchRecipes.add(recipe);
+            }
             return true;
         }
-        boolean lastIngredient = index == ingredients.size() - 1;
         var current = ingredients.get(index);
+        boolean anyAdded = false;
         for (AbstractMapIngredient ingredient : current) {
             var nodes = nodesForIngredient(ingredient, branch);
-            var either = nodes.compute(ingredient, (k, v) -> {
-                if (lastIngredient) {
-                    // last ingredient
-                    if (v == null) {
-                        // no existing leaf, add the recipe
-                        return Either.left(recipe);
-                    }
-                    if (v.left().isEmpty() || !v.left().get().equals(recipe)) {
-                        // empty recipe or different recipe exists already, conflict
-                        if (ConfigHolder.INSTANCE.dev.debug || GTCEu.isDev()) {
-                            GTCEu.LOGGER.warn(
-                                    "Recipe duplicate or conflict found in GTRecipeType {} and was not added. See next lines for details",
-                                    ForgeRegistries.RECIPE_TYPES.getKey(recipe.getType()));
-                            if (v.left().isPresent()) {
-                                GTCEu.LOGGER.warn("Attempted to add GTRecipe: {}, which conflicts with {}",
-                                        recipe.getId(), v.left().get().getId());
-                            } else {
-                                GTCEu.LOGGER.warn("Attempted to add GTRecipe: {}, without exact duplicate/conflict",
-                                        recipe.getId());
-                            }
-                        }
-                    }
-                    // maintain existing recipe, even on conflicts
-                    // if there was no conflict but a recipe was still present, it was added on an earlier recurse,
-                    // and this will carry the result further back in the call stack
-                    return v;
-                }
-                // if there is an existing ingredient, use it, otherwise create a new branch for the ingredient
-                return Objects.requireNonNullElseGet(v, () -> Either.right(new Branch()));
-            });
-            if (either.left().isPresent()) {
-                if (either.left().get() == recipe) {
-                    // recipe was successfully added, continue to add the other paths
-                    continue;
-                }
-                // there was already a recipe here, fail on the conflict
-                return false;
-            }
-            boolean added = either.right()
-                    .filter(b -> addRecursive(recipe, ingredients, b, index + 1))
-                    .isPresent();
-            if (!added) {
-                if (lastIngredient) {
-                    // remove the recipe
-                    nodes.remove(ingredient);
-                } else {
-                    var child = nodes.get(ingredient);
-                    if (child != null && child.right().isPresent()) {
-                        var childBranch = child.right().get();
-                        if (childBranch.isEmptyBranch()) {
-                            // remove the branch if it was the only thing in it
-                            nodes.remove(ingredient);
-                        }
-                    }
-                }
-                return false;
+            Branch childBranch = nodes.computeIfAbsent(ingredient, k -> new Branch());
+            boolean added = addRecursive(recipe, ingredients, childBranch, index + 1);
+            if (added) {
+                anyAdded = true;
+            } else if (childBranch.isEmptyBranch()) {
+                nodes.remove(ingredient);
             }
         }
-        return true;
+        return anyAdded;
     }
 
     private static class SearchFrame {
 
-        int ingredientIndex;
-        Branch branch;       // branch in the recipe DB
+        final Branch branch;
+        int recipeIndex = 0;
+        int ingredientIndex = 0;
 
-        public SearchFrame(Branch branch) {
-            this.ingredientIndex = 0;
+        public SearchFrame(@NotNull Branch branch) {
             this.branch = branch;
         }
     }
@@ -247,6 +214,7 @@ public final class RecipeDB {
         private final @NotNull Predicate<GTRecipeDefinition> predicate;
 
         private final Deque<SearchFrame> stack = new ArrayDeque<>();
+        private final Set<GTRecipeDefinition> visited = new ObjectOpenHashSet<>();
 
         private @Nullable GTRecipeDefinition nextCached = null;
         private boolean hasCached = false;
@@ -264,35 +232,31 @@ public final class RecipeDB {
 
         private @Nullable GTRecipeDefinition getNext() {
             while (!stack.isEmpty()) {
-                // We stay on one frame until all ingredients have been checked
                 SearchFrame frame = stack.peek();
 
-                if (frame.ingredientIndex >= ingredients.size()) {
-                    stack.pop();
+                // Phase 1: Explore deeper child branches first (depth-first search for longest/most specific recipe
+                // match)
+                if (frame.ingredientIndex < ingredients.size()) {
+                    AbstractMapIngredient ingredient = ingredients.get(frame.ingredientIndex++);
+                    Branch childBranch = findChildBranch(frame.branch, ingredient);
+                    if (childBranch != null) {
+                        stack.push(new SearchFrame(childBranch));
+                    }
                     continue;
                 }
 
-                AbstractMapIngredient ingredient = ingredients.get(frame.ingredientIndex);
-                // Increment candidate pos for next iteration
-                frame.ingredientIndex++;
-                var nodes = nodesForIngredient(ingredient, frame.branch);
-                var result = nodes.get(ingredient);
-                if (result == null) {
-                    continue;
-                }
-
-                // Option 1: It's a recipe
-                if (result.left().isPresent()) {
-                    var recipe = result.left().get();
-                    if (predicate.test(recipe)) {
+                // Phase 2: Once child branches from this frame have been explored, yield recipes terminating at this
+                // branch
+                if (frame.recipeIndex < frame.branch.getRecipes().size()) {
+                    GTRecipeDefinition recipe = frame.branch.getRecipes().get(frame.recipeIndex++);
+                    if (visited.add(recipe) && predicate.test(recipe)) {
                         return recipe;
                     }
+                    continue;
                 }
 
-                // Option 2: It's a branch, dive deeper
-                result.ifRight(b -> {
-                    stack.push(new SearchFrame(b));
-                });
+                // Frame exhausted
+                stack.pop();
             }
 
             return null; // no more recipes
@@ -320,6 +284,9 @@ public final class RecipeDB {
          */
         public void reset() {
             stack.clear();
+            visited.clear();
+            hasCached = false;
+            nextCached = null;
             stack.push(new SearchFrame(db.rootBranch));
         }
     }

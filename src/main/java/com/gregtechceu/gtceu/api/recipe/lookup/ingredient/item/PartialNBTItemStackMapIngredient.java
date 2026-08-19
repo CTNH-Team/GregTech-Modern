@@ -65,10 +65,12 @@ public class PartialNBTItemStackMapIngredient extends AbstractMapIngredient {
                     }
                     return true;
                 } else {
-                    this.nbtIngredient.test(other.stack);
+                    return this.nbtIngredient.test(other.stack);
                 }
             } else if (other.nbtIngredient != null) {
                 return other.nbtIngredient.test(this.stack);
+            } else {
+                return com.gregtechceu.gtceu.utils.GTUtil.isSameItemSameTags(this.stack, other.stack);
             }
         }
         return false;
