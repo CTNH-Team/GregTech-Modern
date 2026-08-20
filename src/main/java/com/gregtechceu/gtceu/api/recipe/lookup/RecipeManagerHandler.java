@@ -2,9 +2,12 @@ package com.gregtechceu.gtceu.api.recipe.lookup;
 
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
+import com.gregtechceu.gtceu.core.mixins.RecipeManagerAccessor;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 
 import org.jetbrains.annotations.ApiStatus;
@@ -20,6 +23,27 @@ import java.util.Map;
  */
 @ApiStatus.Internal
 public final class RecipeManagerHandler {
+
+    /**
+     * Rebuilds the client-side category index after recipes are received from a server.
+     * The client does not need the recipe lookup database, but XEI integrations need this index.
+     */
+    public static void rebuildCategoryMaps(@NotNull RecipeManager recipeManager) {
+        for (GTRecipeType gtRecipeType : GTRegistries.RECIPE_TYPES) {
+            gtRecipeType.getCategoryMap().clear();
+            gtRecipeType.getProxyRecipes().forEach((proxyType, ignored) -> {
+                for (var recipe : ((RecipeManagerAccessor) recipeManager).getRecipes().get(proxyType).values()) {
+                    GTRecipeDefinition proxyRecipe = gtRecipeType.toGTrecipe(recipe.getId(), recipe);
+                    if (proxyRecipe != null) {
+                        gtRecipeType.addToCategoryMap(proxyRecipe.category, proxyRecipe);
+                    }
+                }
+            });
+            for (GTRecipeDefinition recipe : recipeManager.getAllRecipesFor(gtRecipeType)) {
+                gtRecipeType.addToCategoryMap(recipe.category, recipe);
+            }
+        }
+    }
 
     /**
      * Adds proxy recipes to an {@link GTRecipeType}'s {@link RecipeAdditionHandler} and adds them to a list.

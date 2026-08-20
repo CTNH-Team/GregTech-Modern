@@ -13,7 +13,6 @@ import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib.gui.texture.ItemStackTexture;
 
 import net.minecraft.Util;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import dev.emi.emi.api.EmiRegistry;
@@ -58,16 +57,11 @@ public class GTRecipeEMICategory extends EmiRecipeCategory {
 
     public static void registerDisplays(EmiRegistry registry) {
         List<GTRecipeCategory> subCategories = new ArrayList<>();
-        var manager = Minecraft.getInstance().getConnection().getRecipeManager();
         // run main categories first
         for (GTRecipeCategory category : GTRegistries.RECIPE_CATEGORIES) {
             if (!category.shouldRegisterDisplays()) continue;
             var type = category.getRecipeType();
             if (category == type.getCategory()) {
-                type.getCategoryMap().clear();
-                for (var recipe : manager.getAllRecipesFor(type)) {
-                    type.addToCategoryMap(recipe.category, recipe);
-                }
                 type.buildRepresentativeRecipes();
             } else {
                 subCategories.add(category);
