@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.api.recipe.lookup;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
+import com.gregtechceu.gtceu.common.recipe.condition.ResearchCondition;
 import com.gregtechceu.gtceu.core.mixins.RecipeManagerAccessor;
 
 import net.minecraft.resources.ResourceLocation;
@@ -41,6 +42,23 @@ public final class RecipeManagerHandler {
             });
             for (GTRecipeDefinition recipe : recipeManager.getAllRecipesFor(gtRecipeType)) {
                 gtRecipeType.addToCategoryMap(recipe.category, recipe);
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the client-side index used to resolve researched Data Items to their recipes.
+     */
+    public static void rebuildResearchEntries(@NotNull RecipeManager recipeManager) {
+        for (GTRecipeType gtRecipeType : GTRegistries.RECIPE_TYPES) {
+            gtRecipeType.clearDataStickEntries();
+            for (GTRecipeDefinition recipe : recipeManager.getAllRecipesFor(gtRecipeType)) {
+                recipe.conditions.stream()
+                        .filter(ResearchCondition.class::isInstance)
+                        .map(ResearchCondition.class::cast)
+                        .findAny()
+                        .ifPresent(condition -> condition.data
+                                .forEach(entry -> gtRecipeType.addDataStickEntry(entry.getResearchId(), recipe)));
             }
         }
     }

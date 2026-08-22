@@ -60,6 +60,7 @@ public class ForgeClientEventListener {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRecipesUpdated(RecipesUpdatedEvent event) {
         RecipeManagerHandler.rebuildCategoryMaps(event.getRecipeManager());
+        RecipeManagerHandler.rebuildResearchEntries(event.getRecipeManager());
     }
 
     @SubscribeEvent

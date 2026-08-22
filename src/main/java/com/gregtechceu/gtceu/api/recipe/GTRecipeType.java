@@ -283,6 +283,10 @@ public class GTRecipeType implements RecipeType<GTRecipeDefinition> {
         collection.add(recipe);
     }
 
+    public void clearDataStickEntries() {
+        researchEntries.clear();
+    }
+
     @Nullable
     public Collection<GTRecipeDefinition> getDataStickEntry(@NotNull String researchId) {
         return researchEntries.get(researchId);
