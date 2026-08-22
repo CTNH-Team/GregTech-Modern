@@ -262,7 +262,8 @@ public class GTRecipeModifiers {
 
         var failReason = NON_PERFECT_OVERCLOCK.getModifier(machine, group, recipe, coilMachine.getOverclockVoltage());
         if (failReason != null) return failReason;
-        recipe.multiplyAllContents(parallels);
+        recipe.multiplyInputs(parallels);
+        recipe.multiplyOutputs(parallels);
         recipe.parallels *= parallels;
         return null;
     }
