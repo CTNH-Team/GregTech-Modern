@@ -12,6 +12,7 @@ import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.client.ClientProxy;
+import com.gregtechceu.gtceu.common.data.GTOres;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
@@ -54,7 +55,7 @@ public class GTOreVeinWidget extends WidgetGroup {
 
     public GTOreVeinWidget(GTOreDefinition oreDefinition) {
         super(0, 0, width, 160);
-        this.name = getOreName(oreDefinition);
+        this.name = getOreTranslationKey(oreDefinition);
         this.weight = oreDefinition.weight();
         this.dimensionFilter = oreDefinition.dimensionFilter();
         this.range = range(oreDefinition);
@@ -108,7 +109,7 @@ public class GTOreVeinWidget extends WidgetGroup {
             int finalIndex = i;
             oreSlot.setOnAddedTooltips((stack, tooltips) -> tooltips.add(Component
                     .nullToEmpty(
-                            LocalizationUtils.format("gtceu.jei.ore_vein_diagram.chance", chances.get(finalIndex)))));
+                            LocalizationUtils.format("gtceu.ore_vein_diagram.chance", chances.get(finalIndex)))));
             oreSlot.setIngredientIO(IngredientIO.OUTPUT);
             addWidget(oreSlot);
             x += 18;
@@ -135,7 +136,7 @@ public class GTOreVeinWidget extends WidgetGroup {
             int finalIndex = i;
             oreSlot.setOnAddedTooltips((stack, tooltips) -> tooltips.add(Component
                     .nullToEmpty(
-                            LocalizationUtils.format("gtceu.jei.ore_vein_diagram.chance",
+                            LocalizationUtils.format("gtceu.ore_vein_diagram.chance",
                                     chances.getInt(finalIndex)))));
             oreSlot.setIngredientIO(IngredientIO.OUTPUT);
             addWidget(oreSlot);
@@ -145,16 +146,16 @@ public class GTOreVeinWidget extends WidgetGroup {
 
     private void setupText(GTOreDefinition ignored) {
         addWidget(new ImageWidget(5, 0, width - 10, 16,
-                new TextTexture("gtceu.jei.ore_vein." + name).setType(TextTexture.TextType.LEFT_ROLL)
+                new TextTexture(name).setType(TextTexture.TextType.LEFT_ROLL)
                         .setWidth(width - 10)));
         addWidget(new LabelWidget(5, 40,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.spawn_range")));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.spawn_range")));
         addWidget(new LabelWidget(5, 50, range));
 
         addWidget(new LabelWidget(5, 60,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.weight", weight)));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.weight", weight)));
         addWidget(new LabelWidget(5, 70,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.dimensions")));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.dimensions")));
         setupDimensionMarker(80);
     }
 
@@ -163,9 +164,9 @@ public class GTOreVeinWidget extends WidgetGroup {
                 new TextTexture("gtceu.jei.bedrock_fluid." + name).setType(TextTexture.TextType.LEFT_ROLL)
                         .setWidth(width - 10)));
         addWidget(new LabelWidget(5, 40,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.weight", weight)));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.weight", weight)));
         addWidget(new LabelWidget(5, 50,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.dimensions")));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.dimensions")));
         setupDimensionMarker(60);
     }
 
@@ -174,9 +175,9 @@ public class GTOreVeinWidget extends WidgetGroup {
                 new TextTexture("gtceu.jei.bedrock_ore." + name).setType(TextTexture.TextType.LEFT_ROLL)
                         .setWidth(width - 10)));
         addWidget(new LabelWidget(5, 40,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.weight", weight)));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.weight", weight)));
         addWidget(new LabelWidget(5, 50,
-                LocalizationUtils.format("gtceu.jei.ore_vein_diagram.dimensions")));
+                LocalizationUtils.format("gtceu.ore_vein_diagram.dimensions")));
         setupDimensionMarker(60);
     }
 
@@ -241,9 +242,9 @@ public class GTOreVeinWidget extends WidgetGroup {
                 .toList();
     }
 
-    public static String getOreName(GTOreDefinition oreDefinition) {
+    public static String getOreTranslationKey(GTOreDefinition oreDefinition) {
         ResourceLocation id = ClientProxy.CLIENT_ORE_VEINS.inverse().get(oreDefinition);
-        return id.getPath();
+        return GTOres.getTranslationKey(id);
     }
 
     public static String getFluidName(BedrockFluidDefinition fluid) {
