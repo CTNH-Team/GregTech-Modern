@@ -2,6 +2,7 @@ package com.gregtechceu.gtceu.integration.map.cache.client;
 
 import com.gregtechceu.gtceu.api.data.worldgen.ores.GeneratedVeinMetadata;
 import com.gregtechceu.gtceu.api.gui.misc.ProspectorMode;
+import com.gregtechceu.gtceu.common.data.GTOres;
 import com.gregtechceu.gtceu.integration.map.GenericMapRenderer;
 import com.gregtechceu.gtceu.integration.map.GroupingMapRenderer;
 import com.gregtechceu.gtceu.integration.map.cache.DimensionCache;
@@ -34,8 +35,7 @@ public class GTClientCache extends WorldCache implements IClientCache {
         if (player == null) return;
 
         for (var vein : veins) {
-            var veinId = vein.id().toString();
-            var name = Component.translatable(veinId.replace("gtceu:", "gtceu.jei.ore_vein."));
+            var name = Component.translatable(GTOres.getTranslationKey(vein.id()));
             var material = OreRenderLayer.getMaterial(vein);
 
             if (!material.isNull()) {
