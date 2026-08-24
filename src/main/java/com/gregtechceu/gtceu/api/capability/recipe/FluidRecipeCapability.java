@@ -157,6 +157,7 @@ public class FluidRecipeCapability extends RecipeCapability<FluidIngredient> {
         var amountMap = new Object2LongOpenCustomHashMap<>(FluidIngredient.IGNORE_AMOUNT);
         for (FluidIngredient ing : inputs) {
             int amount = ing.getAmount();
+            if (amount <= 0) continue;
             amountMap.addTo(ing, amount);
         }
 

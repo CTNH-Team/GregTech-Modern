@@ -162,6 +162,7 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
             // ignore circuit
             if (content instanceof IntCircuitIngredient) continue;
             int count = content.getCount();
+            if (count <= 0) continue;
             countMap.addTo(content, count);
         }
         int maxMultiplier = Integer.MAX_VALUE;

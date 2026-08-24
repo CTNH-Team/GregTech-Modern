@@ -163,14 +163,16 @@ public class LargeTurbineMachine extends RecipeElectricMultiblockMachine impleme
         if (turbineMaxVoltage % EUt != 0) maxParallel++;
 
         int actualParallel = ParallelLogic.getParallelAmountFast(group, recipe, maxParallel);
-        double eutMultiplier = (maxParallel == actualParallel) ?
-                turbineMachine.productionBoost() * turbineMaxVoltage / (EUt * actualParallel) :
-                turbineMachine.productionBoost();
+        if (actualParallel > 1) {
+            double eutMultiplier = (maxParallel == actualParallel) ?
+                    turbineMachine.productionBoost() * turbineMaxVoltage / (EUt * actualParallel) :
+                    turbineMachine.productionBoost();
 
-        recipe.multiplyAllContents(actualParallel);
-        recipe.multiplyEUt(eutMultiplier);
-        recipe.parallels *= actualParallel;
-        recipe.multiplyDuration(holderEfficiency);
+            recipe.multiplyAllContents(actualParallel);
+            recipe.multiplyEUt(eutMultiplier);
+            recipe.parallels *= actualParallel;
+            recipe.multiplyDuration(holderEfficiency);
+        }
         return null;
     }
 
