@@ -59,6 +59,8 @@ public interface IRotorHolderMachine extends IMultiPart {
      */
     int getMaxRotorHolderSpeed();
 
+    int INVALID_TIER_DIFFERENCE = Integer.MIN_VALUE;
+
     /**
      * Tier difference between the rotor holder and it's controller.
      */
@@ -69,10 +71,10 @@ public interface IRotorHolderMachine extends IMultiPart {
      */
     default int getHolderEfficiency() {
         int tierDifference = getTierDifference();
-        if (tierDifference == -1)
+        if (tierDifference == INVALID_TIER_DIFFERENCE)
             return -1;
 
-        return 100 + 10 * tierDifference;
+        return Math.max(10, 100 + 10 * tierDifference);
     }
 
     /**
@@ -80,9 +82,10 @@ public interface IRotorHolderMachine extends IMultiPart {
      */
     default int getHolderPowerMultiplier() {
         int tierDifference = getTierDifference();
-        if (tierDifference == -1) return -1;
+        if (tierDifference == INVALID_TIER_DIFFERENCE) return -1;
+        if (tierDifference < 0) return 1;
 
-        return (int) Math.pow(2, getTierDifference());
+        return (int) Math.pow(2, tierDifference);
     }
 
     /**

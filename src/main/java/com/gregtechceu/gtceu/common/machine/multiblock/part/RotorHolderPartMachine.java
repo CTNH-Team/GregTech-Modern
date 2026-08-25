@@ -197,7 +197,7 @@ public class RotorHolderPartMachine extends TieredPartMachine
         if (isFormed() && getControllers().first() instanceof ITieredMachine tieredMachine) {
             return getTier() - tieredMachine.getTier();
         }
-        return -1;
+        return INVALID_TIER_DIFFERENCE;
     }
 
     @Override
