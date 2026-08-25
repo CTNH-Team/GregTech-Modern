@@ -82,8 +82,8 @@ public class DikeVeinGenerator extends VeinGenerator {
 
         int radius = Mth.ceil(size / 2f);
 
-        int xPos = chunkPos.getMinBlockX() + level.getRandom().nextInt(16);
-        int zPos = chunkPos.getMinBlockZ() + level.getRandom().nextInt(16);
+        int xPos = chunkPos.getMinBlockX() + random.nextInt(16);
+        int zPos = chunkPos.getMinBlockZ() + random.nextInt(16);
 
         int yTop = maxYLevel;
         int yBottom = minYLevel;
