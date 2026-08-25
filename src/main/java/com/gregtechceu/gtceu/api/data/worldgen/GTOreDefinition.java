@@ -208,6 +208,11 @@ public class GTOreDefinition {
         return this;
     }
 
+    public GTOreDefinition biomeWeightModifier(BiomeWeightModifier modifier) {
+        this.biomeWeightModifier = modifier;
+        return this;
+    }
+
     public GTOreDefinition heightRangeUniform(int min, int max) {
         heightRange(HeightRangePlacement.uniform(VerticalAnchor.absolute(min), VerticalAnchor.absolute(max)));
         inferredProperties.heightRange = IntIntPair.of(min, max);
