@@ -65,24 +65,10 @@ public interface IRotorHolderMachine extends IMultiPart {
     int getTierDifference();
 
     /**
-     * @return the efficiency provided by the rotor holder in %
-     */
-    default int getHolderEfficiency() {
-        int tierDifference = getTierDifference();
-        if (tierDifference == -1)
-            return -1;
-
-        return 100 + 10 * tierDifference;
-    }
-
-    /**
      * @return the power multiplier provided by the rotor holder
      */
-    default int getHolderPowerMultiplier() {
-        int tierDifference = getTierDifference();
-        if (tierDifference == -1) return -1;
-
-        return (int) Math.pow(2, getTierDifference());
+    default float getHolderPowerMultiplier() {
+        return (float) Math.pow(2, getTierDifference());
     }
 
     /**
@@ -171,11 +157,9 @@ public interface IRotorHolderMachine extends IMultiPart {
         if (rotorEfficiency == -1)
             return -1;
 
-        int holderEfficiency = getHolderEfficiency();
-        if (holderEfficiency == -1)
-            return -1;
+        float holderEfficiency = 1 + 0.1f * getTierDifference();
 
-        return Math.max(getBaseEfficiency(), rotorEfficiency * holderEfficiency / 100);
+        return Math.max(0, (int) (rotorEfficiency * holderEfficiency));
     }
 
     /**
@@ -183,7 +167,7 @@ public interface IRotorHolderMachine extends IMultiPart {
      * @return the total power boost to output and consumption the rotor holder and rotor provide in %
      */
     default int getTotalPower() {
-        return getHolderPowerMultiplier() * getRotorPower();
+        return (int) (getHolderPowerMultiplier() * getRotorPower());
     }
 
     default boolean isRotorSpinning() {
