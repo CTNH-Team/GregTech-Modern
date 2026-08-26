@@ -94,7 +94,7 @@ public class DikeVeinGenerator extends VeinGenerator {
             for (int dX = -radius; dX <= radius; dX++) {
                 for (int dZ = -radius; dZ <= radius; dZ++) {
                     float dist = (dX * dX) + (dZ * dZ);
-                    if (dist > radius * 2) {
+                    if (dist > radius * radius) {
                         continue;
                     }
                     BlockPos pos = new BlockPos(basePos.getX() + dX, dY, basePos.getZ() + dZ);
