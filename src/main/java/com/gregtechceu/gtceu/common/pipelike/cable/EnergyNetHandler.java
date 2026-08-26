@@ -2,6 +2,7 @@ package com.gregtechceu.gtceu.common.pipelike.cable;
 
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
+import com.gregtechceu.gtceu.api.capability.IEnergyTransferHandler;
 import com.gregtechceu.gtceu.common.blockentity.CableBlockEntity;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
@@ -11,9 +12,11 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
-public class EnergyNetHandler implements IEnergyContainer {
+public class EnergyNetHandler implements IEnergyContainer, IEnergyTransferHandler {
 
     private EnergyNet net;
     private boolean transfer;
@@ -41,7 +44,19 @@ public class EnergyNetHandler implements IEnergyContainer {
 
     @Override
     public long acceptEnergyFromNetwork(Direction side, long voltage, long amperage) {
+        return acceptEnergyFromNetwork(side, voltage, amperage, Collections.emptySet());
+    }
+
+    /**
+     * Inject energy while excluding bridge endpoints that already
+     * participated in the current transfer. GTM remains unaware of the
+     * concrete bridge implementation.
+     */
+    @Override
+    public long acceptEnergyFromNetwork(Direction side, long voltage, long amperage,
+                                        Set<BlockPos> excludedDestinations) {
         if (transfer) return 0;
+        if (excludedDestinations == null) excludedDestinations = Collections.emptySet();
         if (side == null) {
             if (facing == null) return 0;
             side = facing;
@@ -49,6 +64,9 @@ public class EnergyNetHandler implements IEnergyContainer {
 
         long amperesUsed = 0L;
         for (EnergyRoutePath path : net.getNetData(cable.getPipePos())) {
+            if (excludedDestinations.contains(path.getDestinationPos())) {
+                continue;
+            }
             if (path.getMaxLoss() >= voltage) {
                 // Will lose all the energy with this path, so don't use it
                 continue;
