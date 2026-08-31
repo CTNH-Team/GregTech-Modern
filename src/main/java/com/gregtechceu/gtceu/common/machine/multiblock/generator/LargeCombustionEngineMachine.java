@@ -86,8 +86,8 @@ public class LargeCombustionEngineMachine extends RecipeElectricMultiblockMachin
 
     @Override
     public long getOverclockVoltage() {
-        if (isOxygenBoosted) return GTValues.V[tier] * 2;
-        else return GTValues.V[tier];
+        if (isOxygenBoosted) return GTValues.V[tier] * 8;
+        else return GTValues.V[tier]*4;
     }
 
     protected GTRecipe getLubricantRecipe() {
@@ -103,7 +103,7 @@ public class LargeCombustionEngineMachine extends RecipeElectricMultiblockMachin
      */
     protected double getProductionBoost() {
         if (!isOxygenBoosted) return 1;
-        return isExtreme() ? 2.0 : 1.5;
+        return isExtreme() ? 2.0 : 1.0;
     }
 
     /**

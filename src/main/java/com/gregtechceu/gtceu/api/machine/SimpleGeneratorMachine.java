@@ -41,18 +41,34 @@ public class SimpleGeneratorMachine extends RecipeTieredMachine
 
     @Getter
     private final float hazardStrengthPerOperation;
+    /**
+     * Output amperage of this generator, also used as the multiplier for its energy capacity and parallel limit.
+     */
+    @Getter
+    private final int amperage;
 
-    public SimpleGeneratorMachine(IMachineBlockEntity holder, int tier,
+    public SimpleGeneratorMachine(IMachineBlockEntity holder, int tier, int amperage,
                                   float hazardStrengthPerOperation, Int2IntFunction tankScalingFunction,
                                   Object... args) {
         super(holder, tier, tankScalingFunction, args);
         this.hazardStrengthPerOperation = hazardStrengthPerOperation;
+        this.amperage = Math.max(1, amperage);
+        // The container is built by the super constructor, before this.amperage is assigned, so overriding
+        // getMaxInputOutputAmperage() cannot be used here. Scale the emitter up once the field is available.
+        long tierVoltage = GTValues.V[tier];
+        energyContainer.resetBasicInfo(tierVoltage * 64L * this.amperage, 0L, 0L, tierVoltage, this.amperage);
         energyContainer.setSideOutputCondition(side -> !hasFrontFacing() || side == getFrontFacing());
+    }
+
+    public SimpleGeneratorMachine(IMachineBlockEntity holder, int tier,
+                                  float hazardStrengthPerOperation, Int2IntFunction tankScalingFunction,
+                                  Object... args) {
+        this(holder, tier, 1, hazardStrengthPerOperation, tankScalingFunction, args);
     }
 
     public SimpleGeneratorMachine(IMachineBlockEntity holder, int tier, Int2IntFunction tankScalingFunction,
                                   Object... args) {
-        this(holder, tier, 0.25f, tankScalingFunction, args);
+        this(holder, tier, 1, 0.25f, tankScalingFunction, args);
     }
 
     @Override
@@ -75,6 +91,17 @@ public class SimpleGeneratorMachine extends RecipeTieredMachine
     @Override
     public boolean alwaysTryModifyRecipe() {
         return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Scaled by the generator's amperage so that a multi-amp generator parallelizes fuel enough to actually
+     * saturate its output.
+     */
+    @Override
+    public long getOverclockVoltage() {
+        return super.getOverclockVoltage() * amperage;
     }
 
     /**
