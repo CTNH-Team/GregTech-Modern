@@ -36,6 +36,11 @@ public class EnergyRoutePath implements IRoutePath<IEnergyContainer> {
         this.maxLoss = maxLoss;
     }
 
+    /** Returns the block entity that owns the destination capability. */
+    public BlockPos getDestinationPos() {
+        return targetPipePos.relative(targetFacing);
+    }
+
     @Nullable
     public IEnergyContainer getHandler(Level world) {
         return GTCapabilityHelper.getEnergyContainer(world, getTargetPipePos().relative(targetFacing),

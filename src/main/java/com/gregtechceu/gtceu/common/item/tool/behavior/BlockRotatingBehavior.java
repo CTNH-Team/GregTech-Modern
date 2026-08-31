@@ -94,7 +94,7 @@ public class BlockRotatingBehavior implements IToolBehavior {
         Vec3 startVec = RayTraceHelper.getTraceOrigin(player);
         Vec3 endVec = RayTraceHelper.getTraceTarget(player, ToolHelper.getPlayerBlockReach(player), startVec);
         BlockState state = level.getBlockState(pos);
-        VoxelShape baseShape = state.getShape(level, pos);
+        VoxelShape baseShape = state.getShape(level, pos, CollisionContext.of(player));
         BlockHitResult baseTraceResult = baseShape.clip(startVec, endVec, pos);
         if (baseTraceResult != null) {
             BlockHitResult raytraceTraceShape = state.getVisualShape(level, pos, CollisionContext.of(player))
