@@ -122,6 +122,14 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     @DescSynced
     @RequireRerender
     private int paintingColor = -1;
+
+    @Getter
+    @Setter
+    @Persisted
+    @DescSynced
+    @RequireRerender
+    private MachineRenderState renderState;
+
     @Getter
     protected final List<MachineTrait> traits;
     private final List<TickableSubscription> serverTicks;
@@ -129,6 +137,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     public MetaMachine(IMachineBlockEntity holder) {
         this.holder = holder;
+        this.renderState = getDefinition().defaultRenderState();
         this.coverContainer = new MachineCoverContainer(this);
         this.traits = new ArrayList<>();
         this.serverTicks = new ArrayList<>();
@@ -700,14 +709,6 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         for (MachineTrait trait : this.getTraits()) {
             trait.updateModelData(builder);
         }
-    }
-
-    public MachineRenderState getRenderState() {
-        return this.getHolder().getRenderState();
-    }
-
-    public void setRenderState(MachineRenderState state) {
-        this.getHolder().setRenderState(state);
     }
 
     @Override

@@ -14,15 +14,11 @@ import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.misc.EnergyInfoProviderList;
 import com.gregtechceu.gtceu.api.misc.LaserContainerList;
 import com.gregtechceu.gtceu.client.model.IBlockEntityRendererBakedModel;
-import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
 import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
 import com.gregtechceu.gtceu.utils.ManagedFieldHolderMap;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.syncdata.IManaged;
-import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
-import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 import com.lowdragmc.lowdraglib.syncdata.field.FieldManagedStorage;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 import com.lowdragmc.lowdraglib.syncdata.managed.MultiManagedStorage;
@@ -62,16 +58,11 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     @Getter
     public final MetaMachine metaMachine;
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    private MachineRenderState renderState;
+
     private final long offset = GTValues.RNG.nextInt(20);
 
     public MetaMachineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState);
-        this.renderState = getDefinition().defaultRenderState();
         this.metaMachine = getDefinition().createMetaMachine(this);
 
         this.getRootStorage().attach(getSyncStorage());
@@ -104,12 +95,6 @@ public class MetaMachineBlockEntity extends BlockEntity implements IMachineBlock
             return true;
         }
         return false;
-    }
-
-    @Override
-    public void setRenderState(MachineRenderState state) {
-        this.renderState = state;
-        scheduleRenderUpdate();
     }
 
     @Override
