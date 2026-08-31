@@ -33,6 +33,7 @@ public abstract class MachineTrait implements IEnhancedManaged {
     @Getter
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
+    @Getter
     protected final MetaMachine machine;
     @Setter
     protected Predicate<@Nullable Direction> capabilityValidator;
@@ -49,10 +50,6 @@ public abstract class MachineTrait implements IEnhancedManaged {
 
     protected List<Class<?>> validMachineClasses() {
         return List.of();
-    }
-
-    public MetaMachine getMachine() {
-        return machine;
     }
 
     @Override
@@ -74,6 +71,8 @@ public abstract class MachineTrait implements IEnhancedManaged {
     public void onMachineUnload() {}
 
     public void onMachineDestroyed() {}
+
+    public void onWorkAllowedChanged(boolean isWorkAllowed) {}
 
     public void updateModelData(ModelData.Builder builder) {}
 

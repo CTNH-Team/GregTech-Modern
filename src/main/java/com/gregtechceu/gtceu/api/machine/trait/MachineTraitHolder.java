@@ -98,6 +98,14 @@ public final class MachineTraitHolder {
         return (List<T>) (List<?>) Collections.unmodifiableList(result);
     }
 
+    public <T> List<T> getTraitsByInterface(Class<T> type) {
+        return byType(type);
+    }
+
+    public List<MachineTrait> traitsByType(Class<?> type) {
+        return byType.getOrDefault(type, List.of());
+    }
+
     public <T extends MachineTrait> T first(Class<T> type) {
         List<T> result = byType(type);
         return result.isEmpty() ? null : result.get(0);

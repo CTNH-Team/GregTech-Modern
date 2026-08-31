@@ -7,10 +7,21 @@ import com.gregtechceu.gtceu.api.blockentity.ICopyable;
 import com.gregtechceu.gtceu.api.blockentity.IPaintable;
 import com.gregtechceu.gtceu.api.blockentity.ITickSubscription;
 import com.gregtechceu.gtceu.api.capability.GTCapabilityHelper;
+import com.gregtechceu.gtceu.api.capability.ICentralMonitor;
+import com.gregtechceu.gtceu.api.capability.ICleanroomReceiver;
 import com.gregtechceu.gtceu.api.capability.IControllable;
 import com.gregtechceu.gtceu.api.capability.ICoverable;
+import com.gregtechceu.gtceu.api.capability.IDataAccessMachine;
+import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
+import com.gregtechceu.gtceu.api.capability.IEnergyInfoProvider;
+import com.gregtechceu.gtceu.api.capability.ILaserContainer;
+import com.gregtechceu.gtceu.api.capability.IMonitorComponent;
 import com.gregtechceu.gtceu.api.capability.IToolable;
+import com.gregtechceu.gtceu.api.capability.ITurbineMachine;
+import com.gregtechceu.gtceu.api.capability.IWorkable;
+import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.computation.ComputationPort;
 import com.gregtechceu.gtceu.api.cover.CoverBehavior;
 import com.gregtechceu.gtceu.api.data.RotationState;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
@@ -18,12 +29,16 @@ import com.gregtechceu.gtceu.api.gui.fancy.IFancyTooltip;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.item.tool.IToolGridHighlight;
 import com.gregtechceu.gtceu.api.machine.feature.*;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTraitHolder;
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.misc.EnergyInfoProviderList;
 import com.gregtechceu.gtceu.api.misc.IOFilteredInvWrapper;
 import com.gregtechceu.gtceu.api.misc.IOFluidHandlerList;
+import com.gregtechceu.gtceu.api.misc.LaserContainerList;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
 import com.gregtechceu.gtceu.api.transfer.fluid.IFluidHandlerModifiable;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
@@ -34,6 +49,7 @@ import com.gregtechceu.gtceu.common.cover.data.ManualIOMode;
 import com.gregtechceu.gtceu.common.item.tool.behavior.ToolModeSwitchBehavior;
 import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.common.machine.owner.PlayerOwner;
+import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
 import com.gregtechceu.gtceu.utils.ManagedFieldHolderMap;
 
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
@@ -71,6 +87,10 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
@@ -555,6 +575,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return traitHolder.byType(type);
     }
 
+    public <T> List<T> getTraitsByInterface(Class<T> type) {
+        return traitHolder.getTraitsByInterface(type);
+    }
+
     public <T extends MachineTrait> T getPersistentTrait(String name) {
         return traitHolder.persistent(name);
     }
@@ -793,6 +817,92 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     // ****** Capability ********//
     //////////////////////////////////////
 
+    @SuppressWarnings("unchecked")
+    public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+        if (cap == GTCapability.CAPABILITY_COVERABLE)
+            return GTCapability.CAPABILITY_COVERABLE.orEmpty(cap, LazyOptional.of(this::getCoverContainer));
+        if (cap == GTCapability.CAPABILITY_TOOLABLE)
+            return GTCapability.CAPABILITY_TOOLABLE.orEmpty(cap, LazyOptional.of(() -> this));
+        if (cap == GTCapability.CAPABILITY_WORKABLE) {
+            IWorkable value = this instanceof IWorkable w ? w : firstInterface(IWorkable.class);
+            if (value != null) return GTCapability.CAPABILITY_WORKABLE.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_CONTROLLABLE) {
+            IControllable value = this instanceof IControllable c ? c : firstInterface(IControllable.class);
+            if (value != null) return GTCapability.CAPABILITY_CONTROLLABLE.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_RECIPE_LOGIC) {
+            RecipeLogic value = getTrait(RecipeLogic.class);
+            if (value != null) return GTCapability.CAPABILITY_RECIPE_LOGIC.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_ENERGY_CONTAINER) {
+            IEnergyContainer value = this instanceof IEnergyContainer e ? e :
+                    firstCapability(side, IEnergyContainer.class);
+            if (value != null)
+                return GTCapability.CAPABILITY_ENERGY_CONTAINER.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_ENERGY_INFO_PROVIDER) {
+            IEnergyInfoProvider value = this instanceof IEnergyInfoProvider e ? e : null;
+            if (value != null)
+                return GTCapability.CAPABILITY_ENERGY_INFO_PROVIDER.orEmpty(cap, LazyOptional.of(() -> value));
+            var values = capabilities(side, IEnergyInfoProvider.class);
+            if (!values.isEmpty()) return GTCapability.CAPABILITY_ENERGY_INFO_PROVIDER.orEmpty(cap,
+                    LazyOptional.of(() -> values.size() == 1 ? values.get(0) : new EnergyInfoProviderList(values)));
+        } else if (cap == GTCapability.CAPABILITY_CLEANROOM_RECEIVER && this instanceof ICleanroomReceiver value)
+            return GTCapability.CAPABILITY_CLEANROOM_RECEIVER.orEmpty(cap, LazyOptional.of(() -> value));
+        else if (cap == GTCapability.CAPABILITY_MAINTENANCE_MACHINE && this instanceof IMaintenanceMachine value)
+            return GTCapability.CAPABILITY_MAINTENANCE_MACHINE.orEmpty(cap, LazyOptional.of(() -> value));
+        else if (cap == GTCapability.CAPABILITY_TURBINE_MACHINE && this instanceof ITurbineMachine value)
+            return GTCapability.CAPABILITY_TURBINE_MACHINE.orEmpty(cap, LazyOptional.of(() -> value));
+        else if (cap == ForgeCapabilities.ITEM_HANDLER) {
+            var value = getItemHandlerCap(side, true);
+            if (value != null) return ForgeCapabilities.ITEM_HANDLER.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == ForgeCapabilities.FLUID_HANDLER) {
+            var value = getFluidHandlerCap(side, true);
+            if (value != null) return ForgeCapabilities.FLUID_HANDLER.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == ForgeCapabilities.ENERGY) {
+            IEnergyStorage value = this instanceof IEnergyStorage e ? e : firstCapability(side, IEnergyStorage.class);
+            if (value != null) return ForgeCapabilities.ENERGY.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_LASER) {
+            ILaserContainer value = this instanceof ILaserContainer e ? e : null;
+            if (value != null) return GTCapability.CAPABILITY_LASER.orEmpty(cap, LazyOptional.of(() -> value));
+            var values = capabilities(side, ILaserContainer.class);
+            if (!values.isEmpty()) return GTCapability.CAPABILITY_LASER.orEmpty(cap,
+                    LazyOptional.of(() -> values.size() == 1 ? values.get(0) : new LaserContainerList(values)));
+        } else if (cap == GTCapability.CAPABILITY_COMPUTATION_PORT) {
+            ComputationPort value = firstCapability(side, ComputationPort.class);
+            if (value != null)
+                return GTCapability.CAPABILITY_COMPUTATION_PORT.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_DATA_ACCESS) {
+            IDataAccessMachine value = this instanceof IDataAccessMachine d ? d :
+                    firstInterface(IDataAccessMachine.class);
+            if (value != null) return GTCapability.CAPABILITY_DATA_ACCESS.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_MONITOR_COMPONENT) {
+            IMonitorComponent value = this instanceof IMonitorComponent m ? m : firstInterface(IMonitorComponent.class);
+            if (value != null)
+                return GTCapability.CAPABILITY_MONITOR_COMPONENT.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_CENTRAL_MONITOR) {
+            ICentralMonitor value = this instanceof ICentralMonitor m ? m : firstInterface(ICentralMonitor.class);
+            if (value != null)
+                return GTCapability.CAPABILITY_CENTRAL_MONITOR.orEmpty(cap, LazyOptional.of(() -> value));
+        }
+        if (GTCEu.Mods.isAE2Loaded()) {
+            LazyOptional<?> value = AE2Compat.getGridNodeHostCapability(cap, this, side);
+            if (value.isPresent()) return (LazyOptional<T>) value;
+        }
+        return LazyOptional.empty();
+    }
+
+    private @Nullable <T> T firstCapability(@Nullable Direction side, Class<T> type) {
+        var values = capabilities(side, type);
+        return values.isEmpty() ? null : values.get(0);
+    }
+
+    private @Nullable <T> T firstInterface(Class<T> type) {
+        var values = getTraitsByInterface(type);
+        return values.isEmpty() ? null : values.get(0);
+    }
+
+    private <T> List<T> capabilities(@Nullable Direction side, Class<T> type) {
+        return traitHolder.traitsByType(type).stream().filter(t -> t.hasCapability(side)).map(type::cast).toList();
+    }
+
     public Predicate<ItemStack> getItemCapFilter(@Nullable Direction side, IO io) {
         if (side != null) {
             var cover = getCoverContainer().getCoverAtSide(side);
@@ -831,8 +941,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     @Nullable
     public IItemHandlerModifiable getItemHandlerCap(@Nullable Direction side, boolean useCoverCapability) {
-        var list = getTraits().stream()
-                .filter(IItemHandlerModifiable.class::isInstance)
+        var list = traitHolder.traitsByType(IItemHandlerModifiable.class).stream()
                 .filter(t -> t.hasCapability(side))
                 .map(IItemHandlerModifiable.class::cast)
                 .toList();
@@ -855,8 +964,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     @Nullable
     public IFluidHandlerModifiable getFluidHandlerCap(@Nullable Direction side, boolean useCoverCapability) {
-        var list = getTraits().stream()
-                .filter(IFluidHandler.class::isInstance)
+        var list = traitHolder.traitsByType(IFluidHandler.class).stream()
                 .filter(t -> t.hasCapability(side))
                 .map(IFluidHandler.class::cast)
                 .toList();
