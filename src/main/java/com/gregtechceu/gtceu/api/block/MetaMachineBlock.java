@@ -256,6 +256,7 @@ public class MetaMachineBlock extends Block implements IMachineBlock {
                     machineLife.onMachineRemoved();
                 }
                 if (machine != null) {
+                    machine.onMachineDestroyed();
                     for (Direction direction : GTUtil.DIRECTIONS) {
                         machine.getCoverContainer().removeCover(direction, null);
                     }

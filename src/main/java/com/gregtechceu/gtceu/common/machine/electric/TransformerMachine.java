@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.common.machine.electric;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.IControllable;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
@@ -43,8 +44,8 @@ public class TransformerMachine extends TieredEnergyMachine implements IControll
     @Getter
     private final int baseAmp;
 
-    public TransformerMachine(IMachineBlockEntity holder, int tier, int baseAmp, Object... args) {
-        super(holder, tier, baseAmp, args);
+    public TransformerMachine(IMachineBlockEntity holder, int tier, int baseAmp) {
+        super(holder, tier, machine -> createEnergyContainer(machine, tier, baseAmp));
         this.isWorkingEnabled = true;
         this.baseAmp = baseAmp;
     }
@@ -57,16 +58,16 @@ public class TransformerMachine extends TieredEnergyMachine implements IControll
         updateEnergyContainer(newValue);
     }
 
-    @Override
-    protected NotifiableEnergyContainer createEnergyContainer(Object... args) {
-        var amp = (args.length > 0 && args[0] instanceof Integer a) ? a : 1;
+    private static NotifiableEnergyContainer createEnergyContainer(MetaMachine machine,
+                                                                   int tier, int amp) {
         NotifiableEnergyContainer energyContainer;
-        long tierVoltage = GTValues.V[getTier()];
-        // Since this.baseAmp is not yet initialized, we substitute with 1A as default
-        energyContainer = new NotifiableEnergyContainer(this, tierVoltage * 8L, tierVoltage * 4, amp, tierVoltage,
+        long tierVoltage = GTValues.V[tier];
+        energyContainer = new NotifiableEnergyContainer(machine, tierVoltage * 8L, tierVoltage * 4, amp, tierVoltage,
                 4L * amp);
-        energyContainer.setSideInputCondition(s -> s == getFrontFacing() && isWorkingEnabled());
-        energyContainer.setSideOutputCondition(s -> s != getFrontFacing() && isWorkingEnabled());
+        energyContainer.setSideInputCondition(
+                s -> s == machine.getFrontFacing() && ((TransformerMachine) machine).isWorkingEnabled());
+        energyContainer.setSideOutputCondition(
+                s -> s != machine.getFrontFacing() && ((TransformerMachine) machine).isWorkingEnabled());
         return energyContainer;
     }
 

@@ -69,17 +69,14 @@ public class WorldAcceleratorMachine extends WorkableTieredMachine {
     @DescSynced
     private boolean isRandomTickMode = true;
 
-    public WorldAcceleratorMachine(IMachineBlockEntity holder, int tier, Object... args) {
-        super(holder, tier, args);
+    public WorldAcceleratorMachine(IMachineBlockEntity holder, int tier) {
+        super(holder, tier, machine -> {
+            long voltage = GTValues.V[tier];
+            return new NotifiableEnergyContainer(machine, voltage * 256L, voltage, 8, 0L, 0L);
+        });
         this.speed = (int) Math.pow(2, tier);
         this.successLimit = SUCCESS_LIMITS[tier - 1];
         this.randRange = (getTier() << 1) + 1;
-    }
-
-    @Override
-    protected @NotNull NotifiableEnergyContainer createEnergyContainer(Object @NotNull... args) {
-        long tierVoltage = GTValues.V[getTier()];
-        return new NotifiableEnergyContainer(this, tierVoltage * 256L, tierVoltage, 8, 0L, 0L);
     }
 
     @Override

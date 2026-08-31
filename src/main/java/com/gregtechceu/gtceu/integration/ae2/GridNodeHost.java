@@ -76,7 +76,7 @@ public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
     }
 
     @Override
-    public void onMachineUnLoad() {
+    public void onMachineUnload() {
         mainNode.destroy();
     }
 

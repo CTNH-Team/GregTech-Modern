@@ -21,6 +21,7 @@ import com.gregtechceu.gtceu.api.machine.feature.*;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
+import com.gregtechceu.gtceu.api.machine.trait.MachineTraitHolder;
 import com.gregtechceu.gtceu.api.misc.IOFilteredInvWrapper;
 import com.gregtechceu.gtceu.api.misc.IOFluidHandlerList;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
@@ -131,7 +132,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     private MachineRenderState renderState;
 
     @Getter
-    protected final List<MachineTrait> traits;
+    protected final MachineTraitHolder traitHolder;
     private final List<TickableSubscription> serverTicks;
     private final List<TickableSubscription> waitingToAdd;
 
@@ -139,7 +140,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         this.holder = holder;
         this.renderState = getDefinition().defaultRenderState();
         this.coverContainer = new MachineCoverContainer(this);
-        this.traits = new ArrayList<>();
+        this.traitHolder = new MachineTraitHolder(this);
         this.serverTicks = new ArrayList<>();
         this.waitingToAdd = new ArrayList<>();
         // bind sync storage
@@ -227,7 +228,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     }
 
     public void onUnload() {
-        traits.forEach(MachineTrait::onMachineUnLoad);
+        traitHolder.all().forEach(MachineTrait::onMachineUnload);
         coverContainer.onUnload();
         for (TickableSubscription serverTick : serverTicks) {
             serverTick.unsubscribe();
@@ -236,7 +237,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     }
 
     public void onLoad() {
-        traits.forEach(MachineTrait::onMachineLoad);
+        traitHolder.seal();
+        traitHolder.all().forEach(MachineTrait::onMachineLoad);
         coverContainer.onLoad();
 
         // update the painted model property if the machine is painted
@@ -247,6 +249,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         }
     }
 
+    public void onMachineDestroyed() {
+        traitHolder.all().forEach(MachineTrait::onMachineDestroyed);
+    }
+
     /**
      * Use for data not able to be saved with the SyncData system, like optional mod compatiblity in internal machines.
      * 
@@ -254,13 +260,15 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
      * @param forDrop if the save is done for dropping the machine as an item.
      */
     public void saveCustomPersistedData(@NotNull CompoundTag tag, boolean forDrop) {
-        for (MachineTrait trait : this.getTraits()) {
+        traitHolder.savePersistentData(tag, forDrop);
+        for (MachineTrait trait : traitHolder.all()) {
             trait.saveCustomPersistedData(tag, forDrop);
         }
     }
 
     public void loadCustomPersistedData(@NotNull CompoundTag tag) {
-        for (MachineTrait trait : this.getTraits()) {
+        traitHolder.loadPersistentData(tag);
+        for (MachineTrait trait : traitHolder.all()) {
             trait.loadCustomPersistedData(tag);
         }
     }
@@ -511,8 +519,44 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     /**
      * All traits should be initialized while MetaMachine is creating. you cannot add them on the fly.
      */
-    public void attachTraits(MachineTrait trait) {
-        traits.add(trait);
+    public <T extends MachineTrait> T attachTrait(T trait) {
+        return traitHolder.attach(trait);
+    }
+
+    public void attachPersistentTrait(String name, MachineTrait trait) {
+        traitHolder.attachPersistent(name, trait);
+    }
+
+    public void attachPersistentTrait(String name, MachineTrait trait, int priority) {
+        traitHolder.attachPersistent(name, trait, priority);
+    }
+
+    public List<MachineTrait> getAllTraits() {
+        return traitHolder.all();
+    }
+
+    public List<MachineTrait> getTraits() {
+        return getAllTraits();
+    }
+
+    public <T extends MachineTrait> T getTrait(Class<T> type) {
+        return traitHolder.first(type);
+    }
+
+    public <T extends MachineTrait> Optional<T> getTraitOptional(Class<T> type) {
+        return Optional.ofNullable(getTrait(type));
+    }
+
+    public <T extends MachineTrait> T getTraitOrThrow(Class<T> type) {
+        return Optional.ofNullable(getTrait(type)).orElseThrow(() -> new NoSuchElementException(type.getName()));
+    }
+
+    public <T extends MachineTrait> List<T> getTraits(Class<T> type) {
+        return traitHolder.byType(type);
+    }
+
+    public <T extends MachineTrait> T getPersistentTrait(String name) {
+        return traitHolder.persistent(name);
     }
 
     public void clearInventory(IItemHandlerModifiable inventory) {

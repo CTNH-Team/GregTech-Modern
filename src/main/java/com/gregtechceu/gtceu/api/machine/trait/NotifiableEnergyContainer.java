@@ -100,8 +100,8 @@ public class NotifiableEnergyContainer extends NotifiableRecipeHandlerTrait<Long
     }
 
     @Override
-    public void onMachineUnLoad() {
-        super.onMachineUnLoad();
+    public void onMachineUnload() {
+        super.onMachineUnload();
         if (updateSubs != null) {
             updateSubs.unsubscribe();
             updateSubs = null;

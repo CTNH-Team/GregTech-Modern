@@ -66,7 +66,7 @@ public class ComputationPortTrait extends MachineTrait implements ComputationPor
     }
 
     @Override
-    public void onMachineUnLoad() {
+    public void onMachineUnload() {
         if (machine.getLevel() instanceof ServerLevel serverLevel) {
             ComputationNetworkManager.get(serverLevel).unregisterPort(this);
         }

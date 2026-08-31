@@ -17,6 +17,7 @@ import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -32,15 +33,26 @@ public abstract class MachineTrait implements IEnhancedManaged {
     @Getter
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
-    @Getter
     protected final MetaMachine machine;
     @Setter
     protected Predicate<@Nullable Direction> capabilityValidator;
 
-    public MachineTrait(MetaMachine machine) {
+    @Getter
+    @Setter
+    private int traitPriority = 1;
+
+    protected MachineTrait(MetaMachine machine) {
         this.machine = machine;
         this.capabilityValidator = side -> true;
-        machine.attachTraits(this);
+        machine.attachTrait(this);
+    }
+
+    protected List<Class<?>> validMachineClasses() {
+        return List.of();
+    }
+
+    public MetaMachine getMachine() {
+        return machine;
     }
 
     @Override
@@ -59,7 +71,9 @@ public abstract class MachineTrait implements IEnhancedManaged {
 
     public void onMachineLoad() {}
 
-    public void onMachineUnLoad() {}
+    public void onMachineUnload() {}
+
+    public void onMachineDestroyed() {}
 
     public void updateModelData(ModelData.Builder builder) {}
 

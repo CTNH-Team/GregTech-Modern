@@ -23,7 +23,7 @@ public abstract class NotifiableRecipeHandlerTrait<T> extends MachineTrait imple
     @Setter
     protected boolean isDistinct;
 
-    public NotifiableRecipeHandlerTrait(MetaMachine machine) {
+    protected NotifiableRecipeHandlerTrait(MetaMachine machine) {
         super(machine);
     }
 

@@ -19,6 +19,8 @@ import net.minecraft.util.Mth;
 
 import lombok.Getter;
 
+import java.util.function.Function;
+
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
@@ -33,10 +35,15 @@ public class TieredEnergyMachine extends MetaMachine implements ITieredMachine, 
     public final NotifiableEnergyContainer energyContainer;
     protected TickableSubscription explosionSub;
 
-    public TieredEnergyMachine(IMachineBlockEntity holder, int tier, Object... args) {
+    public TieredEnergyMachine(IMachineBlockEntity holder, int tier,
+                               Function<MetaMachine, NotifiableEnergyContainer> energyContainerFactory) {
         super(holder);
         this.tier = tier;
-        energyContainer = createEnergyContainer(args);
+        this.energyContainer = attachTrait(energyContainerFactory.apply(this));
+    }
+
+    public TieredEnergyMachine(IMachineBlockEntity holder, int tier, Object... args) {
+        this(holder, tier, machine -> ((TieredEnergyMachine) machine).createEnergyContainer(args));
     }
 
     //////////////////////////////////////
