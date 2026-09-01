@@ -336,9 +336,6 @@ public class RecipeLogic extends WorkLogic {
         }
     }
 
-    // Remains for legacy + for subclasses
-    public void inValid() {}
-
     //////////////////////////////////////
     // ******** MISC *********//
     //////////////////////////////////////

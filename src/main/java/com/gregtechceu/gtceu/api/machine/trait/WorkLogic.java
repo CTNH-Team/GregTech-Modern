@@ -7,6 +7,7 @@ import com.gregtechceu.gtceu.api.machine.feature.IWorkLogicMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
+import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
@@ -20,10 +21,11 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class WorkLogic extends MachineTrait implements IFancyTooltip {
+public class WorkLogic extends MachineTrait implements IFancyTooltip, IMultiblockMachineTrait {
 
     public enum Status implements StringRepresentable {
 
@@ -62,6 +64,9 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip {
     protected Component waitingReason = null;
 
     protected TickableSubscription subscription;
+
+    @Getter
+    protected final List<ISubscription> traitSubscriptions = new ArrayList<>();
 
     public WorkLogic(IWorkLogicMachine machine) {
         super(machine.self());
@@ -179,5 +184,43 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip {
     @Override
     public boolean showFancyTooltip() {
         return waitingReason != null;
+    }
+
+    public void addNotifier(Notifier notifier) {
+        traitSubscriptions.add(notifier.addListener(this::updateTickSubscription));
+    }
+
+    @Override
+    public void onMachineUnload() {
+        super.onMachineUnload();
+        traitSubscriptions.forEach(ISubscription::unsubscribe);
+        traitSubscriptions.clear();
+    }
+
+    @Override
+    public void onStructureFormed() {
+        IMultiblockMachineTrait.super.onStructureFormed();
+        traitSubscriptions.forEach(ISubscription::unsubscribe);
+        traitSubscriptions.clear();
+    }
+
+    @Override
+    public void onStructureInvalid() {
+        IMultiblockMachineTrait.super.onStructureInvalid();
+        traitSubscriptions.forEach(ISubscription::unsubscribe);
+        traitSubscriptions.clear();
+    }
+
+    @Override
+    public void onPartUnload() {
+        IMultiblockMachineTrait.super.onPartUnload();
+        traitSubscriptions.forEach(ISubscription::unsubscribe);
+        traitSubscriptions.clear();
+    }
+
+    @FunctionalInterface
+    public interface Notifier {
+
+        ISubscription addListener(Runnable runnable);
     }
 }

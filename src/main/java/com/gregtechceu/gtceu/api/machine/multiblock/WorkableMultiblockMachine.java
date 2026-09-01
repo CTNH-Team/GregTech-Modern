@@ -10,7 +10,6 @@ import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
 
-import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
@@ -25,9 +24,6 @@ import it.unimi.dsi.fastutil.longs.LongSets;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -49,12 +45,10 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     @Nullable
     @Getter
     protected LongSet activeBlocks;
-    protected final List<ISubscription> traitSubscriptions;
 
     public WorkableMultiblockMachine(IMachineBlockEntity holder, Object... args) {
         super(holder);
         this.workLogic = attachTrait(createWorkLogic(args));
-        this.traitSubscriptions = new ArrayList<>();
     }
 
     //////////////////////////////////////
@@ -64,8 +58,6 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     @Override
     public void onUnload() {
         super.onUnload();
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
     }
 
     protected WorkLogic createWorkLogic(Object... args) {
@@ -78,8 +70,6 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
         activeBlocks = getMultiblockState().getMatchContext().getOrDefault("vaBlocks", LongSets.emptySet());
         workLogic.updateTickSubscription();
     }
@@ -91,8 +81,6 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         super.onStructureInvalid();
         updateActiveBlocks(false);
         activeBlocks = null;
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
         workLogic.updateTickSubscription();
     }
 
@@ -101,8 +89,6 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
         super.onPartUnload();
         updateActiveBlocks(false);
         activeBlocks = null;
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
         workLogic.updateTickSubscription();
     }
 

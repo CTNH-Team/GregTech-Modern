@@ -647,7 +647,7 @@ public class GTMultiMachines {
                     .rotationState(RotationState.ALL)
                     .langValue("Fusion Reactor Computer MK %s".formatted(toRomanNumeral(tier - 5)))
                     .recipeType(GTRecipeTypes.FUSION_RECIPES)
-                    .recipeModifiers(DEFAULT_ENVIRONMENT_REQUIREMENT,
+                    .recipeModifiers(DEFAULT_ENVIRONMENT_REQUIREMENT, TIER_CHECK,
                             FusionReactorMachine::recipeModifier, BATCH_MODE)
                     .tooltips(
                             Component.translatable("gtceu.machine.fusion_reactor.capacity",

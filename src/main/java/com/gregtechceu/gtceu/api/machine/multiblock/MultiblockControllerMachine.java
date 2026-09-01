@@ -10,6 +10,7 @@ import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
+import com.gregtechceu.gtceu.api.machine.trait.IMultiblockMachineTrait;
 import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 import com.gregtechceu.gtceu.api.pattern.MultiblockWorldSavedData;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
@@ -186,6 +187,7 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
             }
             part.addedToController(this);
         }
+        getTraits(IMultiblockMachineTrait.class).forEach(IMultiblockMachineTrait::onStructureFormed);
     }
 
     @Override
@@ -202,6 +204,7 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
         parallelHatch = null;
         parts.clear();
         updatePartPositions();
+        getTraits(IMultiblockMachineTrait.class).forEach(IMultiblockMachineTrait::onStructureInvalid);
     }
 
     /**
@@ -218,6 +221,7 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
             MultiblockWorldSavedData.getOrCreate(serverLevel).addAsyncLogic(this);
         }
         updatePartPositions();
+        getTraits(IMultiblockMachineTrait.class).forEach(IMultiblockMachineTrait::onPartUnload);
     }
 
     @Override

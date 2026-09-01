@@ -9,10 +9,10 @@ import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.feature.IUIMachine;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IFluidRenderMulti;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
+import com.gregtechceu.gtceu.common.machine.trait.multiblock.MultiblockFluidRendererTrait;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
@@ -20,8 +20,6 @@ import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.ProgressWidget;
-import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
@@ -36,30 +34,22 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine implements IUIMachine, IFluidRenderMulti {
+public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine implements IUIMachine {
 
     private TickableSubscription hurtSubscription;
 
-    @Getter
-    @Setter
-    @DescSynced
-    @RequireRerender
-    private @NotNull Set<BlockPos> fluidBlockOffsets = new HashSet<>();
-
     public PrimitiveBlastFurnaceMachine(IMachineBlockEntity holder, Object... args) {
         super(holder, args);
+        attachTrait(new MultiblockFluidRendererTrait(this, this::saveOffsets));
     }
 
     @Override
@@ -82,18 +72,6 @@ public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine imple
     }
 
     @Override
-    public void onStructureFormed() {
-        super.onStructureFormed();
-        IFluidRenderMulti.super.onStructureFormed();
-    }
-
-    @Override
-    public void onStructureInvalid() {
-        super.onStructureInvalid();
-        IFluidRenderMulti.super.onStructureInvalid();
-    }
-
-    @Override
     public void notifyWorkStatusChanged(WorkLogic.Status oldStatus, WorkLogic.Status newStatus) {
         super.notifyWorkStatusChanged(oldStatus, newStatus);
         if (newStatus == WorkLogic.Status.WORKING) {
@@ -104,7 +82,6 @@ public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine imple
         }
     }
 
-    @Override
     public @NotNull Set<BlockPos> saveOffsets() {
         return Collections.singleton(new BlockPos(getFrontFacing().getOpposite().getNormal()));
     }

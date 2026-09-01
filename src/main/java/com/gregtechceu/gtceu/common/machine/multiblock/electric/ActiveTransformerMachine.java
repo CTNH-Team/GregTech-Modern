@@ -83,8 +83,7 @@ public class ActiveTransformerMachine extends WorkableMultiblockMachine
                                 powerOutput.add(c);
                             }
                         });
-                traitSubscriptions
-                        .add(handlerList.subscribe(getWorkLogic()::updateTickSubscription, EURecipeCapability.CAP));
+                workLogic.addNotifier(handlerList::subscribe);
             }
         }
 

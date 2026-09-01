@@ -1,19 +1,14 @@
 package com.gregtechceu.gtceu.common.machine.multiblock.electric.gcym;
 
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IFluidRenderMulti;
 import com.gregtechceu.gtceu.api.machine.multiblock.RecipeElectricMultiblockMachine;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
-
-import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
+import com.gregtechceu.gtceu.common.machine.trait.multiblock.MultiblockFluidRendererTrait;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
@@ -23,31 +18,13 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class LargeMixerMachine extends RecipeElectricMultiblockMachine implements IFluidRenderMulti {
-
-    @Getter
-    @Setter
-    @DescSynced
-    @RequireRerender
-    private @NotNull Set<BlockPos> fluidBlockOffsets = new HashSet<>();
+public class LargeMixerMachine extends RecipeElectricMultiblockMachine {
 
     public LargeMixerMachine(IMachineBlockEntity holder, Object... args) {
         super(holder, args);
+        attachTrait(new MultiblockFluidRendererTrait(this, this::saveOffsets));
     }
 
-    @Override
-    public void onStructureFormed() {
-        super.onStructureFormed();
-        IFluidRenderMulti.super.onStructureFormed();
-    }
-
-    @Override
-    public void onStructureInvalid() {
-        super.onStructureInvalid();
-        IFluidRenderMulti.super.onStructureInvalid();
-    }
-
-    @Override
     public @NotNull Set<BlockPos> saveOffsets() {
         Direction up = RelativeDirection.UP.getRelative(getFrontFacing(), getUpwardsFacing(), isFlipped());
         Direction back = getFrontFacing().getOpposite();

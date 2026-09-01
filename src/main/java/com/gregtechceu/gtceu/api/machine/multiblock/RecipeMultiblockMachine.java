@@ -75,7 +75,6 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
     @Override
     public void onUnload() {
         super.onUnload();
-        recipeLogic.inValid();
     }
 
     @Override
@@ -86,7 +85,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
 
         for (IMultiPart part : getParts()) {
             var handlerLists = part.getRecipeHandlers();
-            handlerLists.forEach(h -> traitSubscriptions.add(h.subscribe(recipeLogic::updateTickSubscription)));
+            handlerLists.forEach(h -> recipeLogic.addNotifier(h::subscribe));
             recipeHandlerLists.addAll(handlerLists);
         }
 
@@ -98,7 +97,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
         }
         var selfHandlerList = RecipeHandlerList.of(list);
         recipeHandlerLists.add(selfHandlerList);
-        traitSubscriptions.add(selfHandlerList.subscribe(recipeLogic::updateTickSubscription));
+        recipeLogic.addNotifier(selfHandlerList::subscribe);
     }
 
     @Override

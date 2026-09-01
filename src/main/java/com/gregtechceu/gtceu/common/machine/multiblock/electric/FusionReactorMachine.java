@@ -71,7 +71,7 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
     @Persisted
     protected long heat = 0;
     @Persisted
-    protected final NotifiableEnergyContainer energyContainer;
+    protected final NotifiableEnergyContainer innerEnergyContainer;
     @Getter
     @DescSynced
     private Integer color = -1;
@@ -81,7 +81,7 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
     public FusionReactorMachine(IMachineBlockEntity holder, int tier) {
         super(holder);
         this.tier = tier;
-        this.energyContainer = attachTrait(createEnergyContainer());
+        this.innerEnergyContainer = attachTrait(createEnergyContainer());
     }
 
     //////////////////////////////////////
@@ -119,11 +119,13 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
                         .map(IEnergyContainer.class::cast)
                         .forEach(energyContainers::add);
 
-                traitSubscriptions.add(handlerList.subscribe(this::updatePreHeatSubscription, EURecipeCapability.CAP));
+                recipeLogic.getTraitSubscriptions()
+                        .add(handlerList.subscribe(this::updatePreHeatSubscription, EURecipeCapability.CAP));
             }
         }
         this.inputEnergyContainers = new EnergyContainerList(energyContainers);
-        energyContainer.resetBasicInfo(calculateEnergyStorageFactor(getTier(), energyContainers.size()), 0, 0, 0, 0);
+        innerEnergyContainer.resetBasicInfo(calculateEnergyStorageFactor(getTier(), energyContainers.size()), 0, 0, 0,
+                0);
         updatePreHeatSubscription();
     }
 
@@ -132,8 +134,8 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
         super.onStructureInvalid();
         this.inputEnergyContainers = null;
         heat = 0;
-        energyContainer.resetBasicInfo(0, 0, 0, 0, 0);
-        energyContainer.setEnergyStored(0);
+        innerEnergyContainer.resetBasicInfo(0, 0, 0, 0, 0);
+        innerEnergyContainer.setEnergyStored(0);
         updatePreHeatSubscription();
     }
 
@@ -143,7 +145,7 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
     protected void updatePreHeatSubscription() {
         // do preheat logic for heat cool down and charge internal energy container
         if (heat > 0 || (inputEnergyContainers != null && inputEnergyContainers.getEnergyStored() > 0 &&
-                energyContainer.getEnergyStored() < energyContainer.getEnergyCapacity())) {
+                innerEnergyContainer.getEnergyStored() < innerEnergyContainer.getEnergyCapacity())) {
             preHeatSubs = subscribeServerTick(preHeatSubs, this::updateHeat);
         } else if (preHeatSubs != null) {
             preHeatSubs.unsubscribe();
@@ -170,9 +172,8 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
         if (!(machine instanceof FusionReactorMachine fusionReactorMachine)) {
             return RecipeModifier.nullWrongType(FusionReactorMachine.class, machine);
         }
-        if (recipe.tier > fusionReactorMachine.getTier() ||
-                !recipe.data.contains("eu_to_start") ||
-                recipe.data.getLong("eu_to_start") > fusionReactorMachine.energyContainer.getEnergyCapacity()) {
+        if (!recipe.data.contains("eu_to_start") ||
+                recipe.data.getLong("eu_to_start") > fusionReactorMachine.innerEnergyContainer.getEnergyCapacity()) {
             return Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion");
         }
 
@@ -183,11 +184,11 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
             return FUSION_OC.getModifier(machine, group, recipe, GTValues.V[fusionReactorMachine.tier], false);
         }
         // if the remaining energy needed is more than stored, do not run
-        if (fusionReactorMachine.energyContainer.getEnergyStored() < heatDiff)
+        if (fusionReactorMachine.innerEnergyContainer.getEnergyStored() < heatDiff)
             return Component.translatable("gtceu.recipe_modifier.insufficient_eu_to_start_fusion");
 
         // remove the energy needed
-        fusionReactorMachine.energyContainer.removeEnergy(heatDiff);
+        fusionReactorMachine.innerEnergyContainer.removeEnergy(heatDiff);
         // increase the stored heat
         fusionReactorMachine.heat += heatDiff;
         fusionReactorMachine.updatePreHeatSubscription();
@@ -205,10 +206,10 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
                 recipeLogic.setWaiting(Component.translatable("gtceu.recipe_logic.insufficient_fuel"));
 
                 // if the remaining energy needed is more than stored, do not run
-                if (this.energyContainer.getEnergyStored() < heatDiff)
+                if (this.innerEnergyContainer.getEnergyStored() < heatDiff)
                     return super.onWorking();
                 // remove the energy needed
-                this.energyContainer.removeEnergy(heatDiff);
+                this.innerEnergyContainer.removeEnergy(heatDiff);
                 // increase the stored heat
                 this.heat += heatDiff;
                 this.updatePreHeatSubscription();
@@ -238,9 +239,9 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
             heat = heat <= 10000 ? 0 : (heat - 10000);
         }
         // charge the internal energy storage
-        var leftStorage = energyContainer.getEnergyCapacity() - energyContainer.getEnergyStored();
+        var leftStorage = innerEnergyContainer.getEnergyCapacity() - innerEnergyContainer.getEnergyStored();
         if (inputEnergyContainers != null && leftStorage > 0) {
-            energyContainer.addEnergy(inputEnergyContainers.removeEnergy(leftStorage));
+            innerEnergyContainer.addEnergy(inputEnergyContainers.removeEnergy(leftStorage));
         }
         updatePreHeatSubscription();
     }
@@ -265,7 +266,7 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
         super.addDisplayText(textList);
         if (isFormed()) {
             textList.add(Component.translatable("gtceu.multiblock.fusion_reactor.energy",
-                    this.energyContainer.getEnergyStored(), this.energyContainer.getEnergyCapacity()));
+                    this.innerEnergyContainer.getEnergyStored(), this.innerEnergyContainer.getEnergyCapacity()));
             textList.add(Component.translatable("gtceu.multiblock.fusion_reactor.heat", heat));
         }
     }

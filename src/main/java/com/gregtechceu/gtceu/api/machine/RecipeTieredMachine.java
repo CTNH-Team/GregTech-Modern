@@ -8,7 +8,6 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerList;
 import com.gregtechceu.gtceu.api.transfer.item.LargeStackItemHandler;
 
-import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
@@ -52,7 +51,6 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
     @Persisted
     @Getter
     protected int overclockTier;
-    protected final List<ISubscription> traitSubscriptions;
     @Persisted
     @DescSynced
     @Getter
@@ -70,7 +68,6 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
         this.tankScalingFunction = tankScalingFunction;
         attachTrait(new CleanroomReceiverTrait(this));
 
-        this.traitSubscriptions = new ArrayList<>();
         this.importItems = attachTrait(createImportItemHandler(args));
         this.exportItems = attachTrait(createExportItemHandler(args));
         this.importFluids = attachTrait(createImportFluidHandler(args));
@@ -137,16 +134,13 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
             }
         }
         recipeHandlerList = RecipeHandlerList.of(list);
-        traitSubscriptions.add(recipeHandlerList.subscribe(recipeLogic::updateTickSubscription));
+        recipeLogic.addNotifier(recipeHandlerList::subscribe);
     }
 
     @Override
     public void onUnload() {
         super.onUnload();
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
         recipeHandlerList = null;
-        recipeLogic.inValid();
     }
 
     @Override

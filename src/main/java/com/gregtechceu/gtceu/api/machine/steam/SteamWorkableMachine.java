@@ -104,7 +104,6 @@ public abstract class SteamWorkableMachine extends SteamMachine
         super.onUnload();
         traitSubscriptions.forEach(ISubscription::unsubscribe);
         traitSubscriptions.clear();
-        recipeLogic.inValid();
         recipeHandlerList = null;
     }
 

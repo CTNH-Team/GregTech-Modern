@@ -15,6 +15,7 @@ public class EnergyContainerList {
 
     private static final boolean ALLOW_VOLTAGE_BOOST = true;
 
+    @Getter
     private final IEnergyContainer[] energyContainers;
 
     @Getter
