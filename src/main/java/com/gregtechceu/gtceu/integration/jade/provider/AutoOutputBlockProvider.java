@@ -2,8 +2,7 @@ package com.gregtechceu.gtceu.integration.jade.provider;
 
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputItem;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -44,14 +43,18 @@ public class AutoOutputBlockProvider implements IBlockComponentProvider, IServer
         CompoundTag data = compoundTag.getCompound(getUid().toString());
         var level = blockAccessor.getLevel();
         var pos = blockAccessor.getPosition();
-        if (MetaMachine.getMachine(level, pos) instanceof IAutoOutputItem outputItem) {
+        AutoOutputTrait autoOutput = MetaMachine.getMachine(level, pos) == null ? null :
+                MetaMachine.getMachine(level, pos).getAutoOutputTrait();
+        if (autoOutput != null && autoOutput.hasAutoOutputItem()) {
+            var outputItem = autoOutput;
             var direction = outputItem.getOutputFacingItems();
             if (direction != null) {
                 data.put("autoOutputItem", writeData(new CompoundTag(), direction, blockAccessor,
                         outputItem.isAllowInputFromOutputSideItems(), outputItem.isAutoOutputItems()));
             }
         }
-        if (MetaMachine.getMachine(level, pos) instanceof IAutoOutputFluid outputFluid) {
+        if (autoOutput != null && autoOutput.hasAutoOutputFluid()) {
+            var outputFluid = autoOutput;
             var direction = outputFluid.getOutputFacingFluids();
             if (direction != null) {
                 data.put("autoOutputFluid", writeData(new CompoundTag(), direction, blockAccessor,

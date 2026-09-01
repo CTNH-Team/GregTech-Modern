@@ -11,11 +11,10 @@ import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfigurator;
 import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfiguratorButton;
 import com.gregtechceu.gtceu.api.gui.widget.GhostCircuitSlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
-import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CircuitFancyConfigurator;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputBoth;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.ui.GTRecipeTypeUI;
@@ -23,7 +22,6 @@ import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
-import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
@@ -33,26 +31,17 @@ import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 import com.lowdragmc.lowdraglib.utils.Position;
 
 import net.minecraft.Util;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.TickTask;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 
 import com.google.common.collect.Tables;
 import com.mojang.blaze3d.MethodsReturnNonnullByDefault;
 import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -66,34 +55,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class SimpleTieredMachine extends RecipeTieredMachine
-                                 implements IAutoOutputBoth, IFancyUIMachine, IHasCircuitSlot {
+                                 implements IFancyUIMachine, IHasCircuitSlot {
 
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected Direction outputFacingItems;
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected Direction outputFacingFluids;
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputItems;
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputFluids;
-    @Getter
-    @Setter
-    @Persisted
-    protected boolean allowInputFromOutputSideItems;
-    @Getter
-    @Setter
-    @Persisted
-    protected boolean allowInputFromOutputSideFluids;
     @Getter
     @Persisted
     protected final CustomItemStackHandler chargerInventory;
@@ -102,17 +65,19 @@ public class SimpleTieredMachine extends RecipeTieredMachine
     @DescSynced
     protected final NotifiableItemStackHandler circuitInventory;
     @Nullable
-    protected TickableSubscription autoOutputSubs, batterySubs;
+    protected TickableSubscription batterySubs;
     @Nullable
-    protected ISubscription exportItemSubs, exportFluidSubs, energySubs;
+    protected ISubscription energySubs;
+    @Getter
+    protected final AutoOutputTrait autoOutputTrait;
 
     public SimpleTieredMachine(IMachineBlockEntity holder, int tier, Int2IntFunction tankScalingFunction,
                                Object... args) {
         super(holder, tier, tankScalingFunction, args);
-        this.outputFacingItems = hasFrontFacing() ? getFrontFacing().getOpposite() : Direction.UP;
-        this.outputFacingFluids = outputFacingItems;
         this.chargerInventory = createChargerItemHandler(args);
         this.circuitInventory = createCircuitItemHandler(args);
+        this.autoOutputTrait = new AutoOutputTrait(this, List.of(exportItems), List.of(exportFluids));
+        attachPersistentTrait("auto_output", autoOutputTrait);
     }
 
     //////////////////////////////////////
@@ -143,12 +108,7 @@ public class SimpleTieredMachine extends RecipeTieredMachine
     public void onLoad() {
         super.onLoad();
         if (!isRemote()) {
-            if (getLevel() instanceof ServerLevel serverLevel) {
-                serverLevel.getServer().tell(new TickTask(0, this::updateAutoOutputSubscription));
-            }
             updateBatterySubscription();
-            exportItemSubs = exportItems.addChangedListener(this::updateAutoOutputSubscription);
-            exportFluidSubs = exportFluids.addChangedListener(this::updateAutoOutputSubscription);
             energySubs = energyContainer.addChangedListener(this::updateBatterySubscription);
             chargerInventory.setOnContentsChanged(this::updateBatterySubscription);
         }
@@ -157,101 +117,9 @@ public class SimpleTieredMachine extends RecipeTieredMachine
     @Override
     public void onUnload() {
         super.onUnload();
-        if (exportItemSubs != null) {
-            exportItemSubs.unsubscribe();
-            exportItemSubs = null;
-        }
-
-        if (exportFluidSubs != null) {
-            exportFluidSubs.unsubscribe();
-            exportFluidSubs = null;
-        }
-
         if (energySubs != null) {
             energySubs.unsubscribe();
             energySubs = null;
-        }
-    }
-
-    //////////////////////////////////////
-    // ******* Auto Output *******//
-    //////////////////////////////////////
-
-    @Override
-    public boolean hasAutoOutputFluid() {
-        return exportFluids.getTanks() > 0;
-    }
-
-    @Override
-    public boolean hasAutoOutputItem() {
-        return exportItems.getSlots() > 0;
-    }
-
-    @Override
-    public @Nullable Direction getOutputFacingFluids() {
-        if (hasAutoOutputFluid()) {
-            return outputFacingFluids;
-        }
-        return null;
-    }
-
-    @Override
-    public @Nullable Direction getOutputFacingItems() {
-        if (hasAutoOutputItem()) {
-            return outputFacingItems;
-        }
-        return null;
-    }
-
-    @Override
-    public void setAutoOutputItems(boolean allow) {
-        if (hasAutoOutputItem()) {
-            this.autoOutputItems = allow;
-            updateAutoOutputSubscription();
-        }
-    }
-
-    @Override
-    public void setAutoOutputFluids(boolean allow) {
-        if (hasAutoOutputFluid()) {
-            this.autoOutputFluids = allow;
-            updateAutoOutputSubscription();
-        }
-    }
-
-    @Override
-    public void setOutputFacingFluids(@Nullable Direction outputFacing) {
-        if (hasAutoOutputFluid()) {
-            this.outputFacingFluids = outputFacing;
-            updateAutoOutputSubscription();
-        }
-    }
-
-    @Override
-    public void setOutputFacingItems(@Nullable Direction outputFacing) {
-        if (hasAutoOutputItem()) {
-            this.outputFacingItems = outputFacing;
-            updateAutoOutputSubscription();
-        }
-    }
-
-    @Override
-    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {
-        super.onNeighborChanged(block, fromPos, isMoving);
-        updateAutoOutputSubscription();
-    }
-
-    protected void updateAutoOutputSubscription() {
-        var outputFacingItems = getOutputFacingItems();
-        var outputFacingFluids = getOutputFacingFluids();
-        if ((isAutoOutputItems() && !exportItems.isEmpty() && outputFacingItems != null &&
-                GTTransferUtils.hasAdjacentItemHandler(getLevel(), getPos(), outputFacingItems)) ||
-                (isAutoOutputFluids() && !exportFluids.isEmpty() && outputFacingFluids != null &&
-                        GTTransferUtils.hasAdjacentFluidHandler(getLevel(), getPos(), outputFacingFluids))) {
-            autoOutputSubs = subscribeServerTick(autoOutputSubs, this::autoOutput);
-        } else if (autoOutputSubs != null) {
-            autoOutputSubs.unsubscribe();
-            autoOutputSubs = null;
         }
     }
 
@@ -268,26 +136,6 @@ public class SimpleTieredMachine extends RecipeTieredMachine
         if (!energyContainer.dischargeOrRechargeEnergyContainers(chargerInventory, 0, false)) {
             updateBatterySubscription();
         }
-    }
-
-    protected void autoOutput() {
-        if (getOffsetTimer() % 5 == 0) {
-            if (isAutoOutputFluids() && getOutputFacingFluids() != null) {
-                exportFluids.exportToNearby(getOutputFacingFluids());
-            }
-            if (isAutoOutputItems() && getOutputFacingItems() != null) {
-                exportItems.exportToNearby(getOutputFacingItems());
-            }
-        }
-        updateAutoOutputSubscription();
-    }
-
-    @Override
-    public boolean isFacingValid(Direction facing) {
-        if (facing == getOutputFacingItems() || facing == getOutputFacingFluids()) {
-            return false;
-        }
-        return super.isFacingValid(facing);
     }
 
     //////////////////////////////////////
@@ -317,10 +165,10 @@ public class SimpleTieredMachine extends RecipeTieredMachine
 
     @Override
     public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
-        if (hasAutoOutputFluid()) {
+        if (autoOutputTrait.hasAutoOutputFluid()) {
             left.attachConfigurators(createAutoOutputFluidConfigurator());
         }
-        if (hasAutoOutputItem()) {
+        if (autoOutputTrait.hasAutoOutputItem()) {
             left.attachConfigurators(createAutoOutputItemConfigurator());
         }
 
@@ -335,16 +183,16 @@ public class SimpleTieredMachine extends RecipeTieredMachine
         return createAutoOutputConfigurator(
                 GuiTextures.IO_CONFIG_FLUID_MODES_BUTTON,
                 "gtceu.gui.fluid_auto_output",
-                this::isAutoOutputFluids,
-                (cd, nextState) -> this.setAutoOutputFluids(nextState));
+                autoOutputTrait::isAutoOutputFluids,
+                (cd, nextState) -> autoOutputTrait.setAutoOutputFluids(nextState));
     }
 
     private IFancyConfigurator createAutoOutputItemConfigurator() {
         return createAutoOutputConfigurator(
                 GuiTextures.IO_CONFIG_ITEM_MODES_BUTTON,
                 "gtceu.gui.item_auto_output",
-                this::isAutoOutputItems,
-                (cd, nextState) -> this.setAutoOutputItems(nextState));
+                autoOutputTrait::isAutoOutputItems,
+                (cd, nextState) -> autoOutputTrait.setAutoOutputItems(nextState));
     }
 
     private IFancyConfigurator createAutoOutputConfigurator(ResourceTexture modesButtonTexture,
@@ -446,26 +294,5 @@ public class SimpleTieredMachine extends RecipeTieredMachine
     // Method provided to override
     protected IGuiTexture getCircuitSlotOverlay() {
         return GuiTextures.INT_CIRCUIT_OVERLAY;
-    }
-
-    //////////////////////////////////////
-    // ******* Rendering ********//
-    //////////////////////////////////////
-    @Override
-    public @Nullable ResourceTexture sideTips(Player player, BlockPos pos, BlockState state, Set<GTToolType> toolTypes,
-                                              Direction side) {
-        if (toolTypes.contains(GTToolType.WRENCH)) {
-            if (!player.isShiftKeyDown()) {
-                if (!hasFrontFacing() || side != getFrontFacing()) {
-                    return GuiTextures.TOOL_IO_FACING_ROTATION;
-                }
-            }
-        }
-        if (toolTypes.contains(GTToolType.SCREWDRIVER)) {
-            if (side == getOutputFacingItems() || side == getOutputFacingFluids()) {
-                return GuiTextures.TOOL_ALLOW_INPUT;
-            }
-        }
-        return super.sideTips(player, pos, state, toolTypes, side);
     }
 }

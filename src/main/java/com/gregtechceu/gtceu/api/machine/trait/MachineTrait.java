@@ -8,8 +8,10 @@ import com.lowdragmc.lowdraglib.syncdata.IEnhancedManaged;
 import com.lowdragmc.lowdraglib.syncdata.field.FieldManagedStorage;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.client.model.data.ModelData;
 
 import lombok.Getter;
@@ -71,6 +73,8 @@ public abstract class MachineTrait implements IEnhancedManaged {
     public void onMachineUnload() {}
 
     public void onMachineDestroyed() {}
+
+    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {}
 
     public void onWorkAllowedChanged(boolean isWorkAllowed) {}
 

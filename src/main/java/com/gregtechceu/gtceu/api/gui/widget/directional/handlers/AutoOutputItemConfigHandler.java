@@ -4,8 +4,7 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.fancy.FancyMachineUIWidget;
 import com.gregtechceu.gtceu.api.gui.widget.ToggleButtonWidget;
 import com.gregtechceu.gtceu.api.gui.widget.directional.IDirectionalConfigHandler;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputItem;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
 
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
@@ -39,11 +38,11 @@ public class AutoOutputItemConfigHandler implements IDirectionalConfigHandler {
             GuiTextures.VANILLA_BUTTON,
             GuiTextures.IO_CONFIG_ITEM_MODES_BUTTON.getSubTexture(0, 2 / 3f, 1, 1 / 3f));
 
-    private final IAutoOutputItem machine;
+    private final AutoOutputTrait machine;
     private Direction side;
     private ButtonWidget ioModeButton;
 
-    public AutoOutputItemConfigHandler(IAutoOutputItem machine) {
+    public AutoOutputItemConfigHandler(AutoOutputTrait machine) {
         this.machine = machine;
     }
 
@@ -125,7 +124,7 @@ public class AutoOutputItemConfigHandler implements IDirectionalConfigHandler {
         if (cd.button == 0)
             return true;
 
-        if (!(machine instanceof IAutoOutputFluid) && cd.button == 1)
+        if (!machine.getMachine().getAutoOutputTrait().hasAutoOutputFluid() && cd.button == 1)
             return true;
 
         return false;

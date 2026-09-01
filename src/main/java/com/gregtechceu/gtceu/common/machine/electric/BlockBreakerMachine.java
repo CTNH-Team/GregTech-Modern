@@ -13,15 +13,14 @@ import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.WorkableTieredMachine;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputItem;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
-import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
@@ -62,27 +61,22 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class BlockBreakerMachine extends WorkableTieredMachine
-                                 implements IAutoOutputItem, IFancyUIMachine, IMachineLife {
+                                 implements IFancyUIMachine, IMachineLife {
 
     @Getter
     @Persisted
     @DescSynced
     @RequireRerender
-    protected Direction outputFacingItems;
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputItems;
+    protected final AutoOutputTrait autoOutputTrait;
     @Persisted
     protected final NotifiableItemStackHandler cache;
     @Getter
     @Persisted
     protected final CustomItemStackHandler chargerInventory;
     @Nullable
-    protected TickableSubscription autoOutputSubs, batterySubs;
+    protected TickableSubscription batterySubs;
     @Nullable
-    protected ISubscription exportItemSubs, energySubs;
+    protected ISubscription energySubs;
     private final int inventorySize;
     @DescSynced
     private int blockBreakProgress = 0;
@@ -96,7 +90,8 @@ public class BlockBreakerMachine extends WorkableTieredMachine
         this.cache = createCacheItemHandler();
         this.chargerInventory = createChargerItemHandler();
         this.energyPerTick = GTValues.V[tier - 1];
-        setOutputFacingItems(getFrontFacing().getOpposite());
+        this.autoOutputTrait = AutoOutputTrait.ofItems(this, cache);
+        attachPersistentTrait("auto_output", autoOutputTrait);
         this.efficiencyMultiplier = 1.0f - getEfficiencyMultiplier(tier);
     }
 
@@ -132,10 +127,8 @@ public class BlockBreakerMachine extends WorkableTieredMachine
         super.onLoad();
         if (!isRemote()) {
             if (getLevel() instanceof ServerLevel serverLevel) {
-                serverLevel.getServer().tell(new TickTask(0, this::updateAutoOutputSubscription));
                 serverLevel.getServer().tell(new TickTask(0, getWorkLogic()::updateTickSubscription));
             }
-            exportItemSubs = cache.addChangedListener(this::updateAutoOutputSubscription);
             energySubs = energyContainer.addChangedListener(() -> {
                 this.updateBatterySubscription();
                 getWorkLogic().updateTickSubscription();
@@ -151,10 +144,6 @@ public class BlockBreakerMachine extends WorkableTieredMachine
             energySubs.unsubscribe();
             energySubs = null;
         }
-        if (exportItemSubs != null) {
-            exportItemSubs.unsubscribe();
-            exportItemSubs = null;
-        }
     }
 
     @Override
@@ -167,7 +156,6 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {
         super.onNeighborChanged(block, fromPos, isMoving);
         getWorkLogic().updateTickSubscription();
-        updateAutoOutputSubscription();
     }
 
     //////////////////////////////////////
@@ -201,10 +189,11 @@ public class BlockBreakerMachine extends WorkableTieredMachine
                                 for (ItemStack drop : drops) {
                                     var remainder = tryFillCache(drop);
                                     if (!remainder.isEmpty()) {
-                                        if (getOutputFacingItems() == null) {
+                                        if (autoOutputTrait.getOutputFacingItems() == null) {
                                             Block.popResource(getLevel(), getPos(), remainder);
                                         } else {
-                                            Block.popResource(getLevel(), getPos().relative(getOutputFacingItems()),
+                                            Block.popResource(getLevel(),
+                                                    getPos().relative(autoOutputTrait.getOutputFacingItems()),
                                                     remainder);
                                         }
                                     }
@@ -259,45 +248,6 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     //////////////////////////////////////
     // ******* Auto Output *******//
     //////////////////////////////////////
-    @Override
-    public void setAutoOutputItems(boolean allow) {
-        this.autoOutputItems = allow;
-        updateAutoOutputSubscription();
-    }
-
-    @Override
-    public boolean isAllowInputFromOutputSideItems() {
-        return false;
-    }
-
-    @Override
-    public void setAllowInputFromOutputSideItems(boolean allow) {}
-
-    @Override
-    public void setOutputFacingItems(@Nullable Direction outputFacing) {
-        this.outputFacingItems = outputFacing;
-        updateAutoOutputSubscription();
-    }
-
-    protected void updateAutoOutputSubscription() {
-        var outputFacing = getOutputFacingItems();
-        if ((isAutoOutputItems() && !cache.isEmpty()) && outputFacing != null &&
-                GTTransferUtils.hasAdjacentItemHandler(getLevel(), getPos(), outputFacing))
-            autoOutputSubs = subscribeServerTick(autoOutputSubs, this::checkAutoOutput);
-        else if (autoOutputSubs != null) {
-            autoOutputSubs.unsubscribe();
-            autoOutputSubs = null;
-        }
-    }
-
-    protected void checkAutoOutput() {
-        if (getOffsetTimer() % 5 == 0) {
-            if (isAutoOutputItems() && getOutputFacingItems() != null)
-                cache.exportToNearby(getOutputFacingItems());
-            updateAutoOutputSubscription();
-        }
-    }
-
     protected void updateBatterySubscription() {
         if (energyContainer.dischargeOrRechargeEnergyContainers(chargerInventory, 0, true))
             batterySubs = subscribeServerTick(batterySubs, this::chargeBattery);
@@ -315,14 +265,6 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     @Override
     public boolean shouldWeatherOrTerrainExplosion() {
         return false;
-    }
-
-    @Override
-    public boolean isFacingValid(Direction facing) {
-        if (facing == getOutputFacingItems()) {
-            return false;
-        }
-        return super.isFacingValid(facing);
     }
 
     @Override
@@ -416,18 +358,8 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     @Override
     public @Nullable ResourceTexture sideTips(Player player, BlockPos pos, BlockState state, Set<GTToolType> toolTypes,
                                               Direction side) {
-        if (toolTypes.contains(GTToolType.WRENCH)) {
-            if (!player.isShiftKeyDown()) {
-                if (!hasFrontFacing() || side != getFrontFacing()) {
-                    return GuiTextures.TOOL_IO_FACING_ROTATION;
-                }
-            }
-        } else if (toolTypes.contains(GTToolType.SOFT_MALLET)) {
+        if (toolTypes.contains(GTToolType.SOFT_MALLET)) {
             return isWorkingEnabled() ? GuiTextures.TOOL_PAUSE : GuiTextures.TOOL_START;
-        } else if (toolTypes.contains(GTToolType.SCREWDRIVER)) {
-            if (side == getOutputFacingItems()) {
-                return GuiTextures.TOOL_ALLOW_INPUT;
-            }
         }
         return super.sideTips(player, pos, state, toolTypes, side);
     }
@@ -435,30 +367,6 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     //////////////////////////////////////
     // ******* Interactions ********//
     //////////////////////////////////////
-    @Override
-    protected InteractionResult onWrenchClick(Player playerIn, InteractionHand hand, Direction gridSide,
-                                              BlockHitResult hitResult) {
-        if (!playerIn.isShiftKeyDown() && !isRemote()) {
-            var tool = playerIn.getItemInHand(hand);
-            if (tool.getDamageValue() >= tool.getMaxDamage()) return InteractionResult.PASS;
-            if (hasFrontFacing() && gridSide == getFrontFacing()) return InteractionResult.PASS;
-
-            // important not to use getters here, which have different logic
-            Direction itemFacing = this.outputFacingItems;
-
-            if (gridSide != itemFacing) {
-                // if it is a new side, move it
-                setOutputFacingItems(gridSide);
-            } else {
-                // remove the output facing when wrenching the current one to disable it
-                setOutputFacingItems(null);
-            }
-            return InteractionResult.sidedSuccess(playerIn.level().isClientSide);
-        }
-
-        return super.onWrenchClick(playerIn, hand, gridSide, hitResult);
-    }
-
     @Override
     protected InteractionResult onSoftMalletClick(Player playerIn, InteractionHand hand, Direction gridSide,
                                                   BlockHitResult hitResult) {

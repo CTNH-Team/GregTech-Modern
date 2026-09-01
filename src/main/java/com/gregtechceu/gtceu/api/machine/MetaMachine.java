@@ -32,6 +32,7 @@ import com.gregtechceu.gtceu.api.machine.feature.*;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTraitHolder;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
@@ -445,18 +446,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
             ToolModeSwitchBehavior.WrenchModeType type = ToolModeSwitchBehavior.WrenchModeType.values()[tagCompound
                     .getByte("Mode")];
 
-            if (type.isItem()) {
-                if (this instanceof IAutoOutputItem autoOutputItem &&
-                        (!hasFrontFacing() || gridSide != getFrontFacing())) {
-                    autoOutputItem.setOutputFacingItems(gridSide);
-                }
-            }
-            if (type.isFluid()) {
-                if (this instanceof IAutoOutputFluid autoOutputFluid &&
-                        (!hasFrontFacing() || gridSide != getFrontFacing())) {
-                    autoOutputFluid.setOutputFacingFluids(gridSide);
-                }
-            }
+            var autoOutput = getAutoOutputTrait();
+            if (autoOutput == null || !autoOutput.handleWrenchClick(type, gridSide)) return InteractionResult.PASS;
         }
         return InteractionResult.sidedSuccess(isRemote());
     }
@@ -475,53 +466,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide,
                                                    BlockHitResult hitResult) {
-        if (isRemote()) return InteractionResult.SUCCESS;
-        if (playerIn.isShiftKeyDown()) {
-            boolean changed = false;
-            if (this instanceof IAutoOutputItem autoOutputItem) {
-                if (autoOutputItem.getOutputFacingItems() == gridSide) {
-                    autoOutputItem.setAllowInputFromOutputSideItems(!autoOutputItem.isAllowInputFromOutputSideItems());
-                    playerIn.displayClientMessage(Component
-                            .translatable("gtceu.machine.basic.input_from_output_side." +
-                                    (autoOutputItem.isAllowInputFromOutputSideItems() ? "allow" : "disallow"))
-                            .append(Component.translatable("gtceu.creative.chest.item")), true);
-                    changed = true;
-                }
-            }
-            if (this instanceof IAutoOutputFluid autoOutputFluid) {
-                if (autoOutputFluid.getOutputFacingFluids() == gridSide) {
-                    autoOutputFluid
-                            .setAllowInputFromOutputSideFluids(!autoOutputFluid.isAllowInputFromOutputSideFluids());
-                    playerIn.displayClientMessage(Component
-                            .translatable("gtceu.machine.basic.input_from_output_side." +
-                                    (autoOutputFluid.isAllowInputFromOutputSideFluids() ? "allow" : "disallow"))
-                            .append(Component.translatable("gtceu.creative.tank.fluid")), true);
-                    changed = true;
-                }
-            }
-            if (changed) {
-                return InteractionResult.sidedSuccess(playerIn.level().isClientSide);
-            }
-        } else {
-            boolean changed = false;
-            if (this instanceof IAutoOutputItem autoOutputItem) {
-                if (autoOutputItem.getOutputFacingItems() == gridSide) {
-                    autoOutputItem.setAutoOutputItems(!autoOutputItem.isAutoOutputItems());
-                    changed = true;
-                }
-            }
-            if (this instanceof IAutoOutputFluid autoOutputFluid) {
-                if (autoOutputFluid.getOutputFacingFluids() == gridSide) {
-                    autoOutputFluid.setAutoOutputFluids(!autoOutputFluid.isAutoOutputFluids());
-                    changed = true;
-
-                }
-            }
-            if (changed) {
-                return InteractionResult.sidedSuccess(playerIn.level().isClientSide);
-            }
-        }
-        return InteractionResult.PASS;
+        var autoOutput = getAutoOutputTrait();
+        return autoOutput == null ? InteractionResult.PASS : autoOutput.handleScrewdriverClick(playerIn, gridSide);
     }
 
     //////////////////////////////////////
@@ -583,6 +529,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return traitHolder.persistent(name);
     }
 
+    public @Nullable AutoOutputTrait getAutoOutputTrait() {
+        return getTrait(AutoOutputTrait.class);
+    }
+
     public void clearInventory(IItemHandlerModifiable inventory) {
         for (int i = 0; i < inventory.getSlots(); i++) {
             ItemStack stackInSlot = inventory.getStackInSlot(i);
@@ -597,8 +547,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     public boolean shouldRenderGrid(Player player, BlockPos pos, BlockState state, ItemStack held,
                                     Set<GTToolType> toolTypes) {
         if (toolTypes.contains(GTToolType.WRENCH)) return true;
-        if (toolTypes.contains(GTToolType.SCREWDRIVER) &&
-                (this instanceof IAutoOutputItem || this instanceof IAutoOutputFluid))
+        if (toolTypes.contains(GTToolType.SCREWDRIVER) && getAutoOutputTrait() != null)
             return true;
         for (CoverBehavior cover : coverContainer.getCovers()) {
             if (cover.shouldRenderGrid(player, pos, state, held, toolTypes)) return true;
@@ -614,6 +563,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
             var tips = cover.sideTips(player, pos, state, toolTypes, side);
             if (tips != null) return tips;
         }
+
+        var autoOutputTip = getAutoOutputTrait() == null ? null :
+                getAutoOutputTrait().getSideTip(player, toolTypes, side);
+        if (autoOutputTip != null) return autoOutputTip;
 
         if (toolTypes.contains(GTToolType.WRENCH)) {
             if (!player.isShiftKeyDown()) {
@@ -679,6 +632,11 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     public boolean isFacingValid(Direction facing) {
         if (hasFrontFacing() && facing == getFrontFacing()) return false;
+        var autoOutput = getAutoOutputTrait();
+        if (autoOutput != null &&
+                (facing == autoOutput.getOutputFacingItems() || facing == autoOutput.getOutputFacingFluids())) {
+            return false;
+        }
         var coverContainer = getCoverContainer();
         if (coverContainer.hasCover(facing)) {
             // noinspection DataFlowIssue
@@ -755,6 +713,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     }
 
     public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {
+        traitHolder.all().forEach(trait -> trait.onNeighborChanged(block, fromPos, isMoving));
         coverContainer.onNeighborChanged(block, fromPos, isMoving);
     }
 
@@ -949,7 +908,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         if (list.isEmpty()) return null;
 
         var io = IO.BOTH;
-        if (side != null && this instanceof IAutoOutputItem autoOutput && autoOutput.getOutputFacingItems() == side &&
+        var autoOutput = getAutoOutputTrait();
+        if (side != null && autoOutput != null && autoOutput.getOutputFacingItems() == side &&
                 !autoOutput.isAllowInputFromOutputSideItems()) {
             io = IO.OUT;
         }
@@ -972,7 +932,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         if (list.isEmpty()) return null;
 
         var io = IO.BOTH;
-        if (side != null && this instanceof IAutoOutputFluid autoOutput && autoOutput.getOutputFacingFluids() == side &&
+        var autoOutput = getAutoOutputTrait();
+        if (side != null && autoOutput != null && autoOutput.getOutputFacingFluids() == side &&
                 !autoOutput.isAllowInputFromOutputSideFluids()) {
             io = IO.OUT;
         }

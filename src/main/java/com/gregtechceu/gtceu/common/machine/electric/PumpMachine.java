@@ -6,23 +6,19 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.UITemplate;
 import com.gregtechceu.gtceu.api.gui.widget.TankWidget;
 import com.gregtechceu.gtceu.api.gui.widget.ToggleButtonWidget;
-import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.feature.IUIMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.common.data.GTBlocks;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
-import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.gui.widget.ImageWidget;
 import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
-import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.Util;
@@ -45,7 +41,6 @@ import net.minecraftforge.fluids.capability.wrappers.BucketPickupHandlerWrapper;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -59,7 +54,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class PumpMachine extends TieredEnergyMachine implements IAutoOutputFluid, IUIMachine, IMachineLife {
+public class PumpMachine extends TieredEnergyMachine implements IUIMachine, IMachineLife {
 
     public static final int BASE_PUMP_RADIUS = 16;
     public static final int EXTRA_PUMP_RADIUS = 4;
@@ -69,19 +64,16 @@ public class PumpMachine extends TieredEnergyMachine implements IAutoOutputFluid
     @Getter
     @Persisted
     private int pumpHeadY;
-    @Getter
-    @Setter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputFluids;
     @Persisted
     @DropSaved
     protected final NotifiableFluidTank cache;
+    protected final AutoOutputTrait autoOutputTrait;
 
     public PumpMachine(IMachineBlockEntity holder, int tier, Object... args) {
         super(holder, tier);
         this.cache = createCacheFluidHandler(args);
+        this.autoOutputTrait = AutoOutputTrait.ofFluids(this, cache);
+        attachPersistentTrait("auto_output", autoOutputTrait);
     }
 
     //////////////////////////////////////
@@ -89,24 +81,6 @@ public class PumpMachine extends TieredEnergyMachine implements IAutoOutputFluid
     //////////////////////////////////////
     protected NotifiableFluidTank createCacheFluidHandler(Object... args) {
         return new NotifiableFluidTank(this, 1, 16 * FluidType.BUCKET_VOLUME * Math.max(1, getTier()), IO.NONE, IO.OUT);
-    }
-
-    @Override
-    public boolean isAllowInputFromOutputSideFluids() {
-        return false;
-    }
-
-    @Override
-    public void setAllowInputFromOutputSideFluids(boolean allow) {}
-
-    @Override
-    public Direction getOutputFacingFluids() {
-        return getFrontFacing();
-    }
-
-    @Override
-    public void setOutputFacingFluids(Direction outputFacing) {
-        setFrontFacing(outputFacing);
     }
 
     @Override
@@ -508,8 +482,8 @@ public class PumpMachine extends TieredEnergyMachine implements IAutoOutputFluid
     }
 
     public void update() {
-        if (getOutputFacingFluids() != null) {
-            cache.exportToNearby(getOutputFacingFluids());
+        if (autoOutputTrait.getOutputFacingFluids() != null) {
+            cache.exportToNearby(autoOutputTrait.getOutputFacingFluids());
         }
 
         // do not do anything without enough energy supplied
@@ -571,25 +545,10 @@ public class PumpMachine extends TieredEnergyMachine implements IAutoOutputFluid
                 .widget(new TankWidget(cache.getStorages()[0], 90, 35, true, true)
                         .setBackground(GuiTextures.FLUID_SLOT))
                 .widget(new ToggleButtonWidget(7, 53, 18, 18,
-                        GuiTextures.BUTTON_FLUID_OUTPUT, this::isAutoOutputFluids, this::setAutoOutputFluids)
+                        GuiTextures.BUTTON_FLUID_OUTPUT, autoOutputTrait::isAutoOutputFluids,
+                        autoOutputTrait::setAutoOutputFluids)
                         .setShouldUseBaseBackground()
                         .setTooltipText("gtceu.gui.fluid_auto_output.tooltip"))
                 .widget(UITemplate.bindPlayerInventory(entityPlayer.getInventory(), GuiTextures.SLOT, 7, 84, true));
-    }
-
-    //////////////////////////////////////
-    // ******* Rendering ********//
-    //////////////////////////////////////
-    @Override
-    public @Nullable ResourceTexture sideTips(Player player, BlockPos pos, BlockState state, Set<GTToolType> toolTypes,
-                                              Direction side) {
-        if (toolTypes.contains(GTToolType.WRENCH)) {
-            if (player.isShiftKeyDown()) {
-                if (hasFrontFacing() && side != this.getFrontFacing() && isFacingValid(side)) {
-                    return GuiTextures.TOOL_IO_FACING_ROTATION;
-                }
-            }
-        }
-        return super.sideTips(player, pos, state, toolTypes, side);
     }
 }

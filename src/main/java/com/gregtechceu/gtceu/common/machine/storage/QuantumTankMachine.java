@@ -8,11 +8,11 @@ import com.gregtechceu.gtceu.api.gui.widget.TankWidget;
 import com.gregtechceu.gtceu.api.gui.widget.ToggleButtonWidget;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.*;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
 import com.gregtechceu.gtceu.api.machine.feature.IDropSaveMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IInteractedMachine;
 import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.transfer.fluid.CustomFluidTank;
 import com.gregtechceu.gtceu.api.transfer.fluid.IFluidHandlerModifiable;
@@ -28,19 +28,14 @@ import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.TickTask;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.fluids.FluidStack;
@@ -52,10 +47,10 @@ import com.mojang.blaze3d.MethodsReturnNonnullByDefault;
 import it.unimi.dsi.fastutil.objects.Object2LongArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import lombok.Getter;
-import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -63,7 +58,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class QuantumTankMachine extends MetaMachine implements ITieredMachine, IAutoOutputFluid, IInteractedMachine,
+public class QuantumTankMachine extends MetaMachine implements ITieredMachine, IInteractedMachine,
                                 IControllable, IDropSaveMachine, IFancyUIMachine {
 
     public static Object2LongMap<MachineDefinition> TANK_CAPACITY = new Object2LongArrayMap<>();
@@ -72,19 +67,7 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     protected final int tier;
 
     @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected Direction outputFacingFluids;
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputFluids;
-    @Getter
-    @Setter
-    @Persisted
-    protected boolean allowInputFromOutputSideFluids;
+    protected final AutoOutputTrait autoOutputTrait;
     @Persisted
     private boolean isVoiding;
 
@@ -101,15 +84,13 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     @DescSynced
     protected long storedAmount = 0;
 
-    @Nullable
-    protected TickableSubscription autoOutputSubs;
-
     public QuantumTankMachine(IMachineBlockEntity holder, int tier, long maxAmount, Object... args) {
         super(holder);
         this.tier = tier;
-        this.outputFacingFluids = getFrontFacing().getOpposite();
         this.maxAmount = maxAmount;
         this.cache = createCacheFluidHandler(args);
+        this.autoOutputTrait = new AutoOutputTrait(this, List.of(), List.of(cache));
+        attachPersistentTrait("auto_output", autoOutputTrait);
         this.lockedFluid = new CustomFluidTank(1000);
     }
 
@@ -121,19 +102,7 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
         return new FluidCache(this);
     }
 
-    @Override
-    public void onLoad() {
-        super.onLoad();
-        if (getLevel() instanceof ServerLevel serverLevel) {
-            serverLevel.getServer().tell(new TickTask(0, this::updateAutoOutputSubscription));
-        }
-    }
-
-    protected void onFluidChanged() {
-        if (!isRemote()) {
-            updateAutoOutputSubscription();
-        }
-    }
+    protected void onFluidChanged() {}
 
     @Override
     public boolean savePickClone() {
@@ -188,67 +157,19 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
         return super.getFluidHandlerCap(side, useCoverCapability);
     }
 
-    //////////////////////////////////////
-    // ******* Auto Output *******//
-    //////////////////////////////////////
-
-    @Override
-    public void setAutoOutputFluids(boolean allow) {
-        this.autoOutputFluids = allow;
-        updateAutoOutputSubscription();
-    }
-
-    @Override
-    public void setOutputFacingFluids(@Nullable Direction outputFacing) {
-        this.outputFacingFluids = outputFacing;
-        updateAutoOutputSubscription();
-    }
-
     @Override
     public boolean isWorkingEnabled() {
-        return isAutoOutputFluids();
+        return autoOutputTrait.isAutoOutputFluids();
     }
 
     @Override
     public void setWorkingEnabled(boolean isWorkingAllowed) {
-        setAutoOutputFluids(isWorkingAllowed);
-    }
-
-    @Override
-    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {
-        super.onNeighborChanged(block, fromPos, isMoving);
-        updateAutoOutputSubscription();
-    }
-
-    protected void updateAutoOutputSubscription() {
-        var outputFacing = getOutputFacingFluids();
-        if ((isAutoOutputFluids() && !stored.isEmpty()) && outputFacing != null &&
-                GTTransferUtils.hasAdjacentFluidHandler(getLevel(), getPos(), outputFacing)) {
-            autoOutputSubs = subscribeServerTick(autoOutputSubs, this::checkAutoOutput);
-        } else if (autoOutputSubs != null) {
-            autoOutputSubs.unsubscribe();
-            autoOutputSubs = null;
-        }
-    }
-
-    protected void checkAutoOutput() {
-        if (getOffsetTimer() % 5 == 0) {
-            if (isAutoOutputFluids() && getOutputFacingFluids() != null) {
-                cache.exportToNearby(getOutputFacingFluids());
-            }
-            updateAutoOutputSubscription();
-        }
+        autoOutputTrait.setAutoOutputFluids(isWorkingAllowed);
     }
 
     //////////////////////////////////////
     // ******* Interaction *******//
     //////////////////////////////////////
-
-    @Override
-    public boolean isFacingValid(Direction facing) {
-        if (facing == outputFacingFluids) return false;
-        return super.isFacingValid(facing);
-    }
 
     @Override
     public InteractionResult onUse(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand,
@@ -259,46 +180,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
             }
         }
         return IInteractedMachine.super.onUse(state, world, pos, player, hand, hit);
-    }
-
-    @Override
-    protected InteractionResult onWrenchClick(Player playerIn, InteractionHand hand, Direction gridSide,
-                                              BlockHitResult hitResult) {
-        if (!playerIn.isShiftKeyDown() && !isRemote()) {
-            var tool = playerIn.getItemInHand(hand);
-            if (tool.getDamageValue() >= tool.getMaxDamage()) return InteractionResult.PASS;
-            if (hasFrontFacing() && gridSide == getFrontFacing()) return InteractionResult.PASS;
-            if (gridSide != getOutputFacingFluids()) {
-                setOutputFacingFluids(gridSide);
-            } else {
-                setOutputFacingFluids(null);
-            }
-            return InteractionResult.sidedSuccess(playerIn.level().isClientSide);
-        }
-
-        return super.onWrenchClick(playerIn, hand, gridSide, hitResult);
-    }
-
-    @Override
-    protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide,
-                                                   BlockHitResult hitResult) {
-        if (!isRemote()) {
-            if (gridSide == getOutputFacingFluids()) {
-                if (isAllowInputFromOutputSideFluids()) {
-                    setAllowInputFromOutputSideFluids(false);
-                    playerIn.sendSystemMessage(
-                            Component.translatable("gtceu.machine.basic.input_from_output_side.disallow")
-                                    .append(Component.translatable("gtceu.creative.tank.fluid")));
-                } else {
-                    setAllowInputFromOutputSideFluids(true);
-                    playerIn.sendSystemMessage(
-                            Component.translatable("gtceu.machine.basic.input_from_output_side.allow")
-                                    .append(Component.translatable("gtceu.creative.tank.fluid")));
-                }
-            }
-            return InteractionResult.SUCCESS;
-        }
-        return super.onScrewdriverClick(playerIn, hand, gridSide, hitResult);
     }
 
     public boolean isLocked() {
@@ -342,7 +223,8 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
                         .setShowAmount(false)
                         .setBackground(ColorPattern.T_GRAY.rectTexture()))
                 .addWidget(new ToggleButtonWidget(4, 41, 18, 18,
-                        GuiTextures.BUTTON_FLUID_OUTPUT, this::isAutoOutputFluids, this::setAutoOutputFluids)
+                        GuiTextures.BUTTON_FLUID_OUTPUT, autoOutputTrait::isAutoOutputFluids,
+                        autoOutputTrait::setAutoOutputFluids)
                         .setShouldUseBaseBackground()
                         .setTooltipText("gtceu.gui.fluid_auto_output.tooltip"))
                 .addWidget(new ToggleButtonWidget(22, 41, 18, 18,
@@ -363,17 +245,7 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     @Override
     public @Nullable ResourceTexture sideTips(Player player, BlockPos pos, BlockState state, Set<GTToolType> toolTypes,
                                               Direction side) {
-        if (toolTypes.contains(GTToolType.WRENCH)) {
-            if (!player.isShiftKeyDown()) {
-                if (!hasFrontFacing() || side != getFrontFacing()) {
-                    return GuiTextures.TOOL_IO_FACING_ROTATION;
-                }
-            }
-        } else if (toolTypes.contains(GTToolType.SCREWDRIVER)) {
-            if (side == getOutputFacingFluids()) {
-                return GuiTextures.TOOL_ALLOW_INPUT;
-            }
-        } else if (toolTypes.contains(GTToolType.SOFT_MALLET)) {
+        if (toolTypes.contains(GTToolType.SOFT_MALLET)) {
             if (side == getFrontFacing()) return null;
         }
         return super.sideTips(player, pos, state, toolTypes, side);

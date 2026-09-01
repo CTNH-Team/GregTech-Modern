@@ -45,20 +45,12 @@ public class CreativeChestMachine extends QuantumChestMachine {
 
     public CreativeChestMachine(IMachineBlockEntity holder) {
         super(holder, GTValues.MAX, -1);
+        autoOutputTrait.setTicksPerCycle(ticksPerCycle);
     }
 
     @Override
     protected ItemCache createCacheItemHandler(Object... args) {
         return new InfiniteCache(this);
-    }
-
-    protected void checkAutoOutput() {
-        if (getOffsetTimer() % ticksPerCycle == 0) {
-            if (isAutoOutputItems() && getOutputFacingItems() != null) {
-                cache.exportToNearby(getOutputFacingItems());
-            }
-            updateAutoOutputSubscription();
-        }
     }
 
     private InteractionResult updateStored(ItemStack item) {
@@ -70,6 +62,7 @@ public class CreativeChestMachine extends QuantumChestMachine {
     private void setTicksPerCycle(String value) {
         if (value.isEmpty()) return;
         ticksPerCycle = Integer.parseInt(value);
+        autoOutputTrait.setTicksPerCycle(ticksPerCycle);
         onItemChanged();
     }
 

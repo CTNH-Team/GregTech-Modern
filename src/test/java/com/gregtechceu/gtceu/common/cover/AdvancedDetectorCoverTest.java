@@ -29,6 +29,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests", required = false)
     public static void BLOCKED_BY_LDLIB_WEIRDNESS_PROBABLY_testAdvancedActivityDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ACTIVITY_DETECTOR_ADVANCED.asStack(), Direction.WEST);
@@ -41,6 +42,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests", required = false)
     public static void BLOCKED_BY_LDLIB_WEIRDNESS_TOO_PROBABLY_testAdvancedActivityDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ACTIVITY_DETECTOR_ADVANCED.asStack(), Direction.WEST);
@@ -53,6 +55,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testAdvancedFluidDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         AdvancedFluidDetectorCover cover = (AdvancedFluidDetectorCover) TestUtils.placeCover(helper, machine,
@@ -69,6 +72,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testAdvancedItemDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         AdvancedItemDetectorCover cover = (AdvancedItemDetectorCover) TestUtils.placeCover(helper, machine,
@@ -82,6 +86,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testAdvancedItemDetectorCoverBelowThreshold(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         AdvancedItemDetectorCover cover = (AdvancedItemDetectorCover) TestUtils.placeCover(helper, machine,
@@ -96,6 +101,7 @@ public class AdvancedDetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testAdvancedItemDetectorCoverAboveThreshold(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         machine.getItemHandlerCap(null, false).setStackInSlot(0, new ItemStack(Items.DIRT, 5));

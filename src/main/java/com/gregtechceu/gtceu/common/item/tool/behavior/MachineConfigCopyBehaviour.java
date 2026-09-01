@@ -186,13 +186,16 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
 
         tag.putString(FACING_DIR, directionToString(machine.getFrontFacing()));
 
-        if (machine instanceof IAutoOutputItem autoOutputItem && autoOutputItem.getOutputFacingItems() != null) {
+        var autoOutput = machine.getAutoOutputTrait();
+        if (autoOutput != null && autoOutput.getOutputFacingItems() != null) {
+            var autoOutputItem = autoOutput;
             tag.putString(ITEM_OUTPUT_SIDE, directionToString(autoOutputItem.getOutputFacingItems()));
             tag.putBoolean(ITEM_AUTO_OUTPUT, autoOutputItem.isAutoOutputItems());
             tag.putBoolean(ALLOW_ITEM_IN_FROM_OUT, autoOutputItem.isAllowInputFromOutputSideItems());
         }
 
-        if (machine instanceof IAutoOutputFluid autoOutputFluid && autoOutputFluid.getOutputFacingFluids() != null) {
+        if (autoOutput != null && autoOutput.getOutputFacingFluids() != null) {
+            var autoOutputFluid = autoOutput;
             tag.putString(FLUID_OUTPUT_SIDE, directionToString(autoOutputFluid.getOutputFacingFluids()));
             tag.putBoolean(FLUID_AUTO_OUTPUT, autoOutputFluid.isAutoOutputFluids());
             tag.putBoolean(ALLOW_FLUID_IN_FROM_OUT, autoOutputFluid.isAllowInputFromOutputSideFluids());
@@ -218,7 +221,9 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
     }
 
     private static void pasteMachineConfig(ServerPlayer player, MetaMachine machine, CompoundTag tag) {
-        if (machine instanceof IAutoOutputItem autoOutputItem) {
+        var autoOutput = machine.getAutoOutputTrait();
+        if (autoOutput != null) {
+            var autoOutputItem = autoOutput;
             if (tag.contains(ITEM_OUTPUT_SIDE))
                 autoOutputItem.setOutputFacingItems(stringToDirection(tag.getString(ITEM_OUTPUT_SIDE)));
             if (tag.contains(ITEM_AUTO_OUTPUT)) autoOutputItem.setAutoOutputItems(tag.getBoolean(ITEM_AUTO_OUTPUT));
@@ -226,7 +231,8 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
                 autoOutputItem.setAllowInputFromOutputSideItems(tag.getBoolean(ALLOW_ITEM_IN_FROM_OUT));
         }
 
-        if (machine instanceof IAutoOutputFluid autoOutputFluid) {
+        if (autoOutput != null) {
+            var autoOutputFluid = autoOutput;
             if (tag.contains(FLUID_OUTPUT_SIDE))
                 autoOutputFluid.setOutputFacingFluids(stringToDirection(tag.getString(FLUID_OUTPUT_SIDE)));
             if (tag.contains(FLUID_AUTO_OUTPUT)) autoOutputFluid.setAutoOutputFluids(tag.getBoolean(FLUID_AUTO_OUTPUT));

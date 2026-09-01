@@ -7,33 +7,27 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.TickableSubscription;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
 import com.gregtechceu.gtceu.api.machine.feature.IDropSaveMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IInteractedMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.TickTask;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.fluids.FluidStack;
@@ -49,21 +43,14 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropSaveMachine, IInteractedMachine {
+public class DrumMachine extends MetaMachine implements IDropSaveMachine, IInteractedMachine {
 
     @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
-    protected boolean autoOutputFluids;
-    @Persisted
-    protected boolean allowInputFromOutputSideFluids;
+    protected final AutoOutputTrait autoOutputTrait;
     @Getter
     private final int maxStoredFluids;
     @Persisted
     protected final NotifiableFluidTank cache;
-    @Nullable
-    protected TickableSubscription autoOutputSubs;
     @Nullable
     protected ISubscription exportFluidSubs;
     @Persisted(key = "Fluid")
@@ -79,6 +66,10 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
         this.material = material;
         this.maxStoredFluids = maxStoredFluids;
         this.cache = createCacheFluidHandler(args);
+        this.autoOutputTrait = new AutoOutputTrait(this, java.util.List.of(), java.util.List.of(cache), false)
+                .setFluidOutputValidator(side -> side == Direction.DOWN);
+        this.autoOutputTrait.setOutputFacingFluids(Direction.DOWN);
+        attachPersistentTrait("auto_output", autoOutputTrait);
     }
 
     //////////////////////////////////////
@@ -93,16 +84,12 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
     public void onLoad() {
         super.onLoad();
         updateStoredFluidFromCache();
-        if (getLevel() instanceof ServerLevel serverLevel) {
-            serverLevel.getServer().tell(new TickTask(0, this::updateAutoOutputSubscription));
-        }
         this.exportFluidSubs = cache.addChangedListener(this::onFluidChanged);
     }
 
     private void onFluidChanged() {
         if (!isRemote()) {
             updateStoredFluidFromCache();
-            updateAutoOutputSubscription();
         }
     }
 
@@ -139,61 +126,8 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
         return false;
     }
 
-    @Override
-    public void setAutoOutputFluids(boolean allow) {
-        this.autoOutputFluids = allow;
-        updateAutoOutputSubscription();
-    }
-
     private static boolean canInputFluidsFromOutputSide() {
         return ConfigHolder.INSTANCE.machines.allowDrumsInputFluidsFromOutputSide;
-    }
-
-    @Override
-    public boolean isAllowInputFromOutputSideFluids() {
-        return canInputFluidsFromOutputSide() && this.allowInputFromOutputSideFluids;
-    }
-
-    // always is facing down, and can never accept fluids from output side by default
-    @Override
-    public void setAllowInputFromOutputSideFluids(boolean allow) {
-        this.allowInputFromOutputSideFluids = allow;
-    }
-
-    @Override
-    public void setOutputFacingFluids(@Nullable Direction outputFacing) {
-        updateAutoOutputSubscription();
-    }
-
-    @Override
-    public @Nullable Direction getOutputFacingFluids() {
-        return Direction.DOWN;
-    }
-
-    @Override
-    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {
-        super.onNeighborChanged(block, fromPos, isMoving);
-        updateAutoOutputSubscription();
-    }
-
-    protected void updateAutoOutputSubscription() {
-        var outputFacing = getOutputFacingFluids();
-        if ((isAutoOutputFluids() && !cache.isEmpty()) && outputFacing != null &&
-                GTTransferUtils.hasAdjacentFluidHandler(getLevel(), getPos(), outputFacing)) {
-            autoOutputSubs = subscribeServerTick(autoOutputSubs, this::checkAutoOutput);
-        } else if (autoOutputSubs != null) {
-            autoOutputSubs.unsubscribe();
-            autoOutputSubs = null;
-        }
-    }
-
-    protected void checkAutoOutput() {
-        if (getOffsetTimer() % 5 == 0) {
-            if (isAutoOutputFluids() && getOutputFacingFluids() != null) {
-                cache.exportToNearby(getOutputFacingFluids());
-            }
-            updateAutoOutputSubscription();
-        }
     }
 
     @Override
@@ -217,16 +151,18 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
                                                    BlockHitResult hitResult) {
         if (!isRemote()) {
             if (canInputFluidsFromOutputSide()) {
-                setAllowInputFromOutputSideFluids(!isAllowInputFromOutputSideFluids());
+                autoOutputTrait.setAllowInputFromOutputSideFluids(
+                        !autoOutputTrait.isAllowInputFromOutputSideFluids());
                 playerIn.sendSystemMessage(
                         Component
                                 .translatable("gtceu.machine.basic.input_from_output_side." +
-                                        (isAllowInputFromOutputSideFluids() ? "allow" : "disallow"))
+                                        (autoOutputTrait.isAllowInputFromOutputSideFluids() ? "allow" : "disallow"))
                                 .append(Component.translatable("gtceu.creative.tank.fluid")));
             } else if (!playerIn.isShiftKeyDown()) {
-                setAutoOutputFluids(!isAutoOutputFluids());
+                autoOutputTrait.setAutoOutputFluids(!autoOutputTrait.isAutoOutputFluids());
                 playerIn.sendSystemMessage(Component
-                        .translatable("gtceu.machine.drum." + (autoOutputFluids ? "enable" : "disable") + "_output"));
+                        .translatable("gtceu.machine.drum." +
+                                (autoOutputTrait.isAutoOutputFluids() ? "enable" : "disable") + "_output"));
                 return InteractionResult.SUCCESS;
             }
             return InteractionResult.SUCCESS;
@@ -239,10 +175,11 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
                                                   BlockHitResult hitResult) {
         if (!isRemote()) {
             if (!playerIn.isShiftKeyDown()) {
-                setAutoOutputFluids(!isAutoOutputFluids());
+                autoOutputTrait.setAutoOutputFluids(!autoOutputTrait.isAutoOutputFluids());
                 playerIn.sendSystemMessage(
                         Component.translatable(
-                                "gtceu.machine.drum." + (autoOutputFluids ? "enable" : "disable") + "_output"));
+                                "gtceu.machine.drum." +
+                                        (autoOutputTrait.isAutoOutputFluids() ? "enable" : "disable") + "_output"));
                 return InteractionResult.SUCCESS;
             }
         }
@@ -265,12 +202,13 @@ public class DrumMachine extends MetaMachine implements IAutoOutputFluid, IDropS
                                               Direction side) {
         if (toolTypes.contains(GTToolType.SOFT_MALLET) ||
                 (!canInputFluidsFromOutputSide() && toolTypes.contains(GTToolType.SCREWDRIVER))) {
-            if (side == getOutputFacingFluids()) {
-                return isAutoOutputFluids() ? GuiTextures.TOOL_DISABLE_AUTO_OUTPUT : GuiTextures.TOOL_AUTO_OUTPUT;
+            if (side == autoOutputTrait.getOutputFacingFluids()) {
+                return autoOutputTrait.isAutoOutputFluids() ? GuiTextures.TOOL_DISABLE_AUTO_OUTPUT :
+                        GuiTextures.TOOL_AUTO_OUTPUT;
             }
         }
         if (canInputFluidsFromOutputSide() && toolTypes.contains(GTToolType.SCREWDRIVER)) {
-            if (side == getOutputFacingFluids()) {
+            if (side == autoOutputTrait.getOutputFacingFluids()) {
                 return GuiTextures.TOOL_ALLOW_INPUT;
             }
         }
