@@ -36,6 +36,9 @@ import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTraitHolder;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IFrontFacingTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IInteractionTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IRenderingTrait;
 import com.gregtechceu.gtceu.api.misc.EnergyInfoProviderList;
 import com.gregtechceu.gtceu.api.misc.IOFilteredInvWrapper;
 import com.gregtechceu.gtceu.api.misc.IOFluidHandlerList;
@@ -47,7 +50,6 @@ import com.gregtechceu.gtceu.client.util.ModelUtils;
 import com.gregtechceu.gtceu.common.cover.FluidFilterCover;
 import com.gregtechceu.gtceu.common.cover.ItemFilterCover;
 import com.gregtechceu.gtceu.common.cover.data.ManualIOMode;
-import com.gregtechceu.gtceu.common.item.tool.behavior.ToolModeSwitchBehavior;
 import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.common.machine.owner.PlayerOwner;
 import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
@@ -108,8 +110,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import javax.annotation.ParametersAreNonnullByDefault;
-
-import static com.gregtechceu.gtceu.api.item.tool.ToolHelper.getBehaviorsTag;
 
 /**
  * an abstract layer of gregtech machine.
@@ -380,22 +380,31 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         CoverBehavior coverBehavior = gridSide == null ? null : coverContainer.getCoverAtSide(gridSide);
         if (gridSide == null) gridSide = hitResult.getDirection();
 
+        Pair<GTToolType, InteractionResult> result = null;
+
         // Prioritize covers where they apply (Screwdriver, Soft Mallet)
         if (toolType.isEmpty() && playerIn.isShiftKeyDown()) {
             if (coverBehavior != null) {
-                return Pair.of(null, coverBehavior.onScrewdriverClick(playerIn, hand, hitResult));
+                result = Pair.of(null, coverBehavior.onScrewdriverClick(playerIn, hand, hitResult));
+                if (result.getSecond() != InteractionResult.PASS) return result;
             }
         }
         if (toolType.contains(GTToolType.SCREWDRIVER)) {
             if (coverBehavior != null) {
-                return Pair.of(GTToolType.SCREWDRIVER, coverBehavior.onScrewdriverClick(playerIn, hand, hitResult));
-            } else return Pair.of(GTToolType.SCREWDRIVER, onScrewdriverClick(playerIn, hand, gridSide, hitResult));
+                result = Pair.of(GTToolType.SCREWDRIVER,
+                        coverBehavior.onScrewdriverClick(playerIn, hand, hitResult));
+                if (result.getSecond() != InteractionResult.PASS) return result;
+            }
+            result = Pair.of(GTToolType.SCREWDRIVER, onScrewdriverClick(playerIn, hand, gridSide, hitResult));
         } else if (toolType.contains(GTToolType.SOFT_MALLET)) {
             if (coverBehavior != null) {
-                return Pair.of(GTToolType.SOFT_MALLET, coverBehavior.onSoftMalletClick(playerIn, hand, hitResult));
-            } else return Pair.of(GTToolType.SOFT_MALLET, onSoftMalletClick(playerIn, hand, gridSide, hitResult));
+                result = Pair.of(GTToolType.SOFT_MALLET,
+                        coverBehavior.onSoftMalletClick(playerIn, hand, hitResult));
+                if (result.getSecond() != InteractionResult.PASS) return result;
+            }
+            result = Pair.of(GTToolType.SOFT_MALLET, onSoftMalletClick(playerIn, hand, gridSide, hitResult));
         } else if (toolType.contains(GTToolType.WRENCH)) {
-            return Pair.of(GTToolType.WRENCH, onWrenchClick(playerIn, hand, gridSide, hitResult));
+            result = Pair.of(GTToolType.WRENCH, onWrenchClick(playerIn, hand, gridSide, hitResult));
         } else if (toolType.contains(GTToolType.CROWBAR)) {
             if (coverBehavior != null) {
                 if (!isRemote()) {
@@ -403,11 +412,17 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
                 }
                 return Pair.of(GTToolType.CROWBAR, InteractionResult.CONSUME);
             }
-            return Pair.of(GTToolType.CROWBAR, onCrowbarClick(playerIn, hand, gridSide, hitResult));
+            result = Pair.of(GTToolType.CROWBAR, onCrowbarClick(playerIn, hand, gridSide, hitResult));
         } else if (toolType.contains(GTToolType.HARD_HAMMER)) {
-            return Pair.of(GTToolType.HARD_HAMMER, onHardHammerClick(playerIn, hand, gridSide, hitResult));
+            result = Pair.of(GTToolType.HARD_HAMMER, onHardHammerClick(playerIn, hand, gridSide, hitResult));
         }
-        return Pair.of(null, InteractionResult.PASS);
+
+        if (result != null && result.getSecond() != InteractionResult.PASS) return result;
+        for (var trait : getTraits(IInteractionTrait.class)) {
+            var traitResult = trait.onToolClick(toolType, itemStack, context, gridSide);
+            if (traitResult.getSecond() != InteractionResult.PASS) return traitResult;
+        }
+        return result != null ? result : Pair.of(null, InteractionResult.PASS);
     }
 
     protected InteractionResult onHardHammerClick(Player playerIn, InteractionHand hand, Direction gridSide,
@@ -440,15 +455,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
                 return InteractionResult.FAIL;
             }
             setFrontFacing(gridSide);
-        } else {
-            var itemStack = playerIn.getItemInHand(hand);
-            var tagCompound = getBehaviorsTag(itemStack);
-            ToolModeSwitchBehavior.WrenchModeType type = ToolModeSwitchBehavior.WrenchModeType.values()[tagCompound
-                    .getByte("Mode")];
-
-            var autoOutput = getAutoOutputTrait();
-            if (autoOutput == null || !autoOutput.handleWrenchClick(type, gridSide)) return InteractionResult.PASS;
-        }
+        } else return InteractionResult.PASS;
         return InteractionResult.sidedSuccess(isRemote());
     }
 
@@ -466,8 +473,24 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     protected InteractionResult onScrewdriverClick(Player playerIn, InteractionHand hand, Direction gridSide,
                                                    BlockHitResult hitResult) {
-        var autoOutput = getAutoOutputTrait();
-        return autoOutput == null ? InteractionResult.PASS : autoOutput.handleScrewdriverClick(playerIn, gridSide);
+        return InteractionResult.PASS;
+    }
+
+    public InteractionResult onTraitUse(BlockState state, Level level, BlockPos pos, Player player,
+                                        InteractionHand hand, BlockHitResult hit) {
+        for (var trait : getTraits(IInteractionTrait.class)) {
+            var result = trait.onUse(state, level, pos, player, hand, hit);
+            if (result != InteractionResult.PASS) return result;
+        }
+        return InteractionResult.PASS;
+    }
+
+    public boolean onTraitLeftClick(Player player, Level level, InteractionHand hand, BlockPos pos,
+                                    @Nullable Direction face) {
+        for (var trait : getTraits(IInteractionTrait.class)) {
+            if (trait.onLeftClick(player, level, hand, pos, face)) return true;
+        }
+        return false;
     }
 
     //////////////////////////////////////
@@ -517,20 +540,12 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return Optional.ofNullable(getTrait(type)).orElseThrow(() -> new NoSuchElementException(type.getName()));
     }
 
-    public <T extends MachineTrait> List<T> getTraits(Class<T> type) {
+    public <T> List<T> getTraits(Class<T> type) {
         return traitHolder.byType(type);
-    }
-
-    public <T> List<T> getTraitsByInterface(Class<T> type) {
-        return traitHolder.getTraitsByInterface(type);
     }
 
     public <T extends MachineTrait> T getPersistentTrait(String name) {
         return traitHolder.persistent(name);
-    }
-
-    public @Nullable AutoOutputTrait getAutoOutputTrait() {
-        return getTrait(AutoOutputTrait.class);
     }
 
     public void clearInventory(IItemHandlerModifiable inventory) {
@@ -547,10 +562,11 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     public boolean shouldRenderGrid(Player player, BlockPos pos, BlockState state, ItemStack held,
                                     Set<GTToolType> toolTypes) {
         if (toolTypes.contains(GTToolType.WRENCH)) return true;
-        if (toolTypes.contains(GTToolType.SCREWDRIVER) && getAutoOutputTrait() != null)
-            return true;
         for (CoverBehavior cover : coverContainer.getCovers()) {
             if (cover.shouldRenderGrid(player, pos, state, held, toolTypes)) return true;
+        }
+        for (var trait : getTraits(IRenderingTrait.class)) {
+            if (trait.shouldRenderGridOverlay(player, pos, state, held, toolTypes)) return true;
         }
         return false;
     }
@@ -564,9 +580,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
             if (tips != null) return tips;
         }
 
-        var autoOutputTip = getAutoOutputTrait() == null ? null :
-                getAutoOutputTrait().getSideTip(player, toolTypes, side);
-        if (autoOutputTip != null) return autoOutputTip;
+        for (var trait : getTraits(IRenderingTrait.class)) {
+            var tip = trait.getGridOverlayIcon(player, pos, state, toolTypes, side);
+            if (tip != null) return tip;
+        }
 
         if (toolTypes.contains(GTToolType.WRENCH)) {
             if (!player.isShiftKeyDown()) {
@@ -632,10 +649,8 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     public boolean isFacingValid(Direction facing) {
         if (hasFrontFacing() && facing == getFrontFacing()) return false;
-        var autoOutput = getAutoOutputTrait();
-        if (autoOutput != null &&
-                (facing == autoOutput.getOutputFacingItems() || facing == autoOutput.getOutputFacingFluids())) {
-            return false;
+        for (var trait : getTraits(IFrontFacingTrait.class)) {
+            if (!trait.isValidFrontFace(facing)) return false;
         }
         var coverContainer = getCoverContainer();
         if (coverContainer.hasCover(facing)) {
@@ -854,7 +869,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     }
 
     private @Nullable <T> T firstInterface(Class<T> type) {
-        var values = getTraitsByInterface(type);
+        var values = getTraits(type);
         return values.isEmpty() ? null : values.get(0);
     }
 
@@ -908,7 +923,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         if (list.isEmpty()) return null;
 
         var io = IO.BOTH;
-        var autoOutput = getAutoOutputTrait();
+        var autoOutput = getTrait(AutoOutputTrait.class);
         if (side != null && autoOutput != null && autoOutput.getOutputFacingItems() == side &&
                 !autoOutput.isAllowInputFromOutputSideItems()) {
             io = IO.OUT;
@@ -932,7 +947,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         if (list.isEmpty()) return null;
 
         var io = IO.BOTH;
-        var autoOutput = getAutoOutputTrait();
+        var autoOutput = getTrait(AutoOutputTrait.class);
         if (side != null && autoOutput != null && autoOutput.getOutputFacingFluids() == side &&
                 !autoOutput.isAllowInputFromOutputSideFluids()) {
             io = IO.OUT;

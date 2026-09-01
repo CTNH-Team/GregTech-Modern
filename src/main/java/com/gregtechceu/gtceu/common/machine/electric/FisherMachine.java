@@ -30,7 +30,6 @@ import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
-import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 import com.lowdragmc.lowdraglib.utils.Position;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
@@ -72,17 +71,9 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class FisherMachine extends WorkableTieredMachine
                            implements IFancyUIMachine, IMachineLife {
 
-    @Getter
-    @Persisted
-    @DescSynced
-    @RequireRerender
     protected final AutoOutputTrait autoOutputTrait;
     @Persisted
     protected final NotifiableItemStackHandler cache;
-    @Getter
-    @Setter
-    @Persisted
-    protected boolean allowInputFromOutputSideItems;
     @Persisted
     protected final NotifiableItemStackHandler baitHandler;
 

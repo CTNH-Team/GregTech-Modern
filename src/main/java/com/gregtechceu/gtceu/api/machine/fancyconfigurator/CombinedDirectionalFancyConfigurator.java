@@ -10,6 +10,7 @@ import com.gregtechceu.gtceu.api.gui.widget.directional.handlers.AutoOutputFluid
 import com.gregtechceu.gtceu.api.gui.widget.directional.handlers.AutoOutputItemConfigHandler;
 import com.gregtechceu.gtceu.api.gui.widget.directional.handlers.CoverableConfigHandler;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
@@ -73,12 +74,14 @@ public class CombinedDirectionalFancyConfigurator implements IFancyUIProvider {
 
     static {
         // Left side:
-        CONFIG_HANDLERS.add(
-                machine -> machine.getAutoOutputTrait() != null && machine.getAutoOutputTrait().hasAutoOutputItem() ?
-                        () -> new AutoOutputItemConfigHandler(machine.getAutoOutputTrait()) : null);
-        CONFIG_HANDLERS.add(
-                machine -> machine.getAutoOutputTrait() != null && machine.getAutoOutputTrait().hasAutoOutputFluid() ?
-                        () -> new AutoOutputFluidConfigHandler(machine.getAutoOutputTrait()) : null);
+        CONFIG_HANDLERS.add(machine -> {
+            var trait = machine.getTrait(AutoOutputTrait.class);
+            return trait != null && trait.hasAutoOutputItem() ? () -> new AutoOutputItemConfigHandler(trait) : null;
+        });
+        CONFIG_HANDLERS.add(machine -> {
+            var trait = machine.getTrait(AutoOutputTrait.class);
+            return trait != null && trait.hasAutoOutputFluid() ? () -> new AutoOutputFluidConfigHandler(trait) : null;
+        });
 
         // Right side:
         CONFIG_HANDLERS.add(machine -> () -> new CoverableConfigHandler(machine.getCoverContainer()));

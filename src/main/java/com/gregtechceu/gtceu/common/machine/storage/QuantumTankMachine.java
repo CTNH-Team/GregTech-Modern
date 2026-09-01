@@ -66,7 +66,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     @Getter
     protected final int tier;
 
-    @Getter
     protected final AutoOutputTrait autoOutputTrait;
     @Persisted
     private boolean isVoiding;

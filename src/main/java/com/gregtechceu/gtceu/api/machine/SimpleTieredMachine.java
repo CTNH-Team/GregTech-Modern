@@ -7,8 +7,6 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.editor.EditableMachineUI;
 import com.gregtechceu.gtceu.api.gui.editor.EditableUI;
 import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
-import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfigurator;
-import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfiguratorButton;
 import com.gregtechceu.gtceu.api.gui.widget.GhostCircuitSlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CircuitFancyConfigurator;
@@ -23,10 +21,7 @@ import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
 
-import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
-import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
-import com.lowdragmc.lowdraglib.gui.util.ClickData;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
@@ -68,7 +63,6 @@ public class SimpleTieredMachine extends RecipeTieredMachine
     protected TickableSubscription batterySubs;
     @Nullable
     protected ISubscription energySubs;
-    @Getter
     protected final AutoOutputTrait autoOutputTrait;
 
     public SimpleTieredMachine(IMachineBlockEntity holder, int tier, Int2IntFunction tankScalingFunction,
@@ -165,56 +159,11 @@ public class SimpleTieredMachine extends RecipeTieredMachine
 
     @Override
     public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
-        if (autoOutputTrait.hasAutoOutputFluid()) {
-            left.attachConfigurators(createAutoOutputFluidConfigurator());
-        }
-        if (autoOutputTrait.hasAutoOutputItem()) {
-            left.attachConfigurators(createAutoOutputItemConfigurator());
-        }
-
         if (isCircuitSlotEnabled()) {
             left.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
         }
 
         super.attachConfigurators(left, right);
-    }
-
-    private IFancyConfigurator createAutoOutputFluidConfigurator() {
-        return createAutoOutputConfigurator(
-                GuiTextures.IO_CONFIG_FLUID_MODES_BUTTON,
-                "gtceu.gui.fluid_auto_output",
-                autoOutputTrait::isAutoOutputFluids,
-                (cd, nextState) -> autoOutputTrait.setAutoOutputFluids(nextState));
-    }
-
-    private IFancyConfigurator createAutoOutputItemConfigurator() {
-        return createAutoOutputConfigurator(
-                GuiTextures.IO_CONFIG_ITEM_MODES_BUTTON,
-                "gtceu.gui.item_auto_output",
-                autoOutputTrait::isAutoOutputItems,
-                (cd, nextState) -> autoOutputTrait.setAutoOutputItems(nextState));
-    }
-
-    private IFancyConfigurator createAutoOutputConfigurator(ResourceTexture modesButtonTexture,
-                                                            String tooltipBaseLangKey,
-                                                            BooleanSupplier stateSupplier,
-                                                            BiConsumer<ClickData, Boolean> onToggle) {
-        var toggle = new IFancyConfiguratorButton.Toggle(
-                new GuiTextureGroup(
-                        GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0, 1, 0.5),
-                        modesButtonTexture.getSubTexture(0, 1 / 3f, 1, 1 / 3f)),
-                new GuiTextureGroup(
-                        GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0.5, 1, 0.5),
-                        modesButtonTexture.getSubTexture(0, 2 / 3f, 1, 1 / 3f)),
-                stateSupplier,
-                onToggle);
-
-        toggle.setTooltipsSupplier(enabled -> {
-            var key = tooltipBaseLangKey + '.' + (enabled ? "enabled" : "disabled");
-            return List.of(Component.translatable(key));
-        });
-
-        return toggle;
     }
 
     @SuppressWarnings("UnstableApiUsage")

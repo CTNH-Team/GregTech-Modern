@@ -6,6 +6,7 @@ import com.gregtechceu.gtceu.api.gui.fancy.*;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CombinedDirectionalFancyConfigurator;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.MachineModeFancyConfigurator;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IAttachConfiguratorsTrait;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
@@ -117,6 +118,9 @@ public interface IFancyUIMachine extends IUIMachine, IFancyUIProvider {
                     if (configurator != null)
                         left.attachConfigurators(configurator);
                 }
+            }
+            for (var trait : machine.getTraits(IAttachConfiguratorsTrait.class)) {
+                trait.attachConfigurators(left, right);
             }
         }
         if (this instanceof IControllable controllable) {

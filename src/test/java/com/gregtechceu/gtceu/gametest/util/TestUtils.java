@@ -14,6 +14,7 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.placeholder.MultiLineComponent;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
@@ -249,8 +250,9 @@ public class TestUtils {
                     holder.getMetaMachine() instanceof CreativeTankMachine tank) {
                 BlockPos delta = targetPos.subtract(blockEntity.getBlockPos());
                 Direction outputDirection = Direction.getNearest(delta.getX(), delta.getY(), delta.getZ());
-                tank.getAutoOutputTrait().setOutputFacingFluids(outputDirection);
-                tank.getAutoOutputTrait().setAutoOutputFluids(true);
+                var autoOutput = tank.getTrait(AutoOutputTrait.class);
+                autoOutput.setOutputFacingFluids(outputDirection);
+                autoOutput.setAutoOutputFluids(true);
                 return;
             }
         }

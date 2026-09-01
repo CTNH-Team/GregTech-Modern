@@ -315,6 +315,10 @@ public class MetaMachineBlock extends Block implements IMachineBlock {
             var result = interactedMachine.onUse(state, world, pos, player, hand, hit);
             if (result != InteractionResult.PASS) return result;
         }
+        if (machine != null) {
+            var result = machine.onTraitUse(state, world, pos, player, hand, hit);
+            if (result != InteractionResult.PASS) return result;
+        }
         if (shouldOpenUi && machine instanceof IUIMachine uiMachine &&
                 MachineOwner.canOpenOwnerMachine(player, machine)) {
             return uiMachine.tryToOpenUI(player, hand, hit);

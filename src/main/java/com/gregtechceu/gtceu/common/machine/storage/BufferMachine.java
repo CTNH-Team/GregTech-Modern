@@ -43,7 +43,6 @@ public class BufferMachine extends MetaMachine
     @Getter
     protected final NotifiableFluidTank tank;
 
-    @Getter
     protected final AutoOutputTrait autoOutputTrait;
 
     public BufferMachine(IMachineBlockEntity holder, int tier, Object... args) {

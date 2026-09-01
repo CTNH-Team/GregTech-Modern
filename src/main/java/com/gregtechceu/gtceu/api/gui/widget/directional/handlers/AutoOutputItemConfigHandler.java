@@ -124,7 +124,7 @@ public class AutoOutputItemConfigHandler implements IDirectionalConfigHandler {
         if (cd.button == 0)
             return true;
 
-        if (!machine.getMachine().getAutoOutputTrait().hasAutoOutputFluid() && cd.button == 1)
+        if (!machine.hasAutoOutputFluid() && cd.button == 1)
             return true;
 
         return false;

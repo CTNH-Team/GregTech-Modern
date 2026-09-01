@@ -43,8 +43,8 @@ public class AutoOutputBlockProvider implements IBlockComponentProvider, IServer
         CompoundTag data = compoundTag.getCompound(getUid().toString());
         var level = blockAccessor.getLevel();
         var pos = blockAccessor.getPosition();
-        AutoOutputTrait autoOutput = MetaMachine.getMachine(level, pos) == null ? null :
-                MetaMachine.getMachine(level, pos).getAutoOutputTrait();
+        var machine = MetaMachine.getMachine(level, pos);
+        AutoOutputTrait autoOutput = machine == null ? null : machine.getTrait(AutoOutputTrait.class);
         if (autoOutput != null && autoOutput.hasAutoOutputItem()) {
             var outputItem = autoOutput;
             var direction = outputItem.getOutputFacingItems();

@@ -2,7 +2,12 @@ package com.gregtechceu.gtceu.api.machine.trait;
 
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 
+import com.lowdragmc.lowdraglib.syncdata.IFieldUpdateListener;
+import com.lowdragmc.lowdraglib.syncdata.IManaged;
+import com.lowdragmc.lowdraglib.syncdata.IManagedStorage;
+import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.accessor.IManagedAccessor;
+import com.lowdragmc.lowdraglib.syncdata.field.ManagedKey;
 import com.lowdragmc.lowdraglib.syncdata.managed.IRef;
 
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +54,9 @@ public final class MachineTraitHolder {
             traits.add(trait);
             index(trait, trait.getClass());
             traits.sort(Comparator.comparingInt(MachineTrait::getTraitPriority).reversed());
+            if (machine.getHolder().getRootStorage() != null) {
+                machine.getHolder().getRootStorage().attach(new SyncOnlyStorage(trait.getSyncStorage()));
+            }
         }
         return trait;
     }
@@ -82,6 +90,8 @@ public final class MachineTraitHolder {
 
     public void attachPersistent(String name, MachineTrait trait, int priority) {
         if (persistent.containsKey(name)) throw new IllegalArgumentException("Duplicate persistent trait: " + name);
+        if (persistent.containsValue(trait))
+            throw new IllegalArgumentException("Trait is already persistent: " + trait.getClass().getName());
         trait.setTraitPriority(priority);
         attach(trait);
         persistent.put(name, trait);
@@ -96,10 +106,6 @@ public final class MachineTraitHolder {
         List<MachineTrait> result = byType.get(type);
         if (result == null) return List.of();
         return (List<T>) (List<?>) Collections.unmodifiableList(result);
-    }
-
-    public <T> List<T> getTraitsByInterface(Class<T> type) {
-        return byType(type);
     }
 
     public List<MachineTrait> traitsByType(Class<?> type) {
@@ -148,5 +154,71 @@ public final class MachineTraitHolder {
 
     public void seal() {
         open = false;
+    }
+
+    /** Keeps trait persistence namespaced under {@code traits} while exposing its synchronized fields to LDLib. */
+    private record SyncOnlyStorage(IManagedStorage delegate) implements IManagedStorage {
+
+        private static final IRef[] NO_FIELDS = new IRef[0];
+
+        @Override
+        public IManaged[] getManaged() {
+            return delegate.getManaged();
+        }
+
+        @Override
+        public IRef getFieldByKey(ManagedKey key) {
+            return delegate.getFieldByKey(key);
+        }
+
+        @Override
+        public IRef[] getNonLazyFields() {
+            return delegate.getNonLazyFields();
+        }
+
+        @Override
+        public boolean hasDirtySyncFields() {
+            return delegate.hasDirtySyncFields();
+        }
+
+        @Override
+        public boolean hasDirtyPersistedFields() {
+            return false;
+        }
+
+        @Override
+        public IRef[] getPersistedFields() {
+            return NO_FIELDS;
+        }
+
+        @Override
+        public IRef[] getSyncFields() {
+            return delegate.getSyncFields();
+        }
+
+        @Override
+        public <T> ISubscription addSyncUpdateListener(ManagedKey key, IFieldUpdateListener<T> listener) {
+            return delegate.addSyncUpdateListener(key, listener);
+        }
+
+        @Override
+        public void removeAllSyncUpdateListener(ManagedKey key) {
+            delegate.removeAllSyncUpdateListener(key);
+        }
+
+        @Override
+        public boolean hasSyncListener(ManagedKey key) {
+            return delegate.hasSyncListener(key);
+        }
+
+        @Override
+        public <T> void notifyFieldUpdate(ManagedKey key, T newValue, T oldValue) {
+            delegate.notifyFieldUpdate(key, newValue, oldValue);
+        }
+
+        @Override
+        public void init() {
+            delegate.init();
+        }
     }
 }

@@ -74,7 +74,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
     @Getter
     protected final int tier;
 
-    @Getter
     protected final AutoOutputTrait autoOutputTrait;
     @Persisted
     private boolean isVoiding;

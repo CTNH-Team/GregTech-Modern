@@ -6,6 +6,7 @@ import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.client.model.BaseBakedModel;
 import com.gregtechceu.gtceu.client.model.GTModelProperties;
 import com.gregtechceu.gtceu.client.model.IBlockEntityRendererBakedModel;
@@ -226,7 +227,7 @@ public final class MachineModel extends BaseBakedModel implements ICoverableRend
         }
 
         // render output overlays
-        var autoOutput = machine.getAutoOutputTrait();
+        var autoOutput = machine.getTrait(AutoOutputTrait.class);
         if (autoOutput != null && autoOutput.hasAutoOutputItem()) {
             var autoOutputItem = autoOutput;
             var itemFace = autoOutputItem.getOutputFacingItems();

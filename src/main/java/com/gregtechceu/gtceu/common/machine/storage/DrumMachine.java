@@ -45,7 +45,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @MethodsReturnNonnullByDefault
 public class DrumMachine extends MetaMachine implements IDropSaveMachine, IInteractedMachine {
 
-    @Getter
     protected final AutoOutputTrait autoOutputTrait;
     @Getter
     private final int maxStoredFluids;

@@ -2,16 +2,24 @@ package com.gregtechceu.gtceu.api.machine.trait;
 
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
+import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
+import com.gregtechceu.gtceu.api.gui.fancy.IFancyConfiguratorButton;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IAttachConfiguratorsTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IFrontFacingTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IInteractionTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IRenderingTrait;
 import com.gregtechceu.gtceu.common.item.tool.behavior.ToolModeSwitchBehavior;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
+import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
+import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,10 +28,14 @@ import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
+import com.mojang.datafixers.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
@@ -32,22 +44,41 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /** Shared auto-output behavior for machines exposing item and/or fluid output handlers. */
-public class AutoOutputTrait extends MachineTrait {
+public class AutoOutputTrait extends MachineTrait
+                             implements IAttachConfiguratorsTrait, IFrontFacingTrait, IInteractionTrait,
+                             IRenderingTrait {
 
     private final List<IItemHandler> itemHandlers;
     private final List<IFluidHandler> fluidHandlers;
+    @Getter
     @Persisted
     @DescSynced
-    private boolean autoOutputItems, autoOutputFluids, allowInputFromOutputSideItems, allowInputFromOutputSideFluids;
+    @RequireRerender
+    private boolean autoOutputItems;
+    @Getter
     @Persisted
+    @DescSynced
+    @RequireRerender
+    private boolean autoOutputFluids;
+    @Setter
+    @Getter
+    @Persisted
+    private boolean allowInputFromOutputSideItems;
+    @Setter
+    @Getter
+    @Persisted
+    private boolean allowInputFromOutputSideFluids;
     @Getter
     @Setter
     private int ticksPerCycle = 5;
     @Persisted
     @DescSynced
+    @RequireRerender
     private @Nullable Direction outputFacingItems, outputFacingFluids;
     private @Nullable TickableSubscription itemOutputSubscription, fluidOutputSubscription;
     private final List<ISubscription> itemSubscriptions = new ArrayList<>();
@@ -138,50 +169,32 @@ public class AutoOutputTrait extends MachineTrait {
         return hasAutoOutputFluid() ? outputFacingFluids : null;
     }
 
-    public boolean isAutoOutputItems() {
-        return autoOutputItems;
-    }
-
-    public boolean isAutoOutputFluids() {
-        return autoOutputFluids;
-    }
-
-    public boolean isAllowInputFromOutputSideItems() {
-        return allowInputFromOutputSideItems;
-    }
-
-    public boolean isAllowInputFromOutputSideFluids() {
-        return allowInputFromOutputSideFluids;
-    }
-
     public void setOutputFacingItems(@Nullable Direction facing) {
-        if (!itemOutputValidator.test(facing) || facing == getMachine().getFrontFacing()) return;
+        if (!hasAutoOutputItem() || !itemOutputValidator.test(facing) ||
+                getMachine().hasFrontFacing() && facing == getMachine().getFrontFacing())
+            return;
         outputFacingItems = facing;
         updateItemOutputSubscription();
     }
 
     public void setOutputFacingFluids(@Nullable Direction facing) {
-        if (!fluidOutputValidator.test(facing) || facing == getMachine().getFrontFacing()) return;
+        if (!hasAutoOutputFluid() || !fluidOutputValidator.test(facing) ||
+                getMachine().hasFrontFacing() && facing == getMachine().getFrontFacing())
+            return;
         outputFacingFluids = facing;
         updateFluidOutputSubscription();
     }
 
     public void setAutoOutputItems(boolean value) {
+        if (!hasAutoOutputItem()) return;
         autoOutputItems = value;
         updateItemOutputSubscription();
     }
 
     public void setAutoOutputFluids(boolean value) {
+        if (!hasAutoOutputFluid()) return;
         autoOutputFluids = value;
         updateFluidOutputSubscription();
-    }
-
-    public void setAllowInputFromOutputSideItems(boolean value) {
-        allowInputFromOutputSideItems = value;
-    }
-
-    public void setAllowInputFromOutputSideFluids(boolean value) {
-        allowInputFromOutputSideFluids = value;
     }
 
     private void updateItemOutputSubscription() {
@@ -224,16 +237,36 @@ public class AutoOutputTrait extends MachineTrait {
         updateFluidOutputSubscription();
     }
 
-    public boolean handleWrenchClick(ToolModeSwitchBehavior.WrenchModeType mode, Direction side) {
-        if (!useDefaultToolHandlers || side == getMachine().getFrontFacing()) return false;
-        if (mode.isItem() && hasAutoOutputItem() && itemOutputValidator.test(side)) setOutputFacingItems(side);
-        else if (mode.isFluid() && hasAutoOutputFluid() && fluidOutputValidator.test(side)) setOutputFacingFluids(side);
-        else return false;
-        return true;
+    @Override
+    public Pair<@Nullable GTToolType, InteractionResult> onToolClick(Set<GTToolType> toolTypes, ItemStack itemStack,
+                                                                     UseOnContext context, Direction gridSide) {
+        if (!useDefaultToolHandlers) return IInteractionTrait.super.onToolClick(toolTypes, itemStack, context,
+                gridSide);
+        if (toolTypes.contains(GTToolType.WRENCH)) {
+            var tagCompound = com.gregtechceu.gtceu.api.item.tool.ToolHelper.getBehaviorsTag(itemStack);
+            var modes = ToolModeSwitchBehavior.WrenchModeType.values();
+            var mode = modes[Math.min(Byte.toUnsignedInt(tagCompound.getByte("Mode")), modes.length - 1)];
+            boolean changed = false;
+            if (!getMachine().hasFrontFacing() || gridSide != getMachine().getFrontFacing()) {
+                if (mode.isItem() && hasAutoOutputItem() && itemOutputValidator.test(gridSide)) {
+                    setOutputFacingItems(gridSide);
+                    changed = true;
+                }
+                if (mode.isFluid() && hasAutoOutputFluid() && fluidOutputValidator.test(gridSide)) {
+                    setOutputFacingFluids(gridSide);
+                    changed = true;
+                }
+            }
+            return Pair.of(GTToolType.WRENCH,
+                    changed ? InteractionResult.sidedSuccess(getMachine().isRemote()) : InteractionResult.PASS);
+        }
+        if (toolTypes.contains(GTToolType.SCREWDRIVER)) {
+            return Pair.of(GTToolType.SCREWDRIVER, onScrewdriverClick(context.getPlayer(), gridSide));
+        }
+        return IInteractionTrait.super.onToolClick(toolTypes, itemStack, context, gridSide);
     }
 
-    public InteractionResult handleScrewdriverClick(Player player, Direction side) {
-        if (!useDefaultToolHandlers) return InteractionResult.PASS;
+    private InteractionResult onScrewdriverClick(Player player, Direction side) {
         boolean changed = false;
         if (side == getOutputFacingItems()) {
             if (player.isShiftKeyDown()) {
@@ -256,9 +289,22 @@ public class AutoOutputTrait extends MachineTrait {
         return changed ? InteractionResult.sidedSuccess(player.level().isClientSide) : InteractionResult.PASS;
     }
 
-    public @Nullable ResourceTexture getSideTip(Player player, Set<GTToolType> toolTypes, Direction side) {
+    @Override
+    public boolean isValidFrontFace(Direction direction) {
+        return direction != getOutputFacingItems() && direction != getOutputFacingFluids();
+    }
+
+    @Override
+    public boolean shouldRenderGridOverlay(Player player, BlockPos pos, BlockState state, ItemStack held,
+                                           Set<GTToolType> toolTypes) {
+        return toolTypes.contains(GTToolType.WRENCH) || toolTypes.contains(GTToolType.SCREWDRIVER);
+    }
+
+    @Override
+    public @Nullable ResourceTexture getGridOverlayIcon(Player player, BlockPos pos, BlockState state,
+                                                        Set<GTToolType> toolTypes, Direction side) {
         if (toolTypes.contains(GTToolType.WRENCH) && !player.isShiftKeyDown() &&
-                side != getMachine().getFrontFacing()) {
+                (!getMachine().hasFrontFacing() || side != getMachine().getFrontFacing())) {
             if (hasAutoOutputItem() && itemOutputValidator.test(side) && side != getOutputFacingItems() ||
                     hasAutoOutputFluid() && fluidOutputValidator.test(side) && side != getOutputFacingFluids()) {
                 return GuiTextures.TOOL_IO_FACING_ROTATION;
@@ -269,6 +315,62 @@ public class AutoOutputTrait extends MachineTrait {
             return player.isShiftKeyDown() ? GuiTextures.TOOL_ALLOW_INPUT : GuiTextures.TOOL_AUTO_OUTPUT;
         }
         return null;
+    }
+
+    @Override
+    public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
+        if (hasAutoOutputItem()) {
+            right.attachConfigurators(createAutoOutputToggle(
+                    GuiTextures.IO_CONFIG_ITEM_MODES_BUTTON,
+                    "gtceu.gui.item_auto_output",
+                    this::isAutoOutputItems,
+                    this::setAutoOutputItems));
+            right.attachConfigurators(createAllowInputToggle(
+                    GuiTextures.BUTTON_ITEM_OUTPUT,
+                    "gtceu.gui.item_auto_output.allow_input",
+                    this::isAllowInputFromOutputSideItems,
+                    this::setAllowInputFromOutputSideItems));
+        }
+        if (hasAutoOutputFluid()) {
+            right.attachConfigurators(createAutoOutputToggle(
+                    GuiTextures.IO_CONFIG_FLUID_MODES_BUTTON,
+                    "gtceu.gui.fluid_auto_output",
+                    this::isAutoOutputFluids,
+                    this::setAutoOutputFluids));
+            right.attachConfigurators(createAllowInputToggle(
+                    GuiTextures.BUTTON_FLUID_OUTPUT,
+                    "gtceu.gui.fluid_auto_output.allow_input",
+                    this::isAllowInputFromOutputSideFluids,
+                    this::setAllowInputFromOutputSideFluids));
+        }
+    }
+
+    private IFancyConfiguratorButton.Toggle createAutoOutputToggle(ResourceTexture modes, String tooltipKey,
+                                                                   BooleanSupplier state, Consumer<Boolean> setter) {
+        var toggle = new IFancyConfiguratorButton.Toggle(
+                new GuiTextureGroup(
+                        GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0, 1, 0.5),
+                        modes.getSubTexture(0, 1 / 3f, 1, 1 / 3f)),
+                new GuiTextureGroup(
+                        GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0.5, 1, 0.5),
+                        modes.getSubTexture(0, 2 / 3f, 1, 1 / 3f)),
+                state, (clickData, pressed) -> setter.accept(pressed));
+        return withStateTooltip(toggle, tooltipKey);
+    }
+
+    private IFancyConfiguratorButton.Toggle createAllowInputToggle(ResourceTexture icon, String tooltipKey,
+                                                                   BooleanSupplier state, Consumer<Boolean> setter) {
+        var toggle = new IFancyConfiguratorButton.Toggle(
+                new GuiTextureGroup(GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0, 1, 0.5), icon),
+                new GuiTextureGroup(GuiTextures.TOGGLE_BUTTON_BACK.getSubTexture(0, 0.5, 1, 0.5), icon),
+                state, (clickData, pressed) -> setter.accept(pressed));
+        return withStateTooltip(toggle, tooltipKey);
+    }
+
+    private IFancyConfiguratorButton.Toggle withStateTooltip(IFancyConfiguratorButton.Toggle toggle,
+                                                             String tooltipKey) {
+        return toggle.setTooltipsSupplier(pressed -> List.of(
+                Component.translatable(tooltipKey + '.' + (pressed ? "enabled" : "disabled"))));
     }
 
     private void exportItems(Direction facing) {
