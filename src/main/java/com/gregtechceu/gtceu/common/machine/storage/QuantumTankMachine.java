@@ -27,11 +27,11 @@ import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
+import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -73,13 +73,18 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     @Getter
     private final long maxAmount;
     protected final FluidCache cache;
+    @Persisted
     @DescSynced
     private final CustomFluidTank lockedFluid;
 
     @Getter
+    @Persisted
+    @DropSaved
     @DescSynced
     protected FluidStack stored = FluidStack.EMPTY;
     @Getter
+    @Persisted
+    @DropSaved
     @DescSynced
     protected long storedAmount = 0;
 
@@ -101,8 +106,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
         return new FluidCache(this);
     }
 
-    protected void onFluidChanged() {}
-
     @Override
     public boolean savePickClone() {
         return false;
@@ -111,29 +114,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
     @Override
     public boolean saveBreak() {
         return !stored.isEmpty();
-    }
-
-    @Override
-    public void saveCustomPersistedData(@NotNull CompoundTag tag, boolean forDrop) {
-        super.saveCustomPersistedData(tag, forDrop);
-        if (!forDrop) tag.put("lockedFluid", lockedFluid.writeToNBT(new CompoundTag()));
-        tag.put("stored", stored.writeToNBT(new CompoundTag()));
-        tag.putLong("storedAmount", storedAmount);
-    }
-
-    @Override
-    public void loadCustomPersistedData(@NotNull CompoundTag tag) {
-        super.loadCustomPersistedData(tag);
-
-        var from = tag.contains("cache") ? tag.getCompound("cache") : tag;
-        this.lockedFluid.readFromNBT(from.getCompound("lockedFluid"));
-
-        var stored = FluidStack.loadFluidStackFromNBT(tag.getCompound("stored"));
-        this.stored = new FluidStack(stored, 1000);
-
-        if (!tag.contains("storedAmount")) this.storedAmount = stored.getAmount();
-        else this.storedAmount = tag.getLong("storedAmount");
-        if (storedAmount == 0 && !stored.isEmpty()) this.storedAmount = stored.getAmount();
     }
 
     //////////////////////////////////////
@@ -273,7 +253,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
             if (action.execute() && canFill > 0) {
                 if (stored.isEmpty()) stored = new FluidStack(resource, 1000);
                 storedAmount = Math.min(maxAmount, storedAmount + canFill);
-                onFluidChanged();
             }
             return (int) canFill;
         }
@@ -286,7 +265,6 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
             if (action.execute() && toDrain > 0) {
                 storedAmount -= toDrain;
                 if (storedAmount == 0) stored = FluidStack.EMPTY;
-                onFluidChanged();
             }
             return copy.isEmpty() ? FluidStack.EMPTY : copy;
         }

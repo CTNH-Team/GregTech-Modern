@@ -28,11 +28,11 @@ import com.lowdragmc.lowdraglib.gui.texture.ResourceBorderTexture;
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import com.lowdragmc.lowdraglib.gui.widget.*;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
+import com.lowdragmc.lowdraglib.syncdata.annotation.DropSaved;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -80,13 +80,18 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
 
     private final long maxAmount;
     protected final ItemCache cache;
+    @Persisted
     @DescSynced
     private final CustomItemStackHandler lockedItem;
 
     @Getter
+    @Persisted
+    @DropSaved
     @DescSynced
     protected ItemStack stored = ItemStack.EMPTY;
     @Getter
+    @Persisted
+    @DropSaved
     @DescSynced
     protected long storedAmount = 0;
 
@@ -108,8 +113,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
         return new ItemCache(this);
     }
 
-    protected void onItemChanged() {}
-
     @Override
     public boolean savePickClone() {
         return false;
@@ -118,22 +121,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
     @Override
     public boolean saveBreak() {
         return !stored.isEmpty();
-    }
-
-    @Override
-    public void saveCustomPersistedData(@NotNull CompoundTag tag, boolean forDrop) {
-        super.saveCustomPersistedData(tag, forDrop);
-        if (!forDrop) tag.put("lockedItem", lockedItem.serializeNBT());
-        tag.put("stored", stored.serializeNBT());
-        tag.putLong("storedAmount", storedAmount);
-    }
-
-    @Override
-    public void loadCustomPersistedData(@NotNull CompoundTag tag) {
-        super.loadCustomPersistedData(tag);
-        lockedItem.deserializeNBT(tag.getCompound("lockedItem"));
-        stored = ItemStack.of(tag.getCompound("stored"));
-        storedAmount = tag.getLong("storedAmount");
     }
 
     //////////////////////////////////////
@@ -323,7 +310,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
         public void setStackInSlot(int index, ItemStack stack) {
             stored = stack.copyWithCount(1);
             storedAmount = stack.getCount();
-            onItemChanged();
         }
 
         @Override
@@ -341,7 +327,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
             if (!simulate && canStore > 0) {
                 if (stored.isEmpty()) stored = stack.copyWithCount(1);
                 storedAmount = Math.min(maxAmount, storedAmount + canStore);
-                onItemChanged();
             }
             return stack.copyWithCount((int) (stack.getCount() - canStore));
         }
@@ -354,7 +339,6 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
             if (!simulate && toExtract > 0) {
                 storedAmount -= toExtract;
                 if (storedAmount == 0) stored = ItemStack.EMPTY;
-                onItemChanged();
             }
             return copy;
         }

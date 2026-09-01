@@ -56,7 +56,6 @@ public class CreativeTankMachine extends QuantumTankMachine {
 
     private InteractionResult updateStored(FluidStack fluid) {
         stored = new FluidStack(fluid, 1000);
-        onFluidChanged();
         return InteractionResult.SUCCESS;
     }
 
@@ -64,13 +63,11 @@ public class CreativeTankMachine extends QuantumTankMachine {
         if (value.isEmpty()) return;
         ticksPerCycle = Integer.parseInt(value);
         autoOutputTrait.setTicksPerCycle(ticksPerCycle);
-        onFluidChanged();
     }
 
     private void setmBPerCycle(String value) {
         if (value.isEmpty()) return;
         mBPerCycle = Integer.parseInt(value);
-        onFluidChanged();
     }
 
     @Override

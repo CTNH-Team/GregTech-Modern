@@ -320,28 +320,18 @@ public class AutoOutputTrait extends MachineTrait
     @Override
     public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
         if (hasAutoOutputItem()) {
-            right.attachConfigurators(createAutoOutputToggle(
+            left.attachConfigurators(createAutoOutputToggle(
                     GuiTextures.IO_CONFIG_ITEM_MODES_BUTTON,
                     "gtceu.gui.item_auto_output",
                     this::isAutoOutputItems,
                     this::setAutoOutputItems));
-            right.attachConfigurators(createAllowInputToggle(
-                    GuiTextures.BUTTON_ITEM_OUTPUT,
-                    "gtceu.gui.item_auto_output.allow_input",
-                    this::isAllowInputFromOutputSideItems,
-                    this::setAllowInputFromOutputSideItems));
         }
         if (hasAutoOutputFluid()) {
-            right.attachConfigurators(createAutoOutputToggle(
+            left.attachConfigurators(createAutoOutputToggle(
                     GuiTextures.IO_CONFIG_FLUID_MODES_BUTTON,
                     "gtceu.gui.fluid_auto_output",
                     this::isAutoOutputFluids,
                     this::setAutoOutputFluids));
-            right.attachConfigurators(createAllowInputToggle(
-                    GuiTextures.BUTTON_FLUID_OUTPUT,
-                    "gtceu.gui.fluid_auto_output.allow_input",
-                    this::isAllowInputFromOutputSideFluids,
-                    this::setAllowInputFromOutputSideFluids));
         }
     }
 
