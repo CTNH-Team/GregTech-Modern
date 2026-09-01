@@ -3,6 +3,8 @@ package com.gregtechceu.gtceu.integration.emi.recipe;
 import com.gregtechceu.gtceu.api.capability.recipe.FluidRecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.ItemRecipeCapability;
 import com.gregtechceu.gtceu.api.gui.widget.GhostCircuitSlotWidget;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.IntCircuitIngredient;
 import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
@@ -83,8 +85,8 @@ public class GTEmiRecipeHandler implements StandardRecipeHandler<ModularUIContai
                 }
             });
         }
-        if (screen.getMenu()
-                .getModularUI().holder instanceof com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot) {
+        if (screen.getMenu().getModularUI().holder instanceof MetaMachine machine &&
+                machine.getTrait(ProgrammableCircuitSlotTrait.class) != null) {
             for (int configuration = IntCircuitIngredient.CIRCUIT_MIN; configuration <=
                     IntCircuitIngredient.CIRCUIT_MAX; configuration++) {
                 stacks.add(EmiStack.of(IntCircuitBehaviour.stack(configuration)));

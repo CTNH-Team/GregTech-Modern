@@ -528,7 +528,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return getAllTraits();
     }
 
-    public <T extends MachineTrait> T getTrait(Class<T> type) {
+    public @Nullable <T extends MachineTrait> T getTrait(Class<T> type) {
         return traitHolder.first(type);
     }
 
@@ -818,9 +818,11 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
             var values = capabilities(side, IEnergyInfoProvider.class);
             if (!values.isEmpty()) return GTCapability.CAPABILITY_ENERGY_INFO_PROVIDER.orEmpty(cap,
                     LazyOptional.of(() -> values.size() == 1 ? values.get(0) : new EnergyInfoProviderList(values)));
-        } else if (cap == GTCapability.CAPABILITY_CLEANROOM_RECEIVER && this instanceof ICleanroomReceiver value)
-            return GTCapability.CAPABILITY_CLEANROOM_RECEIVER.orEmpty(cap, LazyOptional.of(() -> value));
-        else if (cap == GTCapability.CAPABILITY_MAINTENANCE_MACHINE && this instanceof IMaintenanceMachine value)
+        } else if (cap == GTCapability.CAPABILITY_CLEANROOM_RECEIVER) {
+            ICleanroomReceiver value = firstInterface(ICleanroomReceiver.class);
+            if (value != null)
+                return GTCapability.CAPABILITY_CLEANROOM_RECEIVER.orEmpty(cap, LazyOptional.of(() -> value));
+        } else if (cap == GTCapability.CAPABILITY_MAINTENANCE_MACHINE && this instanceof IMaintenanceMachine value)
             return GTCapability.CAPABILITY_MAINTENANCE_MACHINE.orEmpty(cap, LazyOptional.of(() -> value));
         else if (cap == GTCapability.CAPABILITY_TURBINE_MACHINE && this instanceof ITurbineMachine value)
             return GTCapability.CAPABILITY_TURBINE_MACHINE.orEmpty(cap, LazyOptional.of(() -> value));

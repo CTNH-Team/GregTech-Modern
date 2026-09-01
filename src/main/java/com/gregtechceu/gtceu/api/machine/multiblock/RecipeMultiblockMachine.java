@@ -2,9 +2,9 @@ package com.gregtechceu.gtceu.api.machine.multiblock;
 
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.ICleanroomProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.trait.CleanroomReceiverTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
@@ -36,10 +36,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
                                               implements IRecipeLogicMachine {
 
-    @Nullable
-    @Getter
-    @Setter
-    private ICleanroomProvider cleanroom;
     @Getter
     public final RecipeLogic recipeLogic;
     @Getter
@@ -61,6 +57,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.recipeHandlerLists = new ArrayList<>();
+        new CleanroomReceiverTrait(this);
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.gregtechceu.gtceu.api.machine.feature;
 
-import com.gregtechceu.gtceu.api.capability.ICleanroomReceiver;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeCapabilityHolder;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
@@ -18,8 +17,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A machine can handle recipes.
  */
-public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogicMachine, ICleanroomReceiver,
-                                     IVoidable {
+public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogicMachine, IVoidable {
 
     /**
      * RecipeType held

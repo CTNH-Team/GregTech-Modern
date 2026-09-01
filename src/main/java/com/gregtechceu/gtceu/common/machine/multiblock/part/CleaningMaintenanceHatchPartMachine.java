@@ -1,11 +1,12 @@
 package com.gregtechceu.gtceu.common.machine.multiblock.part;
 
-import com.gregtechceu.gtceu.api.capability.ICleanroomReceiver;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.ICleanroomProvider;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.multiblock.CleanroomType;
 import com.gregtechceu.gtceu.api.machine.multiblock.DummyCleanroom;
+import com.gregtechceu.gtceu.api.machine.trait.CleanroomReceiverTrait;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 
@@ -37,7 +38,9 @@ public class CleaningMaintenanceHatchPartMachine extends AutoMaintenanceHatchPar
     @Override
     public void addedToController(IMultiController controller) {
         super.addedToController(controller);
-        if (controller instanceof ICleanroomReceiver receiver) {
+        if (controller instanceof MetaMachine machine) {
+            var receiver = machine.getTrait(CleanroomReceiverTrait.class);
+            if (receiver == null) return;
             receiver.setCleanroom(DUMMY_CLEANROOM);
         }
     }
@@ -45,8 +48,11 @@ public class CleaningMaintenanceHatchPartMachine extends AutoMaintenanceHatchPar
     @Override
     public void removedFromController(IMultiController controller) {
         super.removedFromController(controller);
-        if (controller instanceof ICleanroomReceiver receiver && receiver.getCleanroom() == DUMMY_CLEANROOM) {
-            receiver.setCleanroom(null);
+        if (controller instanceof MetaMachine machine) {
+            var receiver = machine.getTrait(CleanroomReceiverTrait.class);
+            if (receiver != null && receiver.getCleanroom() == DUMMY_CLEANROOM) {
+                receiver.setCleanroom(null);
+            }
         }
     }
 

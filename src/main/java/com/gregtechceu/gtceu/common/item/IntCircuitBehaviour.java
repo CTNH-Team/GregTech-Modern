@@ -5,11 +5,9 @@ import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.item.component.IAddInformation;
 import com.gregtechceu.gtceu.api.item.component.IItemUIFactory;
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
-import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.common.data.GTItems;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 
 import com.lowdragmc.lowdraglib.gui.factory.HeldItemUIFactory;
 import com.lowdragmc.lowdraglib.gui.modular.ModularUI;
@@ -28,6 +26,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -142,18 +141,16 @@ public class IntCircuitBehaviour implements IItemUIFactory, IAddInformation {
         int circuitSetting = getCircuitConfiguration(stack);
         BlockEntity entity = context.getLevel().getBlockEntity(context.getClickedPos());
         if (entity instanceof MetaMachineBlockEntity machineEntity && context.isSecondaryUseActive()) {
-            if (machineEntity.metaMachine instanceof IHasCircuitSlot circuitMachine &&
-                    circuitMachine.getCircuitInventory().getSlots() > 0) {
-                setCircuitConfig(circuitMachine.getCircuitInventory(), circuitSetting);
+            var circuitSlot = machineEntity.metaMachine.getTrait(ProgrammableCircuitSlotTrait.class);
+            if (circuitSlot != null) {
+                setCircuitConfig(circuitSlot.getStorage(), circuitSetting);
             }
-            if (!ConfigHolder.INSTANCE.machines.ghostCircuit)
-                stack.shrink(1);
             return InteractionResult.SUCCESS;
         }
         return IItemUIFactory.super.useOn(context);
     }
 
-    void setCircuitConfig(NotifiableItemStackHandler circuit, int value) {
+    void setCircuitConfig(IItemHandlerModifiable circuit, int value) {
         circuit.setStackInSlot(0, IntCircuitBehaviour.stack(value));
     }
 }

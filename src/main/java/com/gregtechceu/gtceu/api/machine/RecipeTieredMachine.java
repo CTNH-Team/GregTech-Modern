@@ -18,7 +18,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.*;
@@ -40,10 +39,6 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
     public int activeRecipeType;
     @Getter
     public final Int2IntFunction tankScalingFunction;
-    @Nullable
-    @Getter
-    @Setter
-    private ICleanroomProvider cleanroom;
     @Persisted
     public final NotifiableItemStackHandler importItems;
     @Persisted
@@ -73,6 +68,7 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.tankScalingFunction = tankScalingFunction;
+        new CleanroomReceiverTrait(this);
 
         this.traitSubscriptions = new ArrayList<>();
         this.importItems = createImportItemHandler(args);

@@ -9,19 +9,17 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.ButtonConfigurator;
-import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CircuitFancyConfigurator;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.FancyInvConfigurator;
 import com.gregtechceu.gtceu.api.machine.feature.IAllowSameUIProvider;
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDistinctPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredIOPartMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.api.transfer.item.LargeStackItemHandler;
 import com.gregtechceu.gtceu.common.cover.ItemFilterCover;
 import com.gregtechceu.gtceu.common.data.GTMachines;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
@@ -58,7 +56,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class ItemBusPartMachine extends TieredIOPartMachine
-                                implements IDistinctPart, IMachineLife, IHasCircuitSlot, IAllowSameUIProvider {
+                                implements IDistinctPart, IMachineLife, IAllowSameUIProvider {
 
     public static final int[] INVENTORY_SIZE = { 1, 4, 6, 8, 10, 18, 21, 24, 36, 64 };
     public static final int[] LINE_NUM = { 1, 2, 2, 2, 2, 3, 3, 4, 6, 8 };
@@ -70,12 +68,6 @@ public class ItemBusPartMachine extends TieredIOPartMachine
     protected TickableSubscription autoIOSubs;
     @Nullable
     protected ISubscription inventorySubs;
-    @Getter
-    private boolean circuitSlotEnabled = true;
-    @Getter
-    @Persisted
-    @DescSynced
-    protected final NotifiableItemStackHandler circuitInventory;
     @Getter
     @Persisted
     protected final NotifiableItemStackHandler shareInventory;
@@ -91,7 +83,9 @@ public class ItemBusPartMachine extends TieredIOPartMachine
     public ItemBusPartMachine(IMachineBlockEntity holder, int tier, IO io, boolean enableShareInventory) {
         super(holder, tier, io);
         this.inventory = createInventory();
-        this.circuitInventory = createCircuitItemHandler(io).shouldSearchContent(false);
+        if (io == IO.IN) {
+            attachPersistentTrait("circuit_slot", new ProgrammableCircuitSlotTrait(this).shouldSearchContent(false));
+        }
         this.shareInventory = new NotifiableItemStackHandler(this,
                 enableShareInventory && io == IO.IN ? getShareInventorySlots(getTier()) : 0,
                 enableShareInventory && io == IO.IN ? IO.IN : IO.NONE,
@@ -136,16 +130,6 @@ public class ItemBusPartMachine extends TieredIOPartMachine
         return new NotifiableItemStackHandler(this, getInventorySize(), io, io,
                 i -> new LargeStackItemHandler(i, getSlotMultiplier(getTier())))
                 .setFilter(this::matchesFilter);
-    }
-
-    protected NotifiableItemStackHandler createCircuitItemHandler(IO io) {
-        if (io == IO.IN) {
-            return new NotifiableItemStackHandler(this, 1, IO.IN, IO.NONE)
-                    .setFilter(IntCircuitBehaviour::isIntegratedCircuit);
-        } else {
-            circuitSlotEnabled = false;
-            return new NotifiableItemStackHandler(this, 0, IO.NONE);
-        }
     }
 
     @Override
@@ -309,9 +293,6 @@ public class ItemBusPartMachine extends TieredIOPartMachine
                     new ButtonConfigurator(new GuiTextureGroup(GuiTextures.BUTTON, new TextTexture("\ud83d\udd19")),
                             this::refundAll)
                             .setTooltips(List.of(Component.translatable("gtceu.gui.refund_all_item"))));
-            if (isCircuitSlotEnabled()) {
-                left.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
-            }
             if (shareInventory.getSlots() != 0) {
                 right.attachConfigurators(new FancyInvConfigurator(
                         shareInventory.storage, Component.translatable("gui.gtceu.share_inventory.title"))

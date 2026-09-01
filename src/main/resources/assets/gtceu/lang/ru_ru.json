@@ -1250,7 +1250,6 @@
     "config.gtceu.option.energy": "energy",
     "config.gtceu.option.flintAndSteelRequireSteel": "flintAndSteelRequireSteel",
     "config.gtceu.option.generateLowQualityGems": "generateLowQualityGems",
-    "config.gtceu.option.ghostCircuit": "ghostCircuit",
     "config.gtceu.option.hardAdvancedIronRecipes": "hardAdvancedIronRecipes",
     "config.gtceu.option.hardDyeRecipes": "hardDyeRecipes",
     "config.gtceu.option.hardGlassRecipes": "hardGlassRecipes",

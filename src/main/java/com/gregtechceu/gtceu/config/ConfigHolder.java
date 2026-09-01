@@ -516,9 +516,6 @@ public class ConfigHolder {
                 "Default: true" })
         public boolean gt6StylePipesCables = true;
         @Configurable
-        @Configurable.Comment({ "Whether the machine's circuit slot need to be inserted a real circuit." })
-        public boolean ghostCircuit = true;
-        @Configurable
         @Configurable.Comment({ "Whether to add a \"Bedrock Ore Miner\" (also enables bedrock ore generation)",
                 "Default: false" })
         public boolean doBedrockOres = false;

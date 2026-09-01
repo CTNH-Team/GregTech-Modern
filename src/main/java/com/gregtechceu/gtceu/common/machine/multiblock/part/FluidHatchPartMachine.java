@@ -11,19 +11,15 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.ButtonConfigurator;
-import com.gregtechceu.gtceu.api.machine.fancyconfigurator.CircuitFancyConfigurator;
 import com.gregtechceu.gtceu.api.machine.fancyconfigurator.FancyTankConfigurator;
 import com.gregtechceu.gtceu.api.machine.feature.IAllowSameUIProvider;
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDistinctPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.part.TieredIOPartMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
-import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.common.data.GTMachines;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 
 import com.lowdragmc.lowdraglib.gui.texture.GuiTextureGroup;
@@ -62,7 +58,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
 public class FluidHatchPartMachine extends TieredIOPartMachine
-                                   implements IDistinctPart, IMachineLife, IHasCircuitSlot, IAllowSameUIProvider {
+                                   implements IDistinctPart, IMachineLife, IAllowSameUIProvider {
 
     public static final int INITIAL_TANK_CAPACITY = 8 * FluidType.BUCKET_VOLUME;
     public static final int[] TANKS = { 0, 2, 3, 4, 5, 12, 14, 18, 24, 36 };
@@ -83,10 +79,6 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
 
     @Getter
     @Persisted
-    @DescSynced
-    protected final NotifiableItemStackHandler circuitInventory;
-    @Getter
-    @Persisted
     protected final NotifiableFluidTank shareTank;
 
     public FluidHatchPartMachine(IMachineBlockEntity holder, int tier, IO io, int initialCapacity, int slots) {
@@ -98,7 +90,9 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
         super(holder, tier, io);
         this.slots = slots;
         this.tank = createTank(initialCapacity, slots);
-        this.circuitInventory = createCircuitItemHandler(io).shouldSearchContent(false);
+        if (io == IO.IN) {
+            attachPersistentTrait("circuit_slot", new ProgrammableCircuitSlotTrait(this).shouldSearchContent(false));
+        }
         this.shareTank = new NotifiableFluidTank(this,
                 enableShareTank && io == IO.IN ? getShareTankSlots(getTier()) : 0,
                 initialCapacity,
@@ -119,15 +113,6 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
         return initialCapacity * (1 << 2 * tier);
     }
 
-    protected NotifiableItemStackHandler createCircuitItemHandler(IO io) {
-        if (io == IO.IN) {
-            return new NotifiableItemStackHandler(this, 1, IO.IN, IO.NONE)
-                    .setFilter(IntCircuitBehaviour::isIntegratedCircuit);
-        } else {
-            return new NotifiableItemStackHandler(this, 0, IO.NONE);
-        }
-    }
-
     public static int getShareTankSlots(int tier) {
         if (tier <= GTValues.HV) {
             return 0;
@@ -137,13 +122,6 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
             return 9;
         } else {
             return 16;
-        }
-    }
-
-    @Override
-    public void onMachineRemoved() {
-        if (!ConfigHolder.INSTANCE.machines.ghostCircuit) {
-            clearInventory(circuitInventory.storage);
         }
     }
 
@@ -306,9 +284,6 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
                     new ButtonConfigurator(new GuiTextureGroup(GuiTextures.BUTTON, new TextTexture("\ud83d\udd19")),
                             this::refundAll)
                             .setTooltips(List.of(Component.translatable("gtceu.gui.refund_all_fluid"))));
-            if (isCircuitSlotEnabled()) {
-                left.attachConfigurators(new CircuitFancyConfigurator(circuitInventory.storage));
-            }
             if (shareTank.getTanks() != 0) {
                 right.attachConfigurators(new FancyTankConfigurator(
                         shareTank.getStorages(), Component.translatable("gui.gtceu.share_tank.title"))

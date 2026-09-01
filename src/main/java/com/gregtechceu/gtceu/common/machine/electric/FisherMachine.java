@@ -1,7 +1,6 @@
 package com.gregtechceu.gtceu.common.machine.electric;
 
 import com.gregtechceu.gtceu.api.GTValues;
-import com.gregtechceu.gtceu.api.capability.GTCapabilityHelper;
 import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
@@ -12,16 +11,14 @@ import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.ToggleButtonWidget;
 import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.WorkableTieredMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IMachineLife;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
+import com.gregtechceu.gtceu.api.machine.trait.BatterySlotTrait;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableItemStackHandler;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
-import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
-import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
 
 import com.lowdragmc.lowdraglib.gui.texture.ItemStackTexture;
@@ -77,11 +74,6 @@ public class FisherMachine extends WorkableTieredMachine
     @Persisted
     protected final NotifiableItemStackHandler baitHandler;
 
-    @Getter
-    @Persisted
-    protected final CustomItemStackHandler chargerInventory;
-    @Nullable
-    protected TickableSubscription batterySubs;
     @Nullable
     protected ISubscription energySubs, baitSubs;
     private final long energyPerTick;
@@ -112,22 +104,14 @@ public class FisherMachine extends WorkableTieredMachine
         this.energyPerTick = GTValues.V[tier - 1];
         this.cache = createCacheItemHandler();
         this.baitHandler = createBaitItemHandler();
-        this.chargerInventory = createChargerItemHandler();
         this.autoOutputTrait = AutoOutputTrait.ofItems(this, cache);
         attachPersistentTrait("auto_output", autoOutputTrait);
+        attachPersistentTrait("battery_slot", new BatterySlotTrait(this, energyContainer));
     }
 
     //////////////////////////////////////
     // ***** Initialization *****//
     //////////////////////////////////////
-
-    protected CustomItemStackHandler createChargerItemHandler() {
-        var handler = new CustomItemStackHandler();
-        handler.setFilter(item -> GTCapabilityHelper.getElectricItem(item) != null ||
-                (ConfigHolder.INSTANCE.compat.energy.nativeEUToFE &&
-                        GTCapabilityHelper.getForgeEnergyItem(item) != null));
-        return handler;
-    }
 
     protected NotifiableItemStackHandler createCacheItemHandler() {
         return new NotifiableItemStackHandler(this, inventorySize, IO.BOTH, IO.OUT);
@@ -148,12 +132,8 @@ public class FisherMachine extends WorkableTieredMachine
             serverLevel.getServer().tell(new TickTask(0, getWorkLogic()::updateTickSubscription));
         }
 
-        energySubs = energyContainer.addChangedListener(() -> {
-            this.updateBatterySubscription();
-            getWorkLogic().updateTickSubscription();
-        });
+        energySubs = energyContainer.addChangedListener(getWorkLogic()::updateTickSubscription);
         baitSubs = baitHandler.addChangedListener(getWorkLogic()::updateTickSubscription);
-        chargerInventory.setOnContentsChanged(this::updateBatterySubscription);
     }
 
     @Override
@@ -176,7 +156,6 @@ public class FisherMachine extends WorkableTieredMachine
 
     @Override
     public void onMachineRemoved() {
-        clearInventory(chargerInventory);
         clearInventory(baitHandler.storage);
         clearInventory(cache.storage);
     }
@@ -290,23 +269,6 @@ public class FisherMachine extends WorkableTieredMachine
         return false;
     }
 
-    //////////////////////////////////////
-    // ******* Auto Output *******//
-    //////////////////////////////////////
-    protected void updateBatterySubscription() {
-        if (energyContainer.dischargeOrRechargeEnergyContainers(chargerInventory, 0, true))
-            batterySubs = subscribeServerTick(batterySubs, this::chargeBattery);
-        else if (batterySubs != null) {
-            batterySubs.unsubscribe();
-            batterySubs = null;
-        }
-    }
-
-    protected void chargeBattery() {
-        if (!energyContainer.dischargeOrRechargeEnergyContainers(chargerInventory, 0, false))
-            updateBatterySubscription();
-    }
-
     @Override
     public void setWorkingEnabled(boolean workingEnabled) {
         getWorkLogic().setWorkingEnabled(workingEnabled);
@@ -329,7 +291,7 @@ public class FisherMachine extends WorkableTieredMachine
             .memoize((path, inventorySize) -> new EditableMachineUI("misc", path, () -> {
                 var template = createTemplate(inventorySize).createDefault();
                 var energyBar = createEnergyBar().createDefault();
-                var batterySlot = createBatterySlot().createDefault();
+                var batterySlot = BatterySlotTrait.<FisherMachine>createBatterySlot().createDefault();
                 var energyGroup = new WidgetGroup(0, 0, energyBar.getSize().width, energyBar.getSize().height + 20);
                 batterySlot.setSelfPosition(
                         new Position((energyBar.getSize().width - 18) / 2, energyBar.getSize().height + 1));
@@ -353,24 +315,10 @@ public class FisherMachine extends WorkableTieredMachine
                 if (machine instanceof FisherMachine fisherMachine) {
                     createTemplate(inventorySize).setupUI(template, fisherMachine);
                     createEnergyBar().setupUI(template, fisherMachine);
-                    createBatterySlot().setupUI(template, fisherMachine);
+                    BatterySlotTrait.<FisherMachine>createBatterySlot().setupUI(template, fisherMachine);
                     createJunkButton().setupUI(template, fisherMachine);
                 }
             }));
-
-    protected static EditableUI<SlotWidget, FisherMachine> createBatterySlot() {
-        return new EditableUI<>("battery_slot", SlotWidget.class, () -> {
-            var slotWidget = new SlotWidget();
-            slotWidget.setBackground(GuiTextures.SLOT, GuiTextures.CHARGER_OVERLAY);
-            return slotWidget;
-        }, (slotWidget, machine) -> {
-            slotWidget.setHandlerSlot(machine.chargerInventory, 0);
-            slotWidget.setCanPutItems(true);
-            slotWidget.setCanTakeItems(true);
-            slotWidget.setHoverTooltips(LangHandler.getMultiLang("gtceu.gui.charger_slot.tooltip",
-                    GTValues.VNF[machine.getTier()], GTValues.VNF[machine.getTier()]).toArray(new MutableComponent[0]));
-        });
-    }
 
     protected static EditableUI<ToggleButtonWidget, FisherMachine> createJunkButton() {
         return new EditableUI<>("junk_button", ToggleButtonWidget.class, () -> {

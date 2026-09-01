@@ -7,7 +7,7 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.*;
 import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.utils.GTTransferUtils;
 import com.gregtechceu.gtceu.utils.GTUtil;
@@ -206,10 +206,10 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
             tag.putBoolean(MUFFLED, mufflableMachine.isMuffled());
         }
 
-        if (machine instanceof IHasCircuitSlot circuitMachine) {
-            var circuit = IntCircuitBehaviour
-                    .getCircuitConfiguration(circuitMachine.getCircuitInventory().getStackInSlot(0));
-            if (circuitMachine.isCircuitSlotEnabled() && circuit != 0) {
+        var circuitSlot = machine.getTrait(ProgrammableCircuitSlotTrait.class);
+        if (circuitSlot != null) {
+            var circuit = circuitSlot.getCurrentCircuit();
+            if (circuit != 0) {
                 tag.putInt(CIRCUIT, circuit);
             }
         }
@@ -248,9 +248,9 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
             if (tag.contains(MUFFLED)) mufflableMachine.setMuffled(tag.getBoolean(MUFFLED));
         }
 
-        if (machine instanceof IHasCircuitSlot circuitMachine) {
-            if (tag.contains(CIRCUIT))
-                circuitMachine.getCircuitInventory().setStackInSlot(0, IntCircuitBehaviour.stack(tag.getInt(CIRCUIT)));
+        var circuitSlot = machine.getTrait(ProgrammableCircuitSlotTrait.class);
+        if (circuitSlot != null && tag.contains(CIRCUIT)) {
+            circuitSlot.setCurrentCircuit(tag.getInt(CIRCUIT));
         }
 
         machine.getCoverContainer().pasteConfig(player, tag.getCompound(COVER));
