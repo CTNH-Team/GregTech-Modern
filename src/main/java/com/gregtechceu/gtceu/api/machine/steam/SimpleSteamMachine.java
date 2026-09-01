@@ -59,8 +59,8 @@ public class SimpleSteamMachine extends SteamWorkableMachine implements IExhaust
 
     public SimpleSteamMachine(IMachineBlockEntity holder, boolean isHighPressure, Object... args) {
         super(holder, isHighPressure, args);
-        this.importItems = createImportItemHandler(args);
-        this.exportItems = createExportItemHandler(args);
+        this.importItems = attachTrait(createImportItemHandler(args));
+        this.exportItems = attachTrait(createExportItemHandler(args));
 
         MachineRenderState renderState = getRenderState();
         if (renderState.hasProperty(GTMachineModelProperties.VENT_DIRECTION)) {

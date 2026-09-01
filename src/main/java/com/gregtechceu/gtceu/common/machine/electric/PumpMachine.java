@@ -71,9 +71,8 @@ public class PumpMachine extends TieredEnergyMachine implements IUIMachine, IMac
 
     public PumpMachine(IMachineBlockEntity holder, int tier, Object... args) {
         super(holder, tier);
-        this.cache = createCacheFluidHandler(args);
-        this.autoOutputTrait = AutoOutputTrait.ofFluids(this, cache);
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.cache = attachTrait(createCacheFluidHandler(args));
+        this.autoOutputTrait = attachPersistentTrait("auto_output", AutoOutputTrait.ofFluids(this, cache));
     }
 
     //////////////////////////////////////

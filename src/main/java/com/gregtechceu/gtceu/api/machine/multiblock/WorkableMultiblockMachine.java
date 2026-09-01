@@ -53,7 +53,7 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
 
     public WorkableMultiblockMachine(IMachineBlockEntity holder, Object... args) {
         super(holder);
-        this.workLogic = createWorkLogic(args);
+        this.workLogic = attachTrait(createWorkLogic(args));
         this.traitSubscriptions = new ArrayList<>();
     }
 

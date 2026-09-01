@@ -89,16 +89,16 @@ public class FluidHatchPartMachine extends TieredIOPartMachine
                                  boolean enableShareTank) {
         super(holder, tier, io);
         this.slots = slots;
-        this.tank = createTank(initialCapacity, slots);
+        this.tank = attachTrait(createTank(initialCapacity, slots));
         if (io == IO.IN) {
             attachPersistentTrait("circuit_slot", new ProgrammableCircuitSlotTrait(this).shouldSearchContent(false));
         }
-        this.shareTank = new NotifiableFluidTank(this,
+        this.shareTank = attachTrait(new NotifiableFluidTank(this,
                 enableShareTank && io == IO.IN ? getShareTankSlots(getTier()) : 0,
                 initialCapacity,
                 enableShareTank && io == IO.IN ? IO.IN : IO.NONE,
                 IO.NONE)
-                .shouldSearchContent(false);
+                .shouldSearchContent(false));
         shareTank.setCapabilityValidator(dir -> false);
     }
 

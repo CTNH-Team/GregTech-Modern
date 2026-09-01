@@ -48,10 +48,10 @@ public class BufferMachine extends MetaMachine
     public BufferMachine(IMachineBlockEntity holder, int tier, Object... args) {
         super(holder);
         this.tier = tier;
-        this.inventory = createInventory(args);
-        this.tank = createTank(args);
-        this.autoOutputTrait = new AutoOutputTrait(this, List.of(inventory), List.of(tank));
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.inventory = attachTrait(createInventory(args));
+        this.tank = attachTrait(createTank(args));
+        this.autoOutputTrait = attachPersistentTrait("auto_output",
+                new AutoOutputTrait(this, List.of(inventory), List.of(tank)));
     }
 
     ////////////////////////////////

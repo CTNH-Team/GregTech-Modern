@@ -84,17 +84,18 @@ public final class MachineTraitHolder {
         }
     }
 
-    public void attachPersistent(String name, MachineTrait trait) {
-        attachPersistent(name, trait, 1);
+    public <T extends MachineTrait> T attachPersistent(String name, T trait) {
+        return attachPersistent(name, trait, 1);
     }
 
-    public void attachPersistent(String name, MachineTrait trait, int priority) {
+    public <T extends MachineTrait> T attachPersistent(String name, T trait, int priority) {
         if (persistent.containsKey(name)) throw new IllegalArgumentException("Duplicate persistent trait: " + name);
         if (persistent.containsValue(trait))
             throw new IllegalArgumentException("Trait is already persistent: " + trait.getClass().getName());
         trait.setTraitPriority(priority);
         attach(trait);
         persistent.put(name, trait);
+        return trait;
     }
 
     public List<MachineTrait> all() {

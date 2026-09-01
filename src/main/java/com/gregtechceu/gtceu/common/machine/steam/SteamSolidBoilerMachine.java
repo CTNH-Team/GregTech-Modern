@@ -45,7 +45,7 @@ public class SteamSolidBoilerMachine extends SteamBoilerMachine implements IMach
 
     public SteamSolidBoilerMachine(IMachineBlockEntity holder, boolean isHighPressure, Object... args) {
         super(holder, isHighPressure, args);
-        this.fuelHandler = createFuelHandler(args).setFilter(itemStack -> {
+        this.fuelHandler = attachTrait(createFuelHandler(args)).setFilter(itemStack -> {
             if (FluidUtil.getFluidContained(itemStack).isPresent()) {
                 return false;
             }
@@ -61,7 +61,7 @@ public class SteamSolidBoilerMachine extends SteamBoilerMachine implements IMach
                 });
             });
         });
-        this.ashHandler = createAshHandler(args);
+        this.ashHandler = attachTrait(createAshHandler(args));
     }
 
     //////////////////////////////////////

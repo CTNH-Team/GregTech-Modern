@@ -84,8 +84,8 @@ public class DiodePartMachine extends TieredIOPartMachine implements IExplosionM
         long tierVoltage = GTValues.V[getTier()];
 
         this.amps = 1;
-        this.energyContainer = new NotifiableEnergyContainer(this, tierVoltage * MAX_AMPS * 2, tierVoltage, MAX_AMPS,
-                tierVoltage, MAX_AMPS);
+        this.energyContainer = attachTrait(new NotifiableEnergyContainer(this, tierVoltage * MAX_AMPS * 2,
+                tierVoltage, MAX_AMPS, tierVoltage, MAX_AMPS));
 
         reinitializeEnergyContainer();
     }

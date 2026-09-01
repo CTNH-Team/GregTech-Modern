@@ -82,15 +82,15 @@ public class ItemBusPartMachine extends TieredIOPartMachine
 
     public ItemBusPartMachine(IMachineBlockEntity holder, int tier, IO io, boolean enableShareInventory) {
         super(holder, tier, io);
-        this.inventory = createInventory();
+        this.inventory = attachTrait(createInventory());
         if (io == IO.IN) {
             attachPersistentTrait("circuit_slot", new ProgrammableCircuitSlotTrait(this).shouldSearchContent(false));
         }
-        this.shareInventory = new NotifiableItemStackHandler(this,
+        this.shareInventory = attachTrait(new NotifiableItemStackHandler(this,
                 enableShareInventory && io == IO.IN ? getShareInventorySlots(getTier()) : 0,
                 enableShareInventory && io == IO.IN ? IO.IN : IO.NONE,
                 IO.NONE)
-                .shouldSearchContent(false);
+                .shouldSearchContent(false));
         shareInventory.setCapabilityValidator(dir -> false);
     }
 

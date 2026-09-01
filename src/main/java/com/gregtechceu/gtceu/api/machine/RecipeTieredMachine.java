@@ -68,13 +68,13 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.tankScalingFunction = tankScalingFunction;
-        new CleanroomReceiverTrait(this);
+        attachTrait(new CleanroomReceiverTrait(this));
 
         this.traitSubscriptions = new ArrayList<>();
-        this.importItems = createImportItemHandler(args);
-        this.exportItems = createExportItemHandler(args);
-        this.importFluids = createImportFluidHandler(args);
-        this.exportFluids = createExportFluidHandler(args);
+        this.importItems = attachTrait(createImportItemHandler(args));
+        this.exportItems = attachTrait(createExportItemHandler(args));
+        this.importFluids = attachTrait(createImportFluidHandler(args));
+        this.exportFluids = attachTrait(createExportFluidHandler(args));
     }
 
     protected NotifiableItemStackHandler createImportItemHandler(Object... args) {

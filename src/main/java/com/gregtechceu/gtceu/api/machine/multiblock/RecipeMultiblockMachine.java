@@ -57,7 +57,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.recipeHandlerLists = new ArrayList<>();
-        new CleanroomReceiverTrait(this);
+        attachTrait(new CleanroomReceiverTrait(this));
     }
 
     @Override

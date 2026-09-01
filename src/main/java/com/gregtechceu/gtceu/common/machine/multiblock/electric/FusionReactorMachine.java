@@ -81,7 +81,7 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
     public FusionReactorMachine(IMachineBlockEntity holder, int tier) {
         super(holder);
         this.tier = tier;
-        this.energyContainer = createEnergyContainer();
+        this.energyContainer = attachTrait(createEnergyContainer());
     }
 
     //////////////////////////////////////

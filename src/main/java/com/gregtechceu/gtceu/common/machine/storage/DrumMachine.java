@@ -64,11 +64,11 @@ public class DrumMachine extends MetaMachine implements IDropSaveMachine, IInter
         super(holder);
         this.material = material;
         this.maxStoredFluids = maxStoredFluids;
-        this.cache = createCacheFluidHandler(args);
-        this.autoOutputTrait = new AutoOutputTrait(this, java.util.List.of(), java.util.List.of(cache), false)
-                .setFluidOutputValidator(side -> side == Direction.DOWN);
+        this.cache = attachTrait(createCacheFluidHandler(args));
+        this.autoOutputTrait = attachPersistentTrait("auto_output",
+                new AutoOutputTrait(this, java.util.List.of(), java.util.List.of(cache), false)
+                        .setFluidOutputValidator(side -> side == Direction.DOWN));
         this.autoOutputTrait.setOutputFacingFluids(Direction.DOWN);
-        attachPersistentTrait("auto_output", autoOutputTrait);
     }
 
     //////////////////////////////////////

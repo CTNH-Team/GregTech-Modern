@@ -32,7 +32,7 @@ public class TankValvePartMachine extends MultiblockPartMachine {
     public TankValvePartMachine(IMachineBlockEntity holder, boolean isMetal, Object... args) {
         super(holder);
 
-        tankProxy = createTank(args);
+        tankProxy = attachTrait(createTank(args));
         autoIOSubscription = new ConditionalSubscriptionHandler(this, this::autoIO, this::shouldAutoIO);
     }
 

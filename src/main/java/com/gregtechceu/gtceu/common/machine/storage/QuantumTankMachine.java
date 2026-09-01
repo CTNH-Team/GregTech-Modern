@@ -92,9 +92,9 @@ public class QuantumTankMachine extends MetaMachine implements ITieredMachine, I
         super(holder);
         this.tier = tier;
         this.maxAmount = maxAmount;
-        this.cache = createCacheFluidHandler(args);
-        this.autoOutputTrait = new AutoOutputTrait(this, List.of(), List.of(cache));
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.cache = attachTrait(createCacheFluidHandler(args));
+        this.autoOutputTrait = attachPersistentTrait("auto_output",
+                new AutoOutputTrait(this, List.of(), List.of(cache)));
         this.lockedFluid = new CustomFluidTank(1000);
     }
 

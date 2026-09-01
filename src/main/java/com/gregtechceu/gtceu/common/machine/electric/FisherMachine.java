@@ -102,10 +102,9 @@ public class FisherMachine extends WorkableTieredMachine
         this.inventorySize = (tier + 1) * (tier + 1);
         this.maxProgress = calcMaxProgress(tier);
         this.energyPerTick = GTValues.V[tier - 1];
-        this.cache = createCacheItemHandler();
-        this.baitHandler = createBaitItemHandler();
-        this.autoOutputTrait = AutoOutputTrait.ofItems(this, cache);
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.cache = attachTrait(createCacheItemHandler());
+        this.baitHandler = attachTrait(createBaitItemHandler());
+        this.autoOutputTrait = attachPersistentTrait("auto_output", AutoOutputTrait.ofItems(this, cache));
         attachPersistentTrait("battery_slot", new BatterySlotTrait(this, energyContainer));
     }
 

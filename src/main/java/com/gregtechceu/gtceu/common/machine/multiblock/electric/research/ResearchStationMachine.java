@@ -26,7 +26,7 @@ public class ResearchStationMachine extends RecipeElectricMultiblockMachine {
 
     public ResearchStationMachine(IMachineBlockEntity holder, Object... args) {
         super(holder, args);
-        this.importComputation = new NetworkedComputationContainer(this, IO.IN);
+        this.importComputation = attachTrait(new NetworkedComputationContainer(this, IO.IN));
     }
 
     @Override

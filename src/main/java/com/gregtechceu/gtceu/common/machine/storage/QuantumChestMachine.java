@@ -99,10 +99,10 @@ public class QuantumChestMachine extends MetaMachine implements ITieredMachine, 
         super(holder);
         this.tier = tier;
         this.maxAmount = maxAmount;
-        this.cache = createCacheItemHandler(args);
+        this.cache = attachTrait(createCacheItemHandler(args));
         this.lockedItem = new CustomItemStackHandler();
-        this.autoOutputTrait = new AutoOutputTrait(this, List.of(cache), List.of());
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.autoOutputTrait = attachPersistentTrait("auto_output",
+                new AutoOutputTrait(this, List.of(cache), List.of()));
     }
 
     //////////////////////////////////////

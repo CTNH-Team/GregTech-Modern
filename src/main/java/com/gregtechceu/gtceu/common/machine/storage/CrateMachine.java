@@ -60,7 +60,7 @@ public class CrateMachine extends MetaMachine implements IUIMachine, IMachineLif
         super(holder);
         this.material = material;
         this.inventorySize = inventorySize;
-        this.inventory = new NotifiableItemStackHandler(this, inventorySize, IO.BOTH);
+        this.inventory = attachTrait(new NotifiableItemStackHandler(this, inventorySize, IO.BOTH));
     }
 
     @Override

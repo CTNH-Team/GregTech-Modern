@@ -26,13 +26,13 @@ public abstract class WorkableTieredMachine extends TieredEnergyMachine
 
     public WorkableTieredMachine(IMachineBlockEntity holder, int tier, Object... args) {
         super(holder, tier, args);
-        this.workLogic = createWorkLogic(args);
+        this.workLogic = attachTrait(createWorkLogic(args));
     }
 
     protected WorkableTieredMachine(IMachineBlockEntity holder, int tier,
                                     Function<MetaMachine, NotifiableEnergyContainer> energyContainerFactory) {
         super(holder, tier, energyContainerFactory);
-        this.workLogic = createWorkLogic();
+        this.workLogic = attachTrait(createWorkLogic());
     }
 
     protected WorkLogic createWorkLogic(Object... args) {

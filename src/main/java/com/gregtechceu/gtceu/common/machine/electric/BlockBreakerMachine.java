@@ -72,10 +72,9 @@ public class BlockBreakerMachine extends WorkableTieredMachine
     public BlockBreakerMachine(IMachineBlockEntity holder, int tier) {
         super(holder, tier);
         this.inventorySize = (tier + 1) * (tier + 1);
-        this.cache = createCacheItemHandler();
+        this.cache = attachTrait(createCacheItemHandler());
         this.energyPerTick = GTValues.V[tier - 1];
-        this.autoOutputTrait = AutoOutputTrait.ofItems(this, cache);
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.autoOutputTrait = attachPersistentTrait("auto_output", AutoOutputTrait.ofItems(this, cache));
         attachPersistentTrait("battery_slot", new BatterySlotTrait(this, energyContainer));
         this.efficiencyMultiplier = 1.0f - getEfficiencyMultiplier(tier);
     }

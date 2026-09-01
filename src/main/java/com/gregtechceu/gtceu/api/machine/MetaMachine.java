@@ -275,7 +275,7 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
     }
 
     /**
-     * Use for data not able to be saved with the SyncData system, like optional mod compatiblity in internal machines.
+     * Use for data not able to be saved with the SyncData system, like optional mod compatibility in internal machines.
      * 
      * @param tag     the CompoundTag to load data from
      * @param forDrop if the save is done for dropping the machine as an item.
@@ -512,12 +512,12 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return traitHolder.attach(trait);
     }
 
-    public void attachPersistentTrait(String name, MachineTrait trait) {
-        traitHolder.attachPersistent(name, trait);
+    public <T extends MachineTrait> T attachPersistentTrait(String name, T trait) {
+        return traitHolder.attachPersistent(name, trait);
     }
 
-    public void attachPersistentTrait(String name, MachineTrait trait, int priority) {
-        traitHolder.attachPersistent(name, trait, priority);
+    public <T extends MachineTrait> T attachPersistentTrait(String name, T trait, int priority) {
+        return traitHolder.attachPersistent(name, trait, priority);
     }
 
     public List<MachineTrait> getAllTraits() {

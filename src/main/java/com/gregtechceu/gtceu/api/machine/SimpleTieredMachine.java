@@ -2,10 +2,7 @@ package com.gregtechceu.gtceu.api.machine;
 
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.recipe.*;
-import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.editor.EditableMachineUI;
-import com.gregtechceu.gtceu.api.gui.editor.EditableUI;
-import com.gregtechceu.gtceu.api.gui.widget.GhostCircuitSlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.machine.feature.IFancyUIMachine;
 import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
@@ -13,15 +10,12 @@ import com.gregtechceu.gtceu.api.machine.trait.BatterySlotTrait;
 import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.ui.GTRecipeTypeUI;
-import com.gregtechceu.gtceu.data.lang.LangHandler;
 
-import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 import com.lowdragmc.lowdraglib.utils.Position;
 
 import net.minecraft.Util;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 import com.google.common.collect.Tables;
@@ -40,14 +34,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 @MethodsReturnNonnullByDefault
 public class SimpleTieredMachine extends RecipeTieredMachine implements IFancyUIMachine {
 
-    protected final AutoOutputTrait autoOutputTrait;
-
     public SimpleTieredMachine(IMachineBlockEntity holder, int tier, Int2IntFunction tankScalingFunction,
                                Object... args) {
         super(holder, tier, tankScalingFunction, args);
         attachPersistentTrait("circuit_slot", new ProgrammableCircuitSlotTrait(this));
-        this.autoOutputTrait = new AutoOutputTrait(this, List.of(exportItems), List.of(exportFluids));
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        attachPersistentTrait("auto_output",
+                new AutoOutputTrait(this, List.of(exportItems), List.of(exportFluids)));
         attachPersistentTrait("battery_slot", new BatterySlotTrait(this, energyContainer));
     }
 
@@ -95,26 +87,4 @@ public class SimpleTieredMachine extends RecipeTieredMachine implements IFancyUI
                     BatterySlotTrait.<SimpleTieredMachine>createBatterySlot().setupUI(template, tieredMachine);
                 }
             }));
-
-    /**
-     * Create a ghost circuit slot widget.
-     */
-    protected static EditableUI<GhostCircuitSlotWidget, SimpleTieredMachine> createCircuitConfigurator() {
-        return new EditableUI<>("circuit_configurator", GhostCircuitSlotWidget.class, () -> {
-            var slotWidget = new GhostCircuitSlotWidget();
-            slotWidget.setBackground(GuiTextures.SLOT, GuiTextures.INT_CIRCUIT_OVERLAY);
-            return slotWidget;
-        }, (slotWidget, machine) -> {
-            slotWidget.setCircuitInventory(machine.getTraitOrThrow(ProgrammableCircuitSlotTrait.class).getStorage());
-            slotWidget.setCanPutItems(false);
-            slotWidget.setCanTakeItems(false);
-            slotWidget.setHoverTooltips(
-                    LangHandler.getMultiLang("gtceu.gui.configurator_slot.tooltip").toArray(Component[]::new));
-        });
-    }
-
-    // Method provided to override
-    protected IGuiTexture getCircuitSlotOverlay() {
-        return GuiTextures.INT_CIRCUIT_OVERLAY;
-    }
 }

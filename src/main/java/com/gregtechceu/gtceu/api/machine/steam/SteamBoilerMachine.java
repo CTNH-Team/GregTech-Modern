@@ -87,7 +87,7 @@ public abstract class SteamBoilerMachine extends SteamWorkableMachine
 
     public SteamBoilerMachine(IMachineBlockEntity holder, boolean isHighPressure, Object... args) {
         super(holder, isHighPressure, args);
-        this.waterTank = createWaterTank(args);
+        this.waterTank = attachTrait(createWaterTank(args));
         this.waterTank.setFilter(fluid -> fluid.getFluid().is(GTMaterials.Water.getFluidTag()));
     }
 

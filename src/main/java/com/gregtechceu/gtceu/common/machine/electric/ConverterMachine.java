@@ -35,7 +35,11 @@ public class ConverterMachine extends TieredEnergyMachine {
     public static final BooleanProperty FE_TO_EU_PROPERTY = GTMachineModelProperties.IS_FE_TO_EU;
 
     public ConverterMachine(IMachineBlockEntity holder, int tier, int amps) {
-        super(holder, tier, machine -> new ConverterTrait((ConverterMachine) machine, amps));
+        super(holder, tier, machine -> {
+            var converter = new ConverterTrait((ConverterMachine) machine, amps);
+            machine.attachTrait(converter.getFeContainer());
+            return converter;
+        });
     }
 
     //////////////////////////////////////

@@ -97,13 +97,12 @@ public class ItemCollectorMachine extends WorkableTieredMachine
         super(holder, tier);
         this.inventorySize = INVENTORY_SIZES[Mth.clamp(getTier(), 0, INVENTORY_SIZES.length - 1)];
         this.energyPerTick = (long) BASE_EU_CONSUMPTION * (1L << (tier - 1));
-        this.output = createOutputItemHandler();
+        this.output = attachTrait(createOutputItemHandler());
         this.filterInventory = createFilterItemHandler();
 
         maxRange = (int) Math.pow(2, tier + 2);
         range = maxRange;
-        this.autoOutputTrait = AutoOutputTrait.ofItems(this, output);
-        attachPersistentTrait("auto_output", autoOutputTrait);
+        this.autoOutputTrait = attachPersistentTrait("auto_output", AutoOutputTrait.ofItems(this, output));
         attachPersistentTrait("battery_slot", new BatterySlotTrait(this, energyContainer));
     }
 

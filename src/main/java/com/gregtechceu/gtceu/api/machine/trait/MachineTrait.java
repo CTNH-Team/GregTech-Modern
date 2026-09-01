@@ -47,7 +47,6 @@ public abstract class MachineTrait implements IEnhancedManaged {
     protected MachineTrait(MetaMachine machine) {
         this.machine = machine;
         this.capabilityValidator = side -> true;
-        machine.attachTrait(this);
     }
 
     protected List<Class<?>> validMachineClasses() {

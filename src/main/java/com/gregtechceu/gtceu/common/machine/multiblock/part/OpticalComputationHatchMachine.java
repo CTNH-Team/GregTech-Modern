@@ -30,7 +30,7 @@ public class OpticalComputationHatchMachine extends MultiblockPartMachine {
     public OpticalComputationHatchMachine(IMachineBlockEntity holder, boolean transmitter) {
         super(holder);
         this.transmitter = transmitter;
-        this.computationPort = new MultiblockComputationPortTrait(this, transmitter, !transmitter);
+        this.computationPort = attachTrait(new MultiblockComputationPortTrait(this, transmitter, !transmitter));
     }
 
     @Override

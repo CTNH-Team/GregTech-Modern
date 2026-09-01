@@ -68,7 +68,7 @@ public abstract class SteamWorkableMachine extends SteamMachine
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.recipeLogic = createRecipeLogic(args);
-        new CleanroomReceiverTrait(this);
+        attachTrait(new CleanroomReceiverTrait(this));
 
         this.traitSubscriptions = new ArrayList<>();
         this.outputFacing = hasFrontFacing() ? getFrontFacing().getOpposite() : Direction.UP;

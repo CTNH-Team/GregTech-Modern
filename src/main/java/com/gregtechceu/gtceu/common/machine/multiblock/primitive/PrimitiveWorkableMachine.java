@@ -33,10 +33,10 @@ public class PrimitiveWorkableMachine extends RecipeMultiblockMachine
 
     public PrimitiveWorkableMachine(IMachineBlockEntity holder, Object... args) {
         super(holder, args);
-        this.importItems = createImportItemHandler(args);
-        this.exportItems = createExportItemHandler(args);
-        this.importFluids = createImportFluidHandler(args);
-        this.exportFluids = createExportFluidHandler(args);
+        this.importItems = attachTrait(createImportItemHandler(args));
+        this.exportItems = attachTrait(createExportItemHandler(args));
+        this.importFluids = attachTrait(createImportFluidHandler(args));
+        this.exportFluids = attachTrait(createExportFluidHandler(args));
     }
 
     //////////////////////////////////////
