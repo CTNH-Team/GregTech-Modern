@@ -23,8 +23,6 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -37,6 +35,9 @@ import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.*;
 
@@ -88,57 +89,27 @@ public class RecipeLogic extends WorkLogic {
     }
 
     @Override
-    public void writeJadeData(CompoundTag data, snownee.jade.api.BlockAccessor accessor) {
-        super.writeJadeData(data, accessor);
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                  IPluginConfig config) {
+        super.appendJadeTooltip(data, tooltip, accessor, config);
         var recipeTypes = machine.self().getDefinition().getRecipeTypes();
-        if (recipeTypes != null && recipeTypes.length > 1) {
-            ListTag modes = new ListTag();
-            int current = 0;
-            for (int index = 0; index < recipeTypes.length; index++) {
-                modes.add(StringTag.valueOf(recipeTypes[index].registryName.toString()));
-                if (recipeTypes[index] == machine.getRecipeType()) current = index;
+        if (recipeTypes.length > 1) {
+            var currentMode = machine.getRecipeType();
+            if (!accessor.showDetails()) {
+                tooltip.add(Component.translatable("gtceu.top.machine_mode").append(
+                        Component.translatable(currentMode.registryName.toString().replace(':', '.'))));
+            } else {
+                tooltip.add(Component.translatable("gtceu.top.machine_mode"));
+                for (var recipeType : recipeTypes) {
+                    tooltip.add(Component.literal(recipeType == currentMode ? " > " : "   ")
+                            .append(Component.translatable(recipeType.registryName.toString().replace(':', '.'))));
+                }
             }
-            data.put("modes", modes);
-            data.putInt("currentMode", current);
         }
         if (isWorking() && lastRecipe != null) {
-            long eut = RecipeHelper.getRealEUtWithIO(lastRecipe);
-            data.putLong("recipeEUt", Math.abs(eut));
-            data.putBoolean("recipeConsumesEnergy", eut > 0);
-            data.putLong("recipeVoltage", machine.getDisplayRecipeVoltage());
-            data.putInt("parallel", lastRecipe.parallels);
-            data.putInt("batch", lastRecipe.batchParallels);
-            data.putInt("subtickParallel", lastRecipe.subtickParallels);
-        }
-        if (!failureReasonsMap.isEmpty()) {
-            ListTag failures = new ListTag();
-            failureReasonsMap.values()
-                    .forEach(reason -> failures.add(StringTag.valueOf(Component.Serializer.toJson(reason))));
-            data.put("failures", failures);
-        }
-    }
-
-    @Override
-    public void appendJadeTooltip(CompoundTag data, snownee.jade.api.ITooltip tooltip,
-                                  snownee.jade.api.BlockAccessor accessor,
-                                  snownee.jade.api.config.IPluginConfig config) {
-        super.appendJadeTooltip(data, tooltip, accessor, config);
-        ListTag modes = data.getList("modes", StringTag.TAG_STRING);
-        if (!modes.isEmpty() && !accessor.showDetails()) {
-            int current = data.getInt("currentMode");
-            tooltip.add(Component.translatable("gtceu.top.machine_mode").append(
-                    Component.translatable(modes.getString(current).replace(':', '.'))));
-        } else if (!modes.isEmpty()) {
-            int current = data.getInt("currentMode");
-            tooltip.add(Component.translatable("gtceu.top.machine_mode"));
-            for (int index = 0; index < modes.size(); index++) {
-                tooltip.add(Component.literal(index == current ? " > " : "   ")
-                        .append(Component.translatable(modes.getString(index).replace(':', '.'))));
-            }
-        }
-        if (data.contains("recipeEUt")) {
-            long eut = data.getLong("recipeEUt");
-            long voltage = data.getLong("recipeVoltage");
+            long realEUt = RecipeHelper.getRealEUtWithIO(lastRecipe);
+            long eut = Math.abs(realEUt);
+            long voltage = machine.getDisplayRecipeVoltage();
             if (voltage <= 0) voltage = GTValues.V[GTValues.LV];
             int tier = GTUtil.getTierByVoltage(voltage);
             var rate = Component.translatable("gtceu.jade.amperage_use",
@@ -149,44 +120,44 @@ public class RecipeLogic extends WorkLogic {
                 rate = rate.append(Component.literal(GTValues.VNF[tier])
                         .withStyle(style -> style.withColor(GTValues.VC[tier])));
             tooltip.add(
-                    Component.translatable(data.getBoolean("recipeConsumesEnergy") ? "gtceu.top.energy_consumption" :
-                            "gtceu.top.energy_production").append(" ").append(rate));
+                    Component.translatable(
+                            realEUt > 0 ? "gtceu.top.energy_consumption" :
+                                    "gtceu.top.energy_production")
+                            .append(" ").append(rate));
+            appendParallelTooltip(lastRecipe, tooltip);
+            appendJadeOutputTooltip(lastRecipe, tooltip, accessor, config);
         }
-        if (data.contains("parallel")) {
-            int parallel = data.getInt("parallel");
-            int batch = data.getInt("batch");
-            int subtick = data.getInt("subtickParallel");
-            int totalRuns = parallel * batch * subtick;
-            if (totalRuns > 1) tooltip.add(Component.translatable("gtceu.multiblock.total_runs",
-                    Component.literal(FormattingUtil.formatNumbers(totalRuns))
-                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
-            if (parallel > 1) tooltip.add(Component.translatable("gtceu.multiblock.parallel.exact",
-                    Component.literal(FormattingUtil.formatNumbers(parallel))
-                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
-            if (batch > 1) tooltip.add(Component.translatable("gtceu.multiblock.batch_enabled",
-                    Component.literal(FormattingUtil.formatNumbers(batch))
-                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
-            if (subtick > 1) tooltip.add(Component.translatable("gtceu.multiblock.subtick_parallels",
-                    Component.literal(FormattingUtil.formatNumbers(subtick))
-                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
-        }
-        ListTag failures = data.getList("failures", StringTag.TAG_STRING);
-        if (!failures.isEmpty()) {
+        if (!failureReasonsMap.isEmpty()) {
             tooltip.add(Component.translatable("gtceu.recipe_logic.setup_fail")
-                    .withStyle(net.minecraft.ChatFormatting.RED));
-            failures.forEach(tag -> tooltip
-                    .add(Component.literal(" - ").append(Component.Serializer.fromJson(tag.getAsString()))));
+                    .withStyle(ChatFormatting.RED));
+            failureReasonsMap.values().forEach(reason -> tooltip
+                    .add(Component.literal(" - ").append(reason)));
         }
-        if (isWorking() && lastRecipe != null) appendJadeOutputTooltip(tooltip, accessor, config);
     }
 
-    private void appendJadeOutputTooltip(snownee.jade.api.ITooltip tooltip, snownee.jade.api.BlockAccessor accessor,
-                                         snownee.jade.api.config.IPluginConfig config) {
+    private void appendParallelTooltip(GTRecipe recipe, ITooltip tooltip) {
+        int parallel = recipe.parallels;
+        int batch = recipe.batchParallels;
+        int subtick = recipe.subtickParallels;
+        int totalRuns = parallel * batch * subtick;
+        if (totalRuns > 1) addRunsTooltip(tooltip, "gtceu.multiblock.total_runs", totalRuns);
+        if (parallel > 1) addRunsTooltip(tooltip, "gtceu.multiblock.parallel.exact", parallel);
+        if (batch > 1) addRunsTooltip(tooltip, "gtceu.multiblock.batch_enabled", batch);
+        if (subtick > 1) addRunsTooltip(tooltip, "gtceu.multiblock.subtick_parallels", subtick);
+    }
+
+    private void addRunsTooltip(ITooltip tooltip, String key, int amount) {
+        tooltip.add(Component.translatable(key, Component.literal(FormattingUtil.formatNumbers(amount))
+                .withStyle(ChatFormatting.DARK_PURPLE)));
+    }
+
+    private void appendJadeOutputTooltip(GTRecipe recipe, ITooltip tooltip, BlockAccessor accessor,
+                                         IPluginConfig config) {
         boolean[] shown = { false };
-        int recipeTier = lastRecipe.tier;
-        int chanceTier = recipeTier + lastRecipe.ocLevel;
-        int runs = lastRecipe.getTotalRuns();
-        lastRecipe.outputs.forEachEntry(new ContentListMap.EntryConsumer() {
+        int recipeTier = recipe.tier;
+        int chanceTier = recipeTier + recipe.ocLevel;
+        int runs = recipe.getTotalRuns();
+        recipe.outputs.forEachEntry(new ContentListMap.EntryConsumer() {
 
             @Override
             public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
@@ -195,7 +166,7 @@ public class RecipeLogic extends WorkLogic {
                     tooltip.add(Component.translatable("gtceu.top.recipe_output"));
                     shown[0] = true;
                 }
-                capability.appendJadeOutputTooltip(contents, lastRecipe, runs, recipeTier, chanceTier, tooltip,
+                capability.appendJadeOutputTooltip(contents, recipe, runs, recipeTier, chanceTier, tooltip,
                         accessor, config);
             }
         });

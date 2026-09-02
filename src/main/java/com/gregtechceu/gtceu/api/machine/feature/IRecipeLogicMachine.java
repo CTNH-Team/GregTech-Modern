@@ -7,7 +7,6 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.jade.provider.RecipeLogicProvider;
 
 import net.minecraft.network.chat.Component;
 
@@ -122,7 +121,7 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogic
     }
 
     /**
-     * Display recipe voltage used by {@link RecipeLogicProvider}
+     * Display recipe voltage used by the recipe Jade tooltip.
      */
 
     default long getDisplayRecipeVoltage() {
