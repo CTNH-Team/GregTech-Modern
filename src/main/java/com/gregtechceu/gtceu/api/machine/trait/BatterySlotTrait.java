@@ -4,13 +4,10 @@ import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.GTCapabilityHelper;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.editor.EditableUI;
-import com.gregtechceu.gtceu.api.gui.fancy.ConfiguratorPanel;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
-import com.gregtechceu.gtceu.api.machine.fancyconfigurator.FancyInvConfigurator;
 import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
-import com.gregtechceu.gtceu.api.machine.trait.feature.IAttachConfiguratorsTrait;
 import com.gregtechceu.gtceu.api.transfer.item.CustomItemStackHandler;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.data.lang.LangHandler;
@@ -23,10 +20,8 @@ import net.minecraft.network.chat.Component;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-
 /** Owns a machine's battery charger slot, transfer subscription, persistence, and UI integration. */
-public class BatterySlotTrait extends MachineTrait implements IAttachConfiguratorsTrait {
+public class BatterySlotTrait extends MachineTrait {
 
     @Getter
     @Persisted
@@ -93,15 +88,6 @@ public class BatterySlotTrait extends MachineTrait implements IAttachConfigurato
     @Override
     public void onMachineDestroyed() {
         getMachine().clearInventory(storage);
-    }
-
-    @Override
-    public void attachConfigurators(ConfiguratorPanel left, ConfiguratorPanel right) {
-        var configurator = new FancyInvConfigurator(storage,
-                Component.translatable("gtceu.gui.charger_slot.tooltip.0"));
-        configurator.setTooltips(new ArrayList<>(LangHandler.getMultiLang("gtceu.gui.charger_slot.tooltip",
-                GTValues.VNF[tier], GTValues.VNF[tier])));
-        right.attachConfigurators(configurator);
     }
 
     public static <M extends MetaMachine & ITieredMachine> EditableUI<SlotWidget, M> createBatterySlot() {

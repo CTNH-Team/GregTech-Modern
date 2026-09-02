@@ -20,6 +20,9 @@ import com.mojang.serialization.Codec;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.*;
 
@@ -32,7 +35,9 @@ public abstract class RecipeCapability<T> {
     // public static final Codec<Map<RecipeCapability<?>, List<?>>> CODEC = new DispatchedMapCodec<>(
     // RecipeCapability.DIRECT_CODEC,
     // RecipeCapability::contentCodec);
-    public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator.comparingInt(o -> o.sortIndex);
+    public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator
+            .<RecipeCapability<?>>comparingInt(o -> o.sortIndex)
+            .thenComparing(o -> o.name);
     private static int index = 0;
 
     public final String name;
@@ -197,5 +202,17 @@ public abstract class RecipeCapability<T> {
 
     public List<?> getXEIIngredients(List<T> contents, GTRecipeDefinition recipe, IO io) {
         return new ArrayList<>();
+    }
+
+    /** Adds this capability's recipe outputs to the Jade tooltip. */
+    public boolean appendJadeOutputTooltip(List<T> contents, GTRecipe recipe, int runs,
+                                           int recipeTier, int chanceTier, ITooltip tooltip,
+                                           BlockAccessor accessor, IPluginConfig config) {
+        return false;
+    }
+
+    /** Returns whether this capability has at least one output that can be shown in Jade. */
+    public boolean hasJadeOutput(List<T> contents) {
+        return false;
     }
 }

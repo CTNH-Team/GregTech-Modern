@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.api.machine.trait;
 import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
+import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
@@ -10,6 +11,7 @@ import com.gregtechceu.gtceu.api.recipe.ActionResult;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
+import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.sound.AutoReleasedSound;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
@@ -19,6 +21,7 @@ import com.lowdragmc.lowdraglib.misc.SyncableMap;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -139,10 +142,12 @@ public class RecipeLogic extends WorkLogic {
             if (voltage <= 0) voltage = GTValues.V[GTValues.LV];
             int tier = GTUtil.getTierByVoltage(voltage);
             var rate = Component.translatable("gtceu.jade.amperage_use",
-                    FormattingUtil.formatNumber2Places((float) eut / voltage));
-            if (tier < GTValues.TIER_COUNT) rate = rate.append(Component.translatable("gtceu.jade.at"))
-                    .append(Component.literal(GTValues.VNF[tier])
-                            .withStyle(style -> style.withColor(GTValues.VC[tier])));
+                    FormattingUtil.formatNumber2Places((float) eut / voltage))
+                    .withStyle(ChatFormatting.RED)
+                    .append(Component.translatable("gtceu.jade.at").withStyle(ChatFormatting.GREEN));;
+            if (tier < GTValues.TIER_COUNT)
+                rate = rate.append(Component.literal(GTValues.VNF[tier])
+                        .withStyle(style -> style.withColor(GTValues.VC[tier])));
             tooltip.add(
                     Component.translatable(data.getBoolean("recipeConsumesEnergy") ? "gtceu.top.energy_consumption" :
                             "gtceu.top.energy_production").append(" ").append(rate));
@@ -172,6 +177,28 @@ public class RecipeLogic extends WorkLogic {
             failures.forEach(tag -> tooltip
                     .add(Component.literal(" - ").append(Component.Serializer.fromJson(tag.getAsString()))));
         }
+        if (isWorking() && lastRecipe != null) appendJadeOutputTooltip(tooltip, accessor, config);
+    }
+
+    private void appendJadeOutputTooltip(snownee.jade.api.ITooltip tooltip, snownee.jade.api.BlockAccessor accessor,
+                                         snownee.jade.api.config.IPluginConfig config) {
+        boolean[] shown = { false };
+        int recipeTier = lastRecipe.tier;
+        int chanceTier = recipeTier + lastRecipe.ocLevel;
+        int runs = lastRecipe.getTotalRuns();
+        lastRecipe.outputs.forEachEntry(new ContentListMap.EntryConsumer() {
+
+            @Override
+            public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
+                if (contents.isEmpty() || !capability.hasJadeOutput(contents)) return;
+                if (!shown[0]) {
+                    tooltip.add(Component.translatable("gtceu.top.recipe_output"));
+                    shown[0] = true;
+                }
+                capability.appendJadeOutputTooltip(contents, lastRecipe, runs, recipeTier, chanceTier, tooltip,
+                        accessor, config);
+            }
+        });
     }
 
     /**
