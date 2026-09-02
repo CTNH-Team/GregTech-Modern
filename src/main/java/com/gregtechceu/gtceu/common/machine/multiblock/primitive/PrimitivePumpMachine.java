@@ -9,11 +9,18 @@ import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableFluidTank;
 import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
 import com.gregtechceu.gtceu.common.data.GTMaterials;
+import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.biome.Biome.Precipitation;
 import net.minecraftforge.fluids.FluidType;
+
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.List;
 
@@ -30,6 +37,20 @@ public class PrimitivePumpMachine extends MultiblockControllerMachine {
 
     public PrimitivePumpMachine(IMachineBlockEntity holder) {
         super(holder);
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putInt("production", getFluidProduction());
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        tooltip.add(Component.translatable("gtceu.top.primitive_pump_production",
+                FormattingUtil.formatNumbers(data.getInt("production"))));
     }
 
     @Override

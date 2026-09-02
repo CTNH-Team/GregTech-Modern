@@ -18,6 +18,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -78,6 +81,14 @@ public abstract class MachineTrait implements IEnhancedManaged {
     public void onWorkAllowedChanged(boolean isWorkAllowed) {}
 
     public void updateModelData(ModelData.Builder builder) {}
+
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {}
+
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {}
+
+    public int jadePriority() {
+        return 0;
+    }
 
     public MachineRenderState getRenderState() {
         return getMachine().getRenderState();

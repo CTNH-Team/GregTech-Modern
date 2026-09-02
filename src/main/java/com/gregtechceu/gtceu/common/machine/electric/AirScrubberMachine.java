@@ -18,6 +18,7 @@ import com.gregtechceu.gtceu.utils.GTUtil;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -28,6 +29,9 @@ import it.unimi.dsi.fastutil.objects.Object2FloatMap;
 import it.unimi.dsi.fastutil.objects.Object2FloatOpenHashMap;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import static com.gregtechceu.gtceu.api.GTValues.LV;
 import static com.gregtechceu.gtceu.api.GTValues.VHA;
@@ -44,6 +48,20 @@ public class AirScrubberMachine extends SimpleTieredMachine implements IEnvironm
     public AirScrubberMachine(IMachineBlockEntity holder, int tier, Object... args) {
         super(holder, tier, GTMachineUtils.largeTankSizeFunction, args);
         this.cleaningPerOperation = MIN_CLEANING_PER_OPERATION;
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putFloat("cleaned", removedLastSecond);
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        float cleaned = data.getFloat("cleaned");
+        if (cleaned > 0) tooltip.add(Component.translatable("gtceu.jade.cleaned_this_second", cleaned));
     }
 
     @Override

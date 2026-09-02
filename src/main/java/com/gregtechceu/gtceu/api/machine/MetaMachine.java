@@ -32,10 +32,7 @@ import com.gregtechceu.gtceu.api.machine.feature.*;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
-import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
-import com.gregtechceu.gtceu.api.machine.trait.MachineTraitHolder;
-import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+import com.gregtechceu.gtceu.api.machine.trait.*;
 import com.gregtechceu.gtceu.api.machine.trait.feature.IFrontFacingTrait;
 import com.gregtechceu.gtceu.api.machine.trait.feature.IInteractionTrait;
 import com.gregtechceu.gtceu.api.machine.trait.feature.IRenderingTrait;
@@ -53,6 +50,7 @@ import com.gregtechceu.gtceu.common.cover.data.ManualIOMode;
 import com.gregtechceu.gtceu.common.machine.owner.MachineOwner;
 import com.gregtechceu.gtceu.common.machine.owner.PlayerOwner;
 import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
+import com.gregtechceu.gtceu.utils.GTUtil;
 import com.gregtechceu.gtceu.utils.ManagedFieldHolderMap;
 
 import com.lowdragmc.lowdraglib.gui.texture.IGuiTexture;
@@ -104,6 +102,9 @@ import lombok.Setter;
 import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -526,6 +527,52 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
 
     public List<MachineTrait> getTraits() {
         return getAllTraits();
+    }
+
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        if (this instanceof IControllable controllable && getTrait(WorkLogic.class) == null) {
+            data.putBoolean("workingEnabled", controllable.isWorkingEnabled());
+            data.putBoolean("suspendAfter", controllable.isSuspendAfterFinish());
+        }
+        if (this instanceof IMaintenanceMachine maintenance) {
+            data.putBoolean("hasMaintenanceProblems", maintenance.hasMaintenanceProblems());
+            data.putInt("maintenanceProblems", maintenance.getMaintenanceProblems());
+        }
+    }
+
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        if (data.getBoolean("suspendAfter")) {
+            tooltip.add(
+                    Component.translatable("behaviour.soft_hammer.disabled_cycle").withStyle(ChatFormatting.YELLOW));
+        } else if (data.contains("workingEnabled") && !data.getBoolean("workingEnabled")) {
+            tooltip.add(Component.translatable("behaviour.soft_hammer.disabled").withStyle(ChatFormatting.YELLOW));
+        }
+        if (!data.contains("hasMaintenanceProblems")) return;
+        if (!data.getBoolean("hasMaintenanceProblems")) {
+            tooltip.add(Component.translatable("gtceu.top.maintenance_fixed").withStyle(ChatFormatting.GREEN));
+        } else if (!accessor.showDetails()) {
+            tooltip.add(Component.translatable("gtceu.top.maintenance_broken").withStyle(ChatFormatting.RED));
+        } else {
+            int problems = data.getInt("maintenanceProblems");
+            var helper = tooltip.getElementHelper();
+            for (byte index = 0; index < 6; index++) {
+                if (((problems >> index) & 1) == 0) {
+                    var entry = GTUtil.getMaintenanceText(index);
+                    tooltip.add(helper.smallItem(entry.getA()));
+                    tooltip.append(entry.getB());
+                }
+            }
+        }
+    }
+
+    public final void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        writeMachineJadeData(data, accessor);
+    }
+
+    public final void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                        IPluginConfig config) {
+        appendMachineJadeTooltip(data, tooltip, accessor, config);
     }
 
     public @Nullable <T extends MachineTrait> T getTrait(Class<T> type) {

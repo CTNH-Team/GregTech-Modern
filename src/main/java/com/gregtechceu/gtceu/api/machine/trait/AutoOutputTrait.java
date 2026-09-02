@@ -23,7 +23,10 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.RequireRerender;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
@@ -38,7 +41,11 @@ import net.minecraftforge.items.IItemHandler;
 import com.mojang.datafixers.util.Pair;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -159,6 +166,58 @@ public class AutoOutputTrait extends MachineTrait
 
     public boolean hasAutoOutputFluid() {
         return !fluidHandlers.isEmpty();
+    }
+
+    @Override
+    public int jadePriority() {
+        return 600;
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        writeJadeOutput(data, "item", getOutputFacingItems(), isAllowInputFromOutputSideItems(), isAutoOutputItems(),
+                accessor);
+        writeJadeOutput(data, "fluid", getOutputFacingFluids(), isAllowInputFromOutputSideFluids(),
+                isAutoOutputFluids(), accessor);
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        appendJadeOutput(data, "item", "gtceu.top.item_auto_output", tooltip, accessor);
+        appendJadeOutput(data, "fluid", "gtceu.top.fluid_auto_output", tooltip, accessor);
+    }
+
+    private static void writeJadeOutput(CompoundTag data, String key, @Nullable Direction direction,
+                                        boolean allowInput, boolean autoOutput, BlockAccessor accessor) {
+        if (direction == null) return;
+        CompoundTag output = new CompoundTag();
+        output.putString("direction", direction.getName());
+        output.putBoolean("allowInput", allowInput);
+        output.putBoolean("auto", autoOutput);
+        output.putString("block", BuiltInRegistries.BLOCK.getKey(
+                accessor.getLevel().getBlockState(accessor.getPosition().relative(direction)).getBlock()).toString());
+        data.put(key, output);
+    }
+
+    private static void appendJadeOutput(CompoundTag data, String key, String translation, ITooltip tooltip,
+                                         BlockAccessor accessor) {
+        if (!data.contains(key)) return;
+        CompoundTag output = data.getCompound(key);
+        Direction direction = Direction.byName(output.getString("direction"));
+        if (direction == null) return;
+        tooltip.add(Component.translatable(translation, StringUtils.capitalize(direction.getName())));
+        if (accessor.showDetails()) {
+            var block = BuiltInRegistries.BLOCK.get(new ResourceLocation(output.getString("block"))).asItem()
+                    .getDefaultInstance();
+            if (!block.isEmpty()) tooltip.append(tooltip.getElementHelper().smallItem(block));
+        }
+        if (output.getBoolean("allowInput") || output.getBoolean("auto")) {
+            var state = Component.literal(" (");
+            if (output.getBoolean("auto")) state.append(Component.translatable("gtceu.top.auto_output"));
+            if (output.getBoolean("auto") && output.getBoolean("allowInput")) state.append("/");
+            if (output.getBoolean("allowInput")) state.append(Component.translatable("gtceu.top.allow_output_input"));
+            tooltip.append(state.append(")"));
+        }
     }
 
     public @Nullable Direction getOutputFacingItems() {

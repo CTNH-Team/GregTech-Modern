@@ -7,6 +7,7 @@ import com.gregtechceu.gtceu.api.capability.IParallelHatch;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMaintenanceMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
@@ -24,6 +25,8 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.UpdateListener;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -34,6 +37,9 @@ import net.minecraft.world.phys.BlockHitResult;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +75,29 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
     public MultiblockControllerMachine(IMachineBlockEntity holder) {
         super(holder);
         attachTrait(new ParallelHatchTrait(this));
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("formed", isFormed());
+        for (IMultiPart part : getParts()) {
+            if (part instanceof IMaintenanceMachine maintenance) {
+                data.putBoolean("hasMaintenanceProblems", maintenance.hasMaintenanceProblems());
+                data.putInt("maintenanceProblems", maintenance.getMaintenanceProblems());
+                break;
+            }
+        }
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        tooltip.add(Component.translatable(data.getBoolean("formed") ? "gtceu.top.valid_structure" :
+                "gtceu.top.invalid_structure")
+                .withStyle(data.getBoolean("formed") ? net.minecraft.ChatFormatting.GREEN :
+                        net.minecraft.ChatFormatting.RED));
     }
 
     //////////////////////////////////////

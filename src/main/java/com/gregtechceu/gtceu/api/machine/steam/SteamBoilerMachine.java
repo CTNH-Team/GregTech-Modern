@@ -36,7 +36,9 @@ import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -56,6 +58,9 @@ import net.minecraftforge.fluids.capability.IFluidHandler.FluidAction;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -89,6 +94,40 @@ public abstract class SteamBoilerMachine extends SteamWorkableMachine
         super(holder, isHighPressure, args);
         this.waterTank = attachTrait(createWaterTank(args));
         this.waterTank.setFilter(fluid -> fluid.getFluid().is(GTMaterials.Water.getFluidTag()));
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("burning", getRecipeLogic().isWorking());
+        data.putBoolean("hasWater", !isHasNoWater());
+        data.putLong("steamProduction", getTotalSteamOutput());
+        data.putInt("temperature", getCurrentTemperature());
+        data.putInt("maxTemperature", getMaxTemperature());
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        boolean burning = data.getBoolean("burning");
+        int temperature = data.getInt("temperature");
+        int maxTemperature = data.getInt("maxTemperature");
+        MutableComponent state = burning && temperature < maxTemperature ?
+                Component.translatable("gtceu.machine.boiler.info.heating.up") :
+                !burning && temperature > 0 ? Component.translatable("gtceu.machine.boiler.info.cooling.down") : null;
+        MutableComponent detail = null;
+        if (data.getBoolean("hasWater") && temperature >= 100) {
+            detail = Component.translatable("gtceu.machine.boiler.info.production.data",
+                    Component.literal(FormattingUtil.formatNumbers(data.getLong("steamProduction") / 10))
+                            .withStyle(net.minecraft.ChatFormatting.GREEN));
+        } else if (temperature > 0 && temperature < 100) {
+            detail = Component.literal(" (%s%%)".formatted(temperature))
+                    .withStyle(burning ? net.minecraft.ChatFormatting.RED : net.minecraft.ChatFormatting.BLUE);
+        }
+        if (state != null && detail != null) tooltip.add(state.append(" | ").append(detail));
+        else if (state != null) tooltip.add(state);
+        else if (detail != null) tooltip.add(detail);
     }
 
     //////////////////////////////////////

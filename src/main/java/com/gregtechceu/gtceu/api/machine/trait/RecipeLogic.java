@@ -1,6 +1,7 @@
 package com.gregtechceu.gtceu.api.machine.trait;
 
 import com.gregtechceu.gtceu.GTCEu;
+import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
@@ -11,11 +12,16 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.sound.AutoReleasedSound;
+import com.gregtechceu.gtceu.utils.FormattingUtil;
+import com.gregtechceu.gtceu.utils.GTUtil;
 
 import com.lowdragmc.lowdraglib.misc.SyncableMap;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -76,6 +82,96 @@ public class RecipeLogic extends WorkLogic {
     public RecipeLogic(IRecipeLogicMachine machine) {
         super(machine);
         this.machine = machine;
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, snownee.jade.api.BlockAccessor accessor) {
+        super.writeJadeData(data, accessor);
+        var recipeTypes = machine.self().getDefinition().getRecipeTypes();
+        if (recipeTypes != null && recipeTypes.length > 1) {
+            ListTag modes = new ListTag();
+            int current = 0;
+            for (int index = 0; index < recipeTypes.length; index++) {
+                modes.add(StringTag.valueOf(recipeTypes[index].registryName.toString()));
+                if (recipeTypes[index] == machine.getRecipeType()) current = index;
+            }
+            data.put("modes", modes);
+            data.putInt("currentMode", current);
+        }
+        if (isWorking() && lastRecipe != null) {
+            long eut = RecipeHelper.getRealEUtWithIO(lastRecipe);
+            data.putLong("recipeEUt", Math.abs(eut));
+            data.putBoolean("recipeConsumesEnergy", eut > 0);
+            data.putLong("recipeVoltage", machine.getDisplayRecipeVoltage());
+            data.putInt("parallel", lastRecipe.parallels);
+            data.putInt("batch", lastRecipe.batchParallels);
+            data.putInt("subtickParallel", lastRecipe.subtickParallels);
+        }
+        if (!failureReasonsMap.isEmpty()) {
+            ListTag failures = new ListTag();
+            failureReasonsMap.values()
+                    .forEach(reason -> failures.add(StringTag.valueOf(Component.Serializer.toJson(reason))));
+            data.put("failures", failures);
+        }
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, snownee.jade.api.ITooltip tooltip,
+                                  snownee.jade.api.BlockAccessor accessor,
+                                  snownee.jade.api.config.IPluginConfig config) {
+        super.appendJadeTooltip(data, tooltip, accessor, config);
+        ListTag modes = data.getList("modes", StringTag.TAG_STRING);
+        if (!modes.isEmpty() && !accessor.showDetails()) {
+            int current = data.getInt("currentMode");
+            tooltip.add(Component.translatable("gtceu.top.machine_mode").append(
+                    Component.translatable(modes.getString(current).replace(':', '.'))));
+        } else if (!modes.isEmpty()) {
+            int current = data.getInt("currentMode");
+            tooltip.add(Component.translatable("gtceu.top.machine_mode"));
+            for (int index = 0; index < modes.size(); index++) {
+                tooltip.add(Component.literal(index == current ? " > " : "   ")
+                        .append(Component.translatable(modes.getString(index).replace(':', '.'))));
+            }
+        }
+        if (data.contains("recipeEUt")) {
+            long eut = data.getLong("recipeEUt");
+            long voltage = data.getLong("recipeVoltage");
+            if (voltage <= 0) voltage = GTValues.V[GTValues.LV];
+            int tier = GTUtil.getTierByVoltage(voltage);
+            var rate = Component.translatable("gtceu.jade.amperage_use",
+                    FormattingUtil.formatNumber2Places((float) eut / voltage));
+            if (tier < GTValues.TIER_COUNT) rate = rate.append(Component.translatable("gtceu.jade.at"))
+                    .append(Component.literal(GTValues.VNF[tier])
+                            .withStyle(style -> style.withColor(GTValues.VC[tier])));
+            tooltip.add(
+                    Component.translatable(data.getBoolean("recipeConsumesEnergy") ? "gtceu.top.energy_consumption" :
+                            "gtceu.top.energy_production").append(" ").append(rate));
+        }
+        if (data.contains("parallel")) {
+            int parallel = data.getInt("parallel");
+            int batch = data.getInt("batch");
+            int subtick = data.getInt("subtickParallel");
+            int totalRuns = parallel * batch * subtick;
+            if (totalRuns > 1) tooltip.add(Component.translatable("gtceu.multiblock.total_runs",
+                    Component.literal(FormattingUtil.formatNumbers(totalRuns))
+                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
+            if (parallel > 1) tooltip.add(Component.translatable("gtceu.multiblock.parallel.exact",
+                    Component.literal(FormattingUtil.formatNumbers(parallel))
+                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
+            if (batch > 1) tooltip.add(Component.translatable("gtceu.multiblock.batch_enabled",
+                    Component.literal(FormattingUtil.formatNumbers(batch))
+                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
+            if (subtick > 1) tooltip.add(Component.translatable("gtceu.multiblock.subtick_parallels",
+                    Component.literal(FormattingUtil.formatNumbers(subtick))
+                            .withStyle(net.minecraft.ChatFormatting.DARK_PURPLE)));
+        }
+        ListTag failures = data.getList("failures", StringTag.TAG_STRING);
+        if (!failures.isEmpty()) {
+            tooltip.add(Component.translatable("gtceu.recipe_logic.setup_fail")
+                    .withStyle(net.minecraft.ChatFormatting.RED));
+            failures.forEach(tag -> tooltip
+                    .add(Component.literal(" - ").append(Component.Serializer.fromJson(tag.getAsString()))));
+        }
     }
 
     /**

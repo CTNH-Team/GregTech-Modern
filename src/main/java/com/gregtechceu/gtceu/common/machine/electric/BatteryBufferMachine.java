@@ -27,17 +27,25 @@ import com.lowdragmc.lowdraglib.utils.Position;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraftforge.energy.IEnergyStorage;
 
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.ParametersAreNonnullByDefault;
+
+import static com.gregtechceu.gtceu.utils.GTUtil.formatLongNumber;
+import static com.gregtechceu.gtceu.utils.GTUtil.getStringRemainTime;
 
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
@@ -93,6 +101,46 @@ public class BatteryBufferMachine extends TieredEnergyMachine
                         GTCapabilityHelper.getForgeEnergyItem(item) != null));
 
         this.batteryInventory.setOnContentsChanged(energyContainer::checkOutputSubscription);
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putLong("netChange", energyContainer.getInputPerSec() - energyContainer.getOutputPerSec());
+        data.putLong("stored", energyContainer.getEnergyStored());
+        data.putLong("capacity", energyContainer.getEnergyCapacity());
+        if (accessor.showDetails()) data.put("batteries", batteryInventory.serializeNBT());
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        long change = data.getLong("netChange");
+        long stored = data.getLong("stored");
+        long capacity = data.getLong("capacity");
+        tooltip.add(Component.translatable("gtceu.jade.changes_eu_sec", formatLongNumber(change)));
+        if (change > 0) {
+            tooltip.add(Component.translatable("gtceu.jade.remaining_charge_time",
+                    getStringRemainTime((capacity - stored) / change)));
+        } else if (change < 0) {
+            tooltip.add(Component.translatable("gtceu.jade.remaining_discharge_time",
+                    getStringRemainTime(stored / -change)));
+        }
+        if (!data.contains("batteries")) return;
+        CustomItemStackHandler batteries = new CustomItemStackHandler();
+        batteries.deserializeNBT(data.getCompound("batteries"));
+        var helper = tooltip.getElementHelper();
+        for (int slot = 0; slot < batteries.getSlots(); slot++) {
+            var stack = batteries.getStackInSlot(slot);
+            if (stack.isEmpty()) continue;
+            IElectricItem electricItem = GTCapabilityHelper.getElectricItem(stack);
+            if (electricItem == null) continue;
+            tooltip.add(helper.smallItem(stack));
+            tooltip.append(Component.literal(GTValues.VNF[electricItem.getTier()] + "§r " +
+                    formatLongNumber(electricItem.getCharge()) + " / " + formatLongNumber(electricItem.getMaxCharge()) +
+                    " EU"));
+        }
     }
 
     //////////////////////////////////////

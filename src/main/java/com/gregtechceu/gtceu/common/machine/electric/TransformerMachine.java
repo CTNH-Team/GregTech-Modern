@@ -14,6 +14,7 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.UpdateListener;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -23,6 +24,9 @@ import net.minecraft.world.phys.BlockHitResult;
 
 import lombok.Getter;
 import lombok.Setter;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -48,6 +52,35 @@ public class TransformerMachine extends TieredEnergyMachine implements IControll
         super(holder, tier, machine -> createEnergyContainer(machine, tier, baseAmp));
         this.isWorkingEnabled = true;
         this.baseAmp = baseAmp;
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("transformUp", isTransformUp());
+        data.putInt("front", getFrontFacing().get3DDataValue());
+        data.putInt("tier", getTier());
+        data.putInt("amperage", baseAmp);
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        int tier = data.getInt("tier");
+        int amperage = data.getInt("amperage");
+        boolean transformUp = data.getBoolean("transformUp");
+        tooltip.add(Component.translatable(transformUp ? "gtceu.top.transform_up" : "gtceu.top.transform_down",
+                transformUp ? GTValues.VNF[tier] + " §r(" + amperage * 4 + "A) -> " + GTValues.VNF[tier + 1] +
+                        " §r(" + amperage + "A)" :
+                        GTValues.VNF[tier + 1] + " §r(" + amperage + "A) -> " + GTValues.VNF[tier] + " §r(" +
+                                amperage * 4 + "A)"));
+        boolean front = accessor.getHitResult().getDirection() == Direction.from3DDataValue(data.getInt("front"));
+        boolean input = transformUp != front;
+        int displayedTier = input == transformUp ? tier : tier + 1;
+        int displayedAmperage = input == transformUp ? amperage * 4 : amperage;
+        tooltip.add(Component.translatable(input ? "gtceu.top.transform_input" : "gtceu.top.transform_output",
+                GTValues.VNF[displayedTier] + " §r(" + displayedAmperage + "A)"));
     }
 
     //////////////////////////////////////

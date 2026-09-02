@@ -13,12 +13,16 @@ import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.feature.IExplosionMachine;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.utils.FormattingUtil;
 import com.gregtechceu.gtceu.utils.GTUtil;
 
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.Util;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -26,6 +30,10 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
+import snownee.jade.api.ui.BoxStyle;
 
 import java.util.Collections;
 import java.util.List;
@@ -90,6 +98,33 @@ public class NotifiableEnergyContainer extends NotifiableRecipeHandlerTrait<Long
         var isOUT = (outputVoltage != 0 && outputAmperage != 0);
         this.handlerIO = (isIN && isOUT) ? IO.BOTH : isIN ? IO.IN : isOUT ? IO.OUT : IO.NONE;
         checkOutputSubscription();
+    }
+
+    @Override
+    public int jadePriority() {
+        return 700;
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        if (getEnergyCapacity() > 0) {
+            data.putLong("stored", getEnergyStored());
+            data.putLong("capacity", getEnergyCapacity());
+        }
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        long capacity = data.getLong("capacity");
+        if (capacity > 0) {
+            long stored = data.getLong("stored");
+            var helper = tooltip.getElementHelper();
+            tooltip.add(helper.progress((float) stored / capacity,
+                    Component.translatable("gtceu.jade.energy_stored", FormattingUtil.formatNumbers(stored),
+                            FormattingUtil.formatNumbers(capacity)),
+                    helper.progressStyle().color(0xFFEEE600, 0xFFEEE600).textColor(-1),
+                    Util.make(BoxStyle.DEFAULT, style -> style.borderColor = 0xFF555555), true));
+        }
     }
 
     @Override

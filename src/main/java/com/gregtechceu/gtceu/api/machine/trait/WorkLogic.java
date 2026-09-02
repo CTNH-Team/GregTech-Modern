@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.api.machine.trait;
 import com.gregtechceu.gtceu.api.gui.GuiTextures;
 import com.gregtechceu.gtceu.api.gui.fancy.IFancyTooltip;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
+import com.gregtechceu.gtceu.api.machine.feature.IComputationProgressMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IWorkLogicMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.feature.IMultiblockMachineTrait;
@@ -12,6 +13,8 @@ import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.Util;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -21,6 +24,10 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
+import snownee.jade.api.ui.BoxStyle;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -152,6 +159,52 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip, IMultibloc
 
     public boolean isActive() {
         return isWorking() || isWaiting();
+    }
+
+    @Override
+    public int jadePriority() {
+        return 800;
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        data.putBoolean("active", isActive());
+        data.putInt("progress", workMachine.getProgress());
+        data.putInt("maxProgress", workMachine.getMaxProgress());
+        data.putBoolean("workingEnabled", isWorkingEnabled());
+        data.putBoolean("suspendAfter", isSuspendAfterFinish());
+        if (isWaiting() && waitingReason != null) {
+            data.putString("waitingReason", Component.Serializer.toJson(waitingReason));
+        }
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        if (data.getBoolean("suspendAfter")) {
+            tooltip.add(Component.translatable("behaviour.soft_hammer.disabled_cycle")
+                    .withStyle(net.minecraft.ChatFormatting.YELLOW));
+        } else if (!data.getBoolean("workingEnabled")) {
+            tooltip.add(Component.translatable("behaviour.soft_hammer.disabled")
+                    .withStyle(net.minecraft.ChatFormatting.YELLOW));
+        }
+        if (!data.getBoolean("active")) return;
+        if (data.contains("waitingReason")) {
+            Component reason = Component.Serializer.fromJson(data.getString("waitingReason"));
+            if (reason != null) tooltip.add(reason.copy().withStyle(net.minecraft.ChatFormatting.YELLOW));
+        }
+        int progress = data.getInt("progress");
+        int maxProgress = data.getInt("maxProgress");
+        if (maxProgress <= 0) return;
+        if (workMachine instanceof IComputationProgressMachine) return;
+        Component text = Component.translatable(
+                maxProgress < 20 ? "gtceu.jade.progress_tick" : "gtceu.jade.progress_sec",
+                maxProgress < 20 ? progress : Math.round(progress / 20.0F),
+                maxProgress < 20 ? maxProgress : Math.round(maxProgress / 20.0F));
+        var helper = tooltip.getElementHelper();
+        tooltip.add(helper.progress((float) progress / maxProgress, text,
+                helper.progressStyle().color(data.getBoolean("workingEnabled") ? 0xFF4CBB17 : 0xFFBB1C28)
+                        .textColor(-1),
+                Util.make(BoxStyle.DEFAULT, style -> style.borderColor = 0xFF555555), true));
     }
 
     public void reset() {

@@ -1844,6 +1844,7 @@
     "config.jade.plugin_gtceu.hazard_cleaner_provider": "[GTCEu] 污染清理",
     "config.jade.plugin_gtceu.ldp_endpoint": "[GTCEu] 长距离管道接口信息",
     "config.jade.plugin_gtceu.machine_mode": "[GTCEu] 机器模式",
+    "config.jade.plugin_gtceu.machine": "[GTCEu] 机器信息",
     "config.jade.plugin_gtceu.maintenance_info": "[GTCEu] 维护信息",
     "config.jade.plugin_gtceu.me_pattern_buffer": "[GTCEu] 样板总成信息",
     "config.jade.plugin_gtceu.me_pattern_buffer_proxy": "[GTCEu] 样板总成镜像信息",

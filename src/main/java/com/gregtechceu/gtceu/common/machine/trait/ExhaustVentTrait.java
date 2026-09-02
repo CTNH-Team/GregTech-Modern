@@ -9,9 +9,14 @@ import com.gregtechceu.gtceu.utils.GTUtil;
 
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -21,6 +26,11 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.Shapes;
+
+import org.apache.commons.lang3.StringUtils;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -77,6 +87,40 @@ public class ExhaustVentTrait extends MachineTrait {
         BlockState state = machine.getLevel().getBlockState(ventingPos);
         return state.canOcclude() || Shapes.blockOccudes(state.getCollisionShape(machine.getLevel(), ventingPos),
                 Shapes.block(), getVentingDirection().getOpposite());
+    }
+
+    @Override
+    public int jadePriority() {
+        return 600;
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        Direction direction = getVentingDirection();
+        data.putString("direction", direction.getName());
+        data.putBoolean("blocked", isVentingBlocked());
+        data.putBoolean("needsVenting", needsVenting);
+        data.putString("block", BuiltInRegistries.BLOCK.getKey(
+                accessor.getLevel().getBlockState(accessor.getPosition().relative(direction)).getBlock()).toString());
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        Direction direction = Direction.byName(data.getString("direction"));
+        if (direction == null) return;
+        tooltip.add(Component.translatable("gtceu.top.exhaust_vent_direction",
+                StringUtils.capitalize(direction.getName())));
+        if (!data.getBoolean("blocked")) return;
+        if (accessor.showDetails()) {
+            var block = BuiltInRegistries.BLOCK.get(new ResourceLocation(data.getString("block"))).asItem()
+                    .getDefaultInstance();
+            if (!block.isEmpty()) tooltip.append(tooltip.getElementHelper().smallItem(block));
+        }
+        if (data.getBoolean("needsVenting")) {
+            tooltip.append(Component.literal(" (").append(
+                    Component.translatable("gtceu.top.exhaust_vent_blocked").withStyle(ChatFormatting.RED))
+                    .append(Component.literal(")").withStyle(ChatFormatting.GRAY)));
+        }
     }
 
     @Override
