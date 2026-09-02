@@ -29,6 +29,7 @@ import com.gregtechceu.gtceu.common.machine.multiblock.primitive.CokeOvenMachine
 import com.gregtechceu.gtceu.common.machine.multiblock.primitive.PrimitiveBlastFurnaceMachine;
 import com.gregtechceu.gtceu.common.machine.multiblock.primitive.PrimitivePumpMachine;
 import com.gregtechceu.gtceu.common.machine.multiblock.steam.SteamParallelMultiblockMachine;
+import com.gregtechceu.gtceu.common.machine.trait.multiblock.CoilMachineTrait;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 import com.gregtechceu.gtceu.integration.ae2.AE2Compat;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
@@ -177,11 +178,11 @@ public class GTMultiMachines {
                     Component.translatable("gtceu.machine.electric_blast_furnace.tooltip.2"))
             .additionalDisplay((controller, components) -> {
                 // spotless:off
-                if (controller instanceof CoilWorkableElectricMultiblockMachine coilMachine && controller.isFormed()) {
+                var coilMachine = controller.self().getTrait(CoilMachineTrait.class);
+                if (coilMachine != null && controller.isFormed()) {
                     components.add(Component.translatable("gtceu.multiblock.blast_furnace.max_temperature",
                             Component.translatable(
-                                    FormattingUtil.formatNumbers(coilMachine.getCoilType().getCoilTemperature() +
-                                            100L * Math.max(0, coilMachine.getTier() - GTValues.MV)) + "K")
+                                    FormattingUtil.formatNumbers(coilMachine.getWorkingTemperature()) + "K")
                                     .setStyle(Style.EMPTY.withColor(ChatFormatting.RED))));
                 }
                 // spotless:on
@@ -322,7 +323,8 @@ public class GTMultiMachines {
                     GTCEu.id("block/multiblock/pyrolyse_oven"))
             .tooltips(Component.translatable("gtceu.machine.pyrolyse_oven.tooltip.1"))
             .additionalDisplay((controller, components) -> {
-                if (controller instanceof CoilWorkableElectricMultiblockMachine coilMachine && controller.isFormed()) {
+                var coilMachine = controller.self().getTrait(CoilMachineTrait.class);
+                if (coilMachine != null && controller.isFormed()) {
                     components.add(Component.translatable("gtceu.multiblock.pyrolyse_oven.speed",
                             coilMachine.getCoilTier() == 0 ? 75 : 50 * (coilMachine.getCoilTier() + 1)));
                 }
@@ -375,7 +377,8 @@ public class GTMultiMachines {
             .workableCasingModel(GTCEu.id("block/casings/solid/machine_casing_heatproof"),
                     GTCEu.id("block/multiblock/multi_furnace"))
             .additionalDisplay((controller, components) -> {
-                if (controller instanceof CoilWorkableElectricMultiblockMachine coilMachine && controller.isFormed()) {
+                var coilMachine = controller.self().getTrait(CoilMachineTrait.class);
+                if (coilMachine != null && controller.isFormed()) {
                     components.add(Component.translatable("gtceu.multiblock.multi_furnace.heating_coil_level",
                             coilMachine.getCoilType().getLevel()));
                     components.add(Component.translatable("gtceu.multiblock.multi_furnace.heating_coil_discount",
@@ -426,7 +429,8 @@ public class GTMultiMachines {
                     GTCEu.id("block/multiblock/cracking_unit"))
             .tooltips(Component.translatable("gtceu.machine.cracker.tooltip.1"))
             .additionalDisplay((controller, components) -> {
-                if (controller instanceof CoilWorkableElectricMultiblockMachine coilMachine && controller.isFormed()) {
+                var coilMachine = controller.self().getTrait(CoilMachineTrait.class);
+                if (coilMachine != null && controller.isFormed()) {
                     components.add(Component.translatable("gtceu.multiblock.cracking_unit.energy",
                             100 - 10 * coilMachine.getCoilTier()));
                 }
