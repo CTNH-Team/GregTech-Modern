@@ -10,10 +10,11 @@ import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.IMultiblockMachineTrait;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IMultiblockMachineTrait;
 import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 import com.gregtechceu.gtceu.api.pattern.MultiblockWorldSavedData;
 import com.gregtechceu.gtceu.client.model.machine.MachineRenderState;
+import com.gregtechceu.gtceu.common.machine.trait.multiblock.ParallelHatchTrait;
 
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
@@ -33,7 +34,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +51,6 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
 
     private MultiblockState multiblockState;
     private final List<IMultiPart> parts = new ArrayList<>();
-    private @Nullable IParallelHatch parallelHatch = null;
     @Getter
     @DescSynced
     @UpdateListener(methodName = "onPartsUpdated")
@@ -69,6 +68,7 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
 
     public MultiblockControllerMachine(IMachineBlockEntity holder) {
         super(holder);
+        attachTrait(new ParallelHatchTrait(this));
     }
 
     //////////////////////////////////////
@@ -135,7 +135,7 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
 
     @Override
     public Optional<IParallelHatch> getParallelHatch() {
-        return Optional.ofNullable(parallelHatch);
+        return getTraitOptional(ParallelHatchTrait.class).map(ParallelHatchTrait::getParallelHatch);
     }
 
     //////////////////////////////////////
@@ -182,9 +182,6 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
         this.parts.sort(getPartSorter());
         updatePartPositions();
         for (var part : parts) {
-            if (part instanceof IParallelHatch pHatch) {
-                parallelHatch = pHatch;
-            }
             part.addedToController(this);
         }
         getTraits(IMultiblockMachineTrait.class).forEach(IMultiblockMachineTrait::onStructureFormed);
@@ -201,7 +198,6 @@ public class MultiblockControllerMachine extends MetaMachine implements IMultiCo
         for (IMultiPart part : parts) {
             part.removedFromController(this);
         }
-        parallelHatch = null;
         parts.clear();
         updatePartPositions();
         getTraits(IMultiblockMachineTrait.class).forEach(IMultiblockMachineTrait::onStructureInvalid);

@@ -532,8 +532,10 @@ public class MetaMachine implements IEnhancedManaged, IToolable, ITickSubscripti
         return traitHolder.first(type);
     }
 
-    public <T extends MachineTrait> Optional<T> getTraitOptional(Class<T> type) {
-        return Optional.ofNullable(getTrait(type));
+    public <T> Optional<T> getTraitOptional(Class<T> type) {
+        var traits = getTraits(type);
+        if (traits.isEmpty()) return Optional.empty();
+        return Optional.ofNullable(traits.get(0));
     }
 
     public <T extends MachineTrait> T getTraitOrThrow(Class<T> type) {

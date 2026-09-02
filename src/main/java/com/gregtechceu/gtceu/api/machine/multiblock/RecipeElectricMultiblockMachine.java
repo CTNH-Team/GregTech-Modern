@@ -1,7 +1,6 @@
 package com.gregtechceu.gtceu.api.machine.multiblock;
 
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
-import com.gregtechceu.gtceu.api.capability.IParallelHatch;
 import com.gregtechceu.gtceu.api.capability.recipe.EURecipeCapability;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
@@ -14,6 +13,7 @@ import com.gregtechceu.gtceu.api.machine.feature.ITieredMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IVoidable;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IDisplayUIMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IParallelTrait;
 import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.common.data.GTRecipeModifiers;
 
@@ -100,8 +100,8 @@ public class RecipeElectricMultiblockMachine extends RecipeMultiblockMachine imp
             totalRuns = recipeLogic.getLastRecipe().getTotalRuns();
             exact = true;
         } else {
-            numParallels = getParallelHatch()
-                    .map(IParallelHatch::getCurrentParallel)
+            numParallels = getTraitOptional(IParallelTrait.class)
+                    .map(IParallelTrait::getCurrentParallel)
                     .orElse(0);
             subtickParallels = 0;
             batchParallels = 0;

@@ -152,6 +152,7 @@ public interface IMultiController extends IMachineFeature, IInteractedMachine {
      * 
      * @return an {@link Optional} of the attached IParallelHatch, empty if one is not attached
      */
+    @Deprecated
     Optional<IParallelHatch> getParallelHatch();
 
     /**

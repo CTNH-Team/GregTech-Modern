@@ -5,6 +5,7 @@ import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
 import com.gregtechceu.gtceu.api.capability.IParallelHatch;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
+import com.gregtechceu.gtceu.api.machine.trait.feature.IParallelTrait;
 import com.gregtechceu.gtceu.utils.FormattingUtil;
 
 import net.minecraft.ChatFormatting;
@@ -75,7 +76,8 @@ public class ParallelProvider implements IBlockComponentProvider, IServerDataPro
                     compoundTag.putInt("subtickParallel", rlm.getRecipeLogic().getLastRecipe().subtickParallels);
                     compoundTag.putBoolean("exact", true);
                 } else {
-                    controller.getParallelHatch()
+                    controller.self()
+                            .getTraitOptional(IParallelTrait.class)
                             .ifPresent(parallelHatch -> compoundTag.putInt("parallel",
                                     parallelHatch.getCurrentParallel()));
                 }
