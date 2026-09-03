@@ -16,6 +16,9 @@ import com.lowdragmc.lowdraglib.gui.widget.LabelWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import com.lowdragmc.lowdraglib.gui.widget.WidgetGroup;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -29,6 +32,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+@Accessors(chain = true)
 public class CircuitFancyConfigurator implements IFancyConfigurator, IFancyCustomMouseWheelAction,
                                       IFancyCustomMiddleClickAction {
 
@@ -37,7 +41,14 @@ public class CircuitFancyConfigurator implements IFancyConfigurator, IFancyCusto
 
     private static final int NO_CONFIG = -1;
 
-    final ItemStackHandler circuitSlot;
+    protected final ItemStackHandler circuitSlot;
+
+    @Getter
+    @Setter
+    protected IGuiTexture slotBackground = GuiTextures.SLOT;
+    @Getter
+    @Setter
+    protected IGuiTexture slotOverlay = GuiTextures.INT_CIRCUIT_OVERLAY;
 
     public CircuitFancyConfigurator(ItemStackHandler circuitSlot) {
         this.circuitSlot = circuitSlot;
@@ -91,7 +102,7 @@ public class CircuitFancyConfigurator implements IFancyConfigurator, IFancyCusto
         var group = new WidgetGroup(0, 0, 174, 132);
         group.addWidget(new LabelWidget(9, 8, "Programmed Circuit Configuration"));
         group.addWidget(new SlotWidget(circuitSlot, 0, (group.getSize().width - 18) / 2, 20, false, false)
-                .setBackground(new GuiTextureGroup(GuiTextures.SLOT, GuiTextures.INT_CIRCUIT_OVERLAY)));
+                .setBackground(new GuiTextureGroup(slotBackground, slotOverlay)));
         group.addWidget(new ButtonWidget((group.getSize().width - 18) / 2, 20, 18, 18, IGuiTexture.EMPTY,
                 clickData -> {
                     if (!clickData.isRemote) circuitSlot.setStackInSlot(0, ItemStack.EMPTY);
@@ -101,7 +112,7 @@ public class CircuitFancyConfigurator implements IFancyConfigurator, IFancyCusto
             for (int y = 0; y <= 8; y++) {
                 int finalIdx = idx;
                 group.addWidget(new ButtonWidget(5 + (18 * y), 48 + (18 * x), 18, 18,
-                        new GuiTextureGroup(GuiTextures.SLOT,
+                        new GuiTextureGroup(slotBackground,
                                 new ItemStackTexture(IntCircuitBehaviour.stack(finalIdx)).scale(16f / 18)),
                         clickData -> {
                             if (!clickData.isRemote) {
@@ -114,7 +125,7 @@ public class CircuitFancyConfigurator implements IFancyConfigurator, IFancyCusto
         for (int x = 0; x <= 5; x++) {
             int finalIdx = x + 27;
             group.addWidget(new ButtonWidget(5 + (18 * x), 102, 18, 18,
-                    new GuiTextureGroup(GuiTextures.SLOT,
+                    new GuiTextureGroup(slotBackground,
                             new ItemStackTexture(IntCircuitBehaviour.stack(finalIdx)).scale(16f / 18)),
                     clickData -> {
                         if (!clickData.isRemote) {
