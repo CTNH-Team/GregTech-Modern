@@ -71,6 +71,9 @@ public class FluidRecipeCapability extends RecipeCapability<FluidIngredient> {
         var recipe = logic.getLastRecipe();
         if (recipe == null) return;
         var chanceFunction = recipe.getType().getChanceFunction();
+        if (!contents.isEmpty()) {
+            tooltip.add(Component.translatable("gtceu.top.fluid_auto_output", ""));
+        }
         for (var ingredient : contents) {
             RangedFluidIngredient ranged = ingredient instanceof RangedFluidIngredient value ? value :
                     ingredient.isChanced() && ingredient.getInner() instanceof RangedFluidIngredient value ? value :

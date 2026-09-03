@@ -74,6 +74,9 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
         if (recipe == null) return;
         IElementHelper helper = tooltip.getElementHelper();
         var chanceFunction = recipe.getType().getChanceFunction();
+        if (!contents.isEmpty()) {
+            tooltip.add(Component.translatable("gtceu.top.item_auto_output", ""));
+        }
         for (var ingredient : contents) {
             RangedItemIngredient ranged = ingredient instanceof RangedItemIngredient value ? value :
                     ingredient.isChanced() && ingredient.getInner() instanceof RangedItemIngredient value ? value :

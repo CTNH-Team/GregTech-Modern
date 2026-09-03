@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.integration.ae2;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.TickTask;
@@ -10,10 +11,14 @@ import net.minecraft.server.level.ServerLevel;
 
 import appeng.api.networking.*;
 import appeng.api.util.AECableType;
+import appeng.integration.modules.igtooltip.GridNodeState;
 import appeng.me.InWorldGridNode;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
 
@@ -88,5 +93,19 @@ public class GridNodeHost extends MachineTrait implements IInWorldGridNodeHost {
     @Override
     public void loadCustomPersistedData(CompoundTag tag) {
         mainNode.loadFromNBT(tag);
+    }
+
+    @Override
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeJadeData(data, accessor);
+        var state = GridNodeState.fromNode(getGridNode());
+        data.putByte("gridNodeState", (byte) state.ordinal());
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        super.appendJadeTooltip(data, tooltip, accessor, config);
+        var state = GridNodeState.values()[data.getByte("gridNodeState")];
+        tooltip.add(state.textComponent().withStyle(ChatFormatting.GRAY));
     }
 }
