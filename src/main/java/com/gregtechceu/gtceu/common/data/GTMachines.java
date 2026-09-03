@@ -257,8 +257,8 @@ public class GTMachines {
     //////////////////////////////////////
     // **** Simple Generator ****//
     //////////////////////////////////////
-    public static final MachineDefinition[] COMBUSTION = registerSimpleGenerator("combustion",
-            GTRecipeTypes.COMBUSTION_GENERATOR_FUELS, genericGeneratorTankSizeFunction, 0.1f, GTValues.LV, GTValues.MV,
+    public static final MachineDefinition[] COMBUSTION = registerSimpleGeneratorWithAmperage("combustion",
+            GTRecipeTypes.COMBUSTION_GENERATOR_FUELS, genericGeneratorTankSizeFunction, 0.1f, 2,GTValues.LV, GTValues.MV,
             GTValues.HV);
     public static final MachineDefinition[] STEAM_TURBINE = registerSimpleGenerator("steam_turbine",
             GTRecipeTypes.STEAM_TURBINE_FUELS, steamGeneratorTankSizeFunction, 0.0f, GTValues.LV, GTValues.MV,

@@ -322,8 +322,19 @@ public class GTMachineUtils {
                                                               GTRecipeType recipeType,
                                                               Int2IntFunction tankScalingFunction,
                                                               float hazardStrengthPerOperation,
-                                                              int... tiers) {
-        return registerSimpleGenerator(REGISTRATE, name, recipeType, tankScalingFunction, hazardStrengthPerOperation,
+                                                              int... tiers
+                                                              ) {
+        return registerSimpleGenerator(REGISTRATE, name,recipeType, tankScalingFunction, hazardStrengthPerOperation,1,
+                tiers);
+    }
+    public static MachineDefinition[] registerSimpleGeneratorWithAmperage(String name,
+                                                              GTRecipeType recipeType,
+                                                              Int2IntFunction tankScalingFunction,
+                                                              float hazardStrengthPerOperation,
+                                                              int amperage,
+                                                              int... tiers
+                                                              ) {
+        return registerSimpleGenerator(REGISTRATE, name, recipeType, tankScalingFunction, hazardStrengthPerOperation,amperage,
                 tiers);
     }
 
@@ -331,22 +342,29 @@ public class GTMachineUtils {
                                                               GTRecipeType recipeType,
                                                               Int2IntFunction tankScalingFunction,
                                                               float hazardStrengthPerOperation,
+                                                              int amperage,
                                                               int... tiers) {
         return registerTieredMachines(registrate, name,
-                (holder, tier) -> new SimpleGeneratorMachine(holder, tier, hazardStrengthPerOperation * tier,
+                (holder, tier) -> new SimpleGeneratorMachine(holder, tier, amperage,hazardStrengthPerOperation * tier,
                         tankScalingFunction),
-                (tier, builder) -> builder
-                        .langValue("%s %s Generator %s".formatted(VLVH[tier], toEnglishName(name), VLVT[tier]))
-                        .editableUI(SimpleGeneratorMachine.EDITABLE_UI_CREATOR.apply(GTCEu.id(name), recipeType))
-                        .rotationState(RotationState.ALL)
-                        .recipeType(recipeType)
-                        .recipeModifier(SimpleGeneratorMachine::recipeModifier, true)
-                        .addOutputLimit(ItemRecipeCapability.CAP, 0)
-                        .addOutputLimit(FluidRecipeCapability.CAP, 0)
-                        .simpleGeneratorModel(GTCEu.id("block/generators/" + name))
-                        .tooltips(workableTiered(tier, GTValues.V[tier], GTValues.V[tier] * 64, recipeType,
-                                tankScalingFunction.applyAsInt(tier), false))
-                        .register(),
+                (tier, builder) -> {
+                    builder
+                            .langValue("%s %s Generator %s".formatted(VLVH[tier], toEnglishName(name), VLVT[tier]))
+                            .editableUI(SimpleGeneratorMachine.EDITABLE_UI_CREATOR.apply(GTCEu.id(name), recipeType))
+                            .rotationState(RotationState.ALL)
+                            .recipeType(recipeType)
+                            .recipeModifier(SimpleGeneratorMachine::recipeModifier, true)
+                            .addOutputLimit(ItemRecipeCapability.CAP, 0)
+                            .addOutputLimit(FluidRecipeCapability.CAP, 0)
+                            .simpleGeneratorModel(GTCEu.id("block/generators/" + name))
+                            .tooltips(workableTiered(tier, GTValues.V[tier],
+                                    GTValues.V[tier] * 64L * amperage, recipeType,
+                                    tankScalingFunction.applyAsInt(tier), false));
+                    if (amperage > 1) {
+                        builder.tooltips(Component.translatable("gtceu.universal.tooltip.amperage_out", amperage));
+                    }
+                    return builder.register();
+                },
                 tiers);
     }
 
@@ -806,14 +824,14 @@ public class GTMachineUtils {
                                 GTMaterialItems.MATERIAL_ITEMS.get(TagPrefix.dustTiny, GTMaterials.Ash).get() })
                 .workableCasingModel(casingTexture, overlayModel)
                 .tooltips(
-                        Component.translatable("gtceu.universal.tooltip.base_production_eut", V[tier]),
+                        Component.translatable("gtceu.universal.tooltip.base_production_eut", V[tier]*4),
                         Component.translatable("gtceu.universal.tooltip.uses_per_hour_lubricant",
                                 FluidType.BUCKET_VOLUME),
                         tier > EV ?
                                 Component.translatable("gtceu.machine.large_combustion_engine.tooltip.boost_extreme",
-                                        V[tier] * 4) :
+                                        V[tier] * 16) :
                                 Component.translatable("gtceu.machine.large_combustion_engine.tooltip.boost_regular",
-                                        V[tier] * 3))
+                                        V[tier] * 8))
                 .register();
     }
 
