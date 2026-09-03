@@ -1,6 +1,7 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
 import com.gregtechceu.gtceu.api.gui.widget.TankWidget;
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
@@ -64,10 +65,11 @@ public class FluidRecipeCapability extends RecipeCapability<FluidIngredient> {
     }
 
     @Override
-    public boolean appendJadeOutputTooltip(List<FluidIngredient> contents, GTRecipe recipe, int runs,
-                                           int recipeTier, int chanceTier, ITooltip tooltip,
-                                           BlockAccessor accessor, IPluginConfig config) {
-        boolean shown = false;
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<FluidIngredient> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        if (io != IO.OUT || tick) return;
+        var recipe = logic.getLastRecipe();
+        if (recipe == null) return;
         var chanceFunction = recipe.getType().getChanceFunction();
         for (var ingredient : contents) {
             RangedFluidIngredient ranged = ingredient instanceof RangedFluidIngredient value ? value :
@@ -82,9 +84,11 @@ public class FluidRecipeCapability extends RecipeCapability<FluidIngredient> {
                         FluidTextHelper.getUnicodeMillibuckets(ranged.getAmount(), true)));
             } else {
                 int amount = stack.getAmount();
-                if (ingredient.isChanced()) amount = Math.max(1, (int) Math.round((double) amount * runs *
-                        chanceFunction.getBoostedChance(ingredient.getChance(), recipeTier, chanceTier) /
-                        IChancedIngredient.MAX_CHANCE));
+                if (ingredient.isChanced()) amount = Math.max(1,
+                        (int) Math.round((double) amount * recipe.getTotalRuns() *
+                                chanceFunction.getBoostedChance(ingredient.getChance(), recipe.tier,
+                                        recipe.tier + recipe.ocLevel) /
+                                IChancedIngredient.MAX_CHANCE));
                 text.append(FluidTextHelper.getUnicodeMillibuckets(amount, true));
             }
             text.append(CommonComponents.space())
@@ -93,14 +97,7 @@ public class FluidRecipeCapability extends RecipeCapability<FluidIngredient> {
             tooltip.add(GTElementHelper
                     .smallFluid(JadeFluidObject.of(stack.getFluid(), stack.getAmount(), stack.getTag())));
             tooltip.append(text);
-            shown = true;
         }
-        return shown;
-    }
-
-    @Override
-    public boolean hasJadeOutput(List<FluidIngredient> contents) {
-        return contents.stream().anyMatch(ingredient -> !firstStack(ingredient.getFluids()).isEmpty());
     }
 
     private static FluidStack firstStack(FluidStack[] stacks) {

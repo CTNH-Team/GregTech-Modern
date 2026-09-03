@@ -1,5 +1,6 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
@@ -204,15 +205,7 @@ public abstract class RecipeCapability<T> {
         return new ArrayList<>();
     }
 
-    /** Adds this capability's recipe outputs to the Jade tooltip. */
-    public boolean appendJadeOutputTooltip(List<T> contents, GTRecipe recipe, int runs,
-                                           int recipeTier, int chanceTier, ITooltip tooltip,
-                                           BlockAccessor accessor, IPluginConfig config) {
-        return false;
-    }
-
-    /** Returns whether this capability has at least one output that can be shown in Jade. */
-    public boolean hasJadeOutput(List<T> contents) {
-        return false;
-    }
+    /** Adds this capability's current recipe contents to the Jade tooltip. */
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<T> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {}
 }

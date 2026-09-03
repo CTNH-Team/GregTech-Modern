@@ -2,6 +2,7 @@ package com.gregtechceu.gtceu.api.capability.recipe;
 
 import com.gregtechceu.gtceu.api.gui.widget.LargeStackSlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
@@ -66,10 +67,11 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
     }
 
     @Override
-    public boolean appendJadeOutputTooltip(List<ItemIngredient> contents, GTRecipe recipe, int runs,
-                                           int recipeTier, int chanceTier, ITooltip tooltip,
-                                           BlockAccessor accessor, IPluginConfig config) {
-        boolean shown = false;
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<ItemIngredient> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        if (io != IO.OUT || tick) return;
+        var recipe = logic.getLastRecipe();
+        if (recipe == null) return;
         IElementHelper helper = tooltip.getElementHelper();
         var chanceFunction = recipe.getType().getChanceFunction();
         for (var ingredient : contents) {
@@ -83,9 +85,11 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
                 text.append(Component.translatable("gtceu.gui.content.range", ranged.getMinCount(), ranged.getCount()));
             } else {
                 int count = stack.getCount();
-                if (ingredient.isChanced()) count = Math.max(1, (int) Math.round((double) count * runs *
-                        chanceFunction.getBoostedChance(ingredient.getChance(), recipeTier, chanceTier) /
-                        IChancedIngredient.MAX_CHANCE));
+                if (ingredient.isChanced()) count = Math.max(1,
+                        (int) Math.round((double) count * recipe.getTotalRuns() *
+                                chanceFunction.getBoostedChance(ingredient.getChance(), recipe.tier,
+                                        recipe.tier + recipe.ocLevel) /
+                                IChancedIngredient.MAX_CHANCE));
                 text.append(String.valueOf(count));
             }
             stack.setCount(1);
@@ -93,14 +97,7 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
                     stack.getDisplayName().copy().withStyle(ChatFormatting.WHITE)).withStyle(ChatFormatting.WHITE));
             tooltip.add(helper.smallItem(stack));
             tooltip.append(text);
-            shown = true;
         }
-        return shown;
-    }
-
-    @Override
-    public boolean hasJadeOutput(List<ItemIngredient> contents) {
-        return contents.stream().anyMatch(ingredient -> !firstStack(ingredient.getItems()).isEmpty());
     }
 
     private static ItemStack firstStack(ItemStack[] stacks) {

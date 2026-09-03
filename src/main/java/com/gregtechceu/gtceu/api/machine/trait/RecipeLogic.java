@@ -1,9 +1,7 @@
 package com.gregtechceu.gtceu.api.machine.trait;
 
 import com.gregtechceu.gtceu.GTCEu;
-import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.recipe.IO;
-import com.gregtechceu.gtceu.api.capability.recipe.RecipeCapability;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
@@ -11,11 +9,9 @@ import com.gregtechceu.gtceu.api.recipe.ActionResult;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
-import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.sound.AutoReleasedSound;
-import com.gregtechceu.gtceu.utils.FormattingUtil;
-import com.gregtechceu.gtceu.utils.GTUtil;
+import com.gregtechceu.gtceu.integration.jade.RecipeJadeTooltip;
 
 import com.lowdragmc.lowdraglib.misc.SyncableMap;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
@@ -107,25 +103,7 @@ public class RecipeLogic extends WorkLogic {
             }
         }
         if (isWorking() && lastRecipe != null) {
-            long realEUt = RecipeHelper.getRealEUtWithIO(lastRecipe);
-            long eut = Math.abs(realEUt);
-            long voltage = machine.getDisplayRecipeVoltage();
-            if (voltage <= 0) voltage = GTValues.V[GTValues.LV];
-            int tier = GTUtil.getTierByVoltage(voltage);
-            var rate = Component.translatable("gtceu.jade.amperage_use",
-                    FormattingUtil.formatNumber2Places((float) eut / voltage))
-                    .withStyle(ChatFormatting.RED)
-                    .append(Component.translatable("gtceu.jade.at").withStyle(ChatFormatting.GREEN));;
-            if (tier < GTValues.TIER_COUNT)
-                rate = rate.append(Component.literal(GTValues.VNF[tier])
-                        .withStyle(style -> style.withColor(GTValues.VC[tier])));
-            tooltip.add(
-                    Component.translatable(
-                            realEUt > 0 ? "gtceu.top.energy_consumption" :
-                                    "gtceu.top.energy_production")
-                            .append(" ").append(rate));
-            appendParallelTooltip(lastRecipe, tooltip);
-            appendJadeOutputTooltip(lastRecipe, tooltip, accessor, config);
+            RecipeJadeTooltip.appendRunningRecipe(this, lastRecipe, tooltip, accessor, config);
         }
         if (!failureReasonsMap.isEmpty()) {
             tooltip.add(Component.translatable("gtceu.recipe_logic.setup_fail")
@@ -133,43 +111,6 @@ public class RecipeLogic extends WorkLogic {
             failureReasonsMap.values().forEach(reason -> tooltip
                     .add(Component.literal(" - ").append(reason)));
         }
-    }
-
-    private void appendParallelTooltip(GTRecipe recipe, ITooltip tooltip) {
-        int parallel = recipe.parallels;
-        int batch = recipe.batchParallels;
-        int subtick = recipe.subtickParallels;
-        int totalRuns = parallel * batch * subtick;
-        if (totalRuns > 1) addRunsTooltip(tooltip, "gtceu.multiblock.total_runs", totalRuns);
-        if (parallel > 1) addRunsTooltip(tooltip, "gtceu.multiblock.parallel.exact", parallel);
-        if (batch > 1) addRunsTooltip(tooltip, "gtceu.multiblock.batch_enabled", batch);
-        if (subtick > 1) addRunsTooltip(tooltip, "gtceu.multiblock.subtick_parallels", subtick);
-    }
-
-    private void addRunsTooltip(ITooltip tooltip, String key, int amount) {
-        tooltip.add(Component.translatable(key, Component.literal(FormattingUtil.formatNumbers(amount))
-                .withStyle(ChatFormatting.DARK_PURPLE)));
-    }
-
-    private void appendJadeOutputTooltip(GTRecipe recipe, ITooltip tooltip, BlockAccessor accessor,
-                                         IPluginConfig config) {
-        boolean[] shown = { false };
-        int recipeTier = recipe.tier;
-        int chanceTier = recipeTier + recipe.ocLevel;
-        int runs = recipe.getTotalRuns();
-        recipe.outputs.forEachEntry(new ContentListMap.EntryConsumer() {
-
-            @Override
-            public <T> void accept(RecipeCapability<T> capability, List<T> contents) {
-                if (contents.isEmpty() || !capability.hasJadeOutput(contents)) return;
-                if (!shown[0]) {
-                    tooltip.add(Component.translatable("gtceu.top.recipe_output"));
-                    shown[0] = true;
-                }
-                capability.appendJadeOutputTooltip(contents, recipe, runs, recipeTier, chanceTier, tooltip,
-                        accessor, config);
-            }
-        });
     }
 
     /**
