@@ -34,6 +34,7 @@ public class MultiblockComputationPortTrait extends ComputationPortTrait {
     private Optional<ComputationProducer> findProducer() {
         if (!(machine instanceof IMultiPart part) || !part.isFormed()) return Optional.empty();
         for (IMultiController controller : part.getControllers()) {
+            if (!controller.isStructureOperational()) continue;
             if (controller instanceof ComputationProducer producer) {
                 return Optional.of(producer);
             }
@@ -49,6 +50,7 @@ public class MultiblockComputationPortTrait extends ComputationPortTrait {
     private Optional<ComputationConsumer> findConsumer() {
         if (!(machine instanceof IMultiPart part) || !part.isFormed()) return Optional.empty();
         for (IMultiController controller : part.getControllers()) {
+            if (!controller.isStructureOperational()) continue;
             if (controller instanceof ComputationConsumer consumer) {
                 return Optional.of(consumer);
             }

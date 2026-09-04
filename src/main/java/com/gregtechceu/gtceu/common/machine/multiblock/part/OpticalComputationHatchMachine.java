@@ -56,6 +56,12 @@ public class OpticalComputationHatchMachine extends MultiblockPartMachine {
         markComputationTopologyDirty();
     }
 
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        super.unloadedFromController(controller);
+        markComputationTopologyDirty();
+    }
+
     private void markComputationTopologyDirty() {
         if (getLevel() instanceof ServerLevel serverLevel) {
             ComputationNetworkManager.get(serverLevel).markTopologyDirty();

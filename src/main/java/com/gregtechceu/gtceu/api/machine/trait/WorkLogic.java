@@ -5,6 +5,7 @@ import com.gregtechceu.gtceu.api.gui.fancy.IFancyTooltip;
 import com.gregtechceu.gtceu.api.machine.TickableSubscription;
 import com.gregtechceu.gtceu.api.machine.feature.IComputationProgressMachine;
 import com.gregtechceu.gtceu.api.machine.feature.IWorkLogicMachine;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.feature.IMultiblockMachineTrait;
 
@@ -103,6 +104,10 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip, IMultibloc
     }
 
     public void serverTick() {
+        if (!workMachine.isWorkLogicAvailable()) {
+            unsubscribeTick();
+            return;
+        }
         if (!isSuspend()) {
             workMachine.serverRunningTick();
         }
@@ -132,7 +137,7 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip, IMultibloc
     protected void onWaiting() {}
 
     public final boolean isWorking() {
-        return status == Status.WORKING;
+        return status == Status.WORKING && isStructureOperational();
     }
 
     public final boolean isIdle() {
@@ -158,7 +163,11 @@ public class WorkLogic extends MachineTrait implements IFancyTooltip, IMultibloc
     }
 
     public boolean isActive() {
-        return isWorking() || isWaiting();
+        return isStructureOperational() && (status == Status.WORKING || status == Status.WAITING);
+    }
+
+    private boolean isStructureOperational() {
+        return !(workMachine instanceof IMultiController controller) || controller.isStructureOperational();
     }
 
     @Override

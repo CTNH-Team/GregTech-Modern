@@ -67,11 +67,10 @@ public class DataAccessHatchMachine extends TieredPartMachine
         if (isCreative) return new NotifiableItemStackHandler(this, 0, IO.NONE);
         var inventory = new NotifiableItemStackHandler(this, getInventorySize(), IO.NONE, IO.BOTH)
                 .setFilter(stack -> {
-                    boolean isDataBank = isFormed() && getControllers().first() instanceof DataBankMachine;
+                    boolean isDataBank = hasOperationalDataBankController();
                     return ResearchManager.isStackDataItem(stack, isDataBank);
                 });
-        inventory.addChangedListener(
-                () -> rebuildData(isFormed() && getControllers().first() instanceof DataBankMachine));
+        inventory.addChangedListener(() -> rebuildData(hasOperationalDataBankController()));
         return inventory;
     }
 
@@ -133,7 +132,8 @@ public class DataAccessHatchMachine extends TieredPartMachine
 
     @Override
     public boolean isRecipeAvailable(@NotNull GTRecipe recipe) {
-        return isCreative || recipes.stream().anyMatch(definition -> definition.getId().equals(recipe.getId()));
+        return isCreative || hasOperationalController() &&
+                recipes.stream().anyMatch(definition -> definition.getId().equals(recipe.getId()));
     }
 
     @NotNull
@@ -168,8 +168,29 @@ public class DataAccessHatchMachine extends TieredPartMachine
 
     @Override
     public void addedToController(IMultiController controller) {
-        rebuildData(controller instanceof DataBankMachine);
         super.addedToController(controller);
+        rebuildData(hasOperationalDataBankController());
+    }
+
+    @Override
+    public void removedFromController(IMultiController controller) {
+        super.removedFromController(controller);
+        rebuildData(hasOperationalDataBankController());
+    }
+
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        super.unloadedFromController(controller);
+        rebuildData(hasOperationalDataBankController());
+    }
+
+    private boolean hasOperationalController() {
+        return controllers.stream().anyMatch(IMultiController::isStructureOperational);
+    }
+
+    private boolean hasOperationalDataBankController() {
+        return controllers.stream().anyMatch(controller -> controller.isStructureOperational() &&
+                controller instanceof DataBankMachine);
     }
 
     @Override

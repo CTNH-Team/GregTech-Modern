@@ -36,7 +36,7 @@ public class OpticalDataHatchMachine extends MultiblockPartMachine implements IO
 
     @Override
     public boolean isRecipeAvailable(@NotNull GTRecipe recipe) {
-        if (!isFormed()) {
+        if (!isFormed() || getControllers().isEmpty()) {
             return false;
         }
         if (isTransmitter()) {

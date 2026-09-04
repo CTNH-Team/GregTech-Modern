@@ -35,6 +35,11 @@ public interface IMultiPart extends IMachineFeature, IFancyUIMachine {
     boolean hasController(BlockPos controllerPos);
 
     /**
+     * Whether this part belongs to this exact controller ownership epoch.
+     */
+    boolean hasController(IMultiController controller);
+
+    /**
      * Whether it belongs to a formed Multiblock.
      */
     boolean isFormed();
@@ -51,6 +56,18 @@ public interface IMultiPart extends IMachineFeature, IFancyUIMachine {
      * Called when it was removed from a multiblock.
      */
     void removedFromController(IMultiController controller);
+
+    /**
+     * Unlink a controller whose block entity is unloading without treating the structure as broken.
+     */
+    void unloadedFromController(IMultiController controller);
+
+    /**
+     * Called after a persisted controller binding is known to have ended definitively (structure invalidation,
+     * controller retirement, or replacement by a newer ownership epoch). Transient chunk unloads never invoke this
+     * hook.
+     */
+    default void onControllerBindingRetired(BlockPos controllerPos, long instanceId) {}
 
     /**
      * Called when it was added to a multiblock.

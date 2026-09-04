@@ -101,6 +101,7 @@ public class DistillationTowerMachine extends RecipeElectricMultiblockMachine {
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
+        firstValid = null;
         final int startY = getPos().getY() + yOffset;
         List<IMultiPart> parts = getParts().stream()
                 .filter(part -> PartAbility.EXPORT_FLUIDS.isApplicable(part.self().getBlockState().getBlock()))

@@ -48,7 +48,7 @@ public class TankValvePartMachine extends MultiblockPartMachine {
     @Override
     public void onUnload() {
         super.onUnload();
-        autoIOSubscription.updateSubscription();
+        clearControllerRuntime();
     }
 
     @Override
@@ -66,15 +66,26 @@ public class TankValvePartMachine extends MultiblockPartMachine {
     @Override
     public void removedFromController(IMultiController controller) {
         super.removedFromController(controller);
+        clearControllerRuntime();
+    }
 
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        super.unloadedFromController(controller);
+        clearControllerRuntime();
+    }
+
+    private void clearControllerRuntime() {
         tankProxy.setProxy(null);
-        autoIOSubscription.updateSubscription();
+        autoIOSubscription.unsubscribe();
         unsubscribeChanges();
     }
 
     private void unsubscribeChanges() {
-        if (tankChangeListener != null)
+        if (tankChangeListener != null) {
             tankChangeListener.unsubscribe();
+            tankChangeListener = null;
+        }
     }
 
     @Override
@@ -95,6 +106,10 @@ public class TankValvePartMachine extends MultiblockPartMachine {
     }
 
     private void autoIO() {
+        if (!hasOperationalController()) {
+            autoIOSubscription.updateSubscription();
+            return;
+        }
         if (getOffsetTimer() % 5 == 0) {
             tankProxy.exportToNearby(getFrontFacing());
         }
@@ -103,11 +118,15 @@ public class TankValvePartMachine extends MultiblockPartMachine {
     }
 
     private boolean shouldAutoIO() {
-        if (!isFormed()) return false;
+        if (!hasOperationalController()) return false;
         if (getFrontFacing() != Direction.DOWN) return false;
         if (tankProxy.isEmpty()) return false;
         if (getTargetTank() == null) return false;
 
         return true;
+    }
+
+    private boolean hasOperationalController() {
+        return controllers.stream().anyMatch(IMultiController::isStructureOperational);
     }
 }

@@ -36,12 +36,13 @@ public class LargeMacerationTowerMachine extends RecipeElectricMultiblockMachine
     public void onStructureFormed() {
         super.onStructureFormed();
         updateBounds();
+        handlers.clear();
         for (var holder : getCapabilitiesFlat(IO.IN, ItemRecipeCapability.CAP)) {
             if (holder instanceof IItemHandler ih) {
                 handlers.add(ih);
             }
         }
-        hurtSub = subscribeServerTick(this::spinWheels);
+        hurtSub = subscribeServerTick(hurtSub, this::spinWheels);
     }
 
     @Override
@@ -67,7 +68,7 @@ public class LargeMacerationTowerMachine extends RecipeElectricMultiblockMachine
     }
 
     private void spinWheels() {
-        if (isRemote() || getLevel() == null) return;
+        if (isRemote() || getLevel() == null || !isStructureOperational()) return;
         if (getOffsetTimer() % 10 != 0) return;
 
         List<ItemEntity> itemEntities = new ArrayList<>();

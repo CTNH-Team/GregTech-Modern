@@ -65,6 +65,12 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class CentralMonitorMachine extends WorkableElectricMultiblockMachine
                                    implements IMonitorComponent, IDataInfoProvider, IMachineLife, ICentralMonitor {
 
+    protected enum DimensionScanResult {
+        VALID,
+        INVALID,
+        UNLOADED
+    }
+
     @Persisted
     @DescSynced
     @Getter
@@ -78,6 +84,8 @@ public class CentralMonitorMachine extends WorkableElectricMultiblockMachine
     private final List<IMonitorComponent> selectedTargets = new ArrayList<>();
 
     private MultiblockState patternFindingState;
+    @Nullable
+    private DimensionScanResult lastDimensionScanResult;
 
     private static TraceabilityPredicate MULTI_PREDICATE = null;
 
@@ -190,6 +198,7 @@ public class CentralMonitorMachine extends WorkableElectricMultiblockMachine
 
     public boolean isValidMonitorBlock(Level level, BlockPos pos) {
         if (level.isOutsideBuildHeight(pos)) return false;
+        if (!level.isLoaded(pos)) return false;
 
         MultiblockState state = getPatternFindingState();
         if (!state.update(pos, getMultiPredicate())) {
@@ -202,8 +211,12 @@ public class CentralMonitorMachine extends WorkableElectricMultiblockMachine
     }
 
     public void updateStructureDimensions() {
+        lastDimensionScanResult = scanStructureDimensions();
+    }
+
+    protected DimensionScanResult scanStructureDimensions() {
         Level level = getLevel();
-        if (level == null) return;
+        if (level == null) return DimensionScanResult.INVALID;
 
         Direction front = getFrontFacing();
         Direction spin = getUpwardsFacing();
@@ -216,43 +229,98 @@ public class CentralMonitorMachine extends WorkableElectricMultiblockMachine
         BlockPos.MutableBlockPos posRight = getPos().mutable().move(right);
         BlockPos.MutableBlockPos posUp = getPos().mutable().move(up);
         BlockPos.MutableBlockPos posDown = getPos().mutable().move(down);
-        this.leftDist = 0;
-        this.rightDist = 0;
-        this.upDist = 0;
-        this.downDist = 0;
 
-        while (isValidMonitorBlock(level, posLeft)) {
+        int leftDist = 0;
+        int rightDist = 0;
+        int upDist = 0;
+        int downDist = 0;
+
+        DimensionScanResult result;
+        while ((result = scanMonitorBlock(level, posLeft)) == DimensionScanResult.VALID) {
             posLeft.move(left);
             leftDist++;
         }
-        while (isValidMonitorBlock(level, posRight)) {
+        if (result == DimensionScanResult.UNLOADED) return result;
+
+        while ((result = scanMonitorBlock(level, posRight)) == DimensionScanResult.VALID) {
             posRight.move(right);
             rightDist++;
         }
-        while (isValidMonitorBlockRow(level, posUp, leftDist, rightDist, left, right)) {
+        if (result == DimensionScanResult.UNLOADED) return result;
+
+        while ((result = scanMonitorBlockRow(level, posUp, leftDist, rightDist, left, right)) ==
+                DimensionScanResult.VALID) {
             posUp.move(up);
             upDist++;
         }
-        while (isValidMonitorBlockRow(level, posDown, leftDist, rightDist, left, right)) {
+        if (result == DimensionScanResult.UNLOADED) return result;
+
+        while ((result = scanMonitorBlockRow(level, posDown, leftDist, rightDist, left, right)) ==
+                DimensionScanResult.VALID) {
             posDown.move(down);
             downDist++;
         }
+        if (result == DimensionScanResult.UNLOADED) return result;
+
+        if (leftDist + rightDist < 1 || upDist + downDist < 1) {
+            return DimensionScanResult.INVALID;
+        }
+
+        this.leftDist = leftDist;
+        this.rightDist = rightDist;
+        this.upDist = upDist;
+        this.downDist = downDist;
+        return DimensionScanResult.VALID;
     }
 
-    private boolean isValidMonitorBlockRow(Level level, BlockPos pos, int leftDist, int rightDist, Direction left,
-                                           Direction right) {
+    private DimensionScanResult scanMonitorBlock(Level level, BlockPos pos) {
+        if (level.isOutsideBuildHeight(pos)) return DimensionScanResult.INVALID;
+        if (!level.isLoaded(pos)) return DimensionScanResult.UNLOADED;
+        return isValidMonitorBlock(level, pos) ? DimensionScanResult.VALID : DimensionScanResult.INVALID;
+    }
+
+    private DimensionScanResult scanMonitorBlockRow(Level level, BlockPos pos, int leftDist, int rightDist,
+                                                    Direction left, Direction right) {
         BlockPos.MutableBlockPos mutable = pos.mutable();
         mutable.move(left, leftDist);
-        for (int i = 0; i < leftDist + rightDist; i++) {
-            if (!isValidMonitorBlock(level, mutable)) return false;
+        for (int i = 0; i <= leftDist + rightDist; i++) {
+            DimensionScanResult result = scanMonitorBlock(level, mutable);
+            if (result != DimensionScanResult.VALID) return result;
             mutable.move(right);
         }
-        return isValidMonitorBlock(level, mutable);
+        return DimensionScanResult.VALID;
+    }
+
+    private DimensionScanResult updateStructureDimensionsForValidation() {
+        lastDimensionScanResult = null;
+        updateStructureDimensions();
+        // Keep subclasses overriding the long-standing public update hook functional. If they do not call super,
+        // their dimensions are still validated by the generated BlockPattern, just without the new early tri-state.
+        return lastDimensionScanResult == null ? DimensionScanResult.VALID : lastDimensionScanResult;
+    }
+
+    @Override
+    public boolean checkPattern() {
+        DimensionScanResult result = updateStructureDimensionsForValidation();
+        if (result != DimensionScanResult.VALID) {
+            getMultiblockState().setError(result == DimensionScanResult.UNLOADED ?
+                    MultiblockState.UNLOAD_ERROR : MultiblockState.UNINIT_ERROR);
+            return false;
+        }
+        return buildPatternFromCurrentDimensions().checkPatternAt(getMultiblockState(), false);
     }
 
     @Override
     public BlockPattern getPattern() {
         updateStructureDimensions();
+        return buildPatternFromCurrentDimensions();
+    }
+
+    protected BlockPattern buildPatternFromCurrentDimensions() {
+        int leftDist = this.leftDist;
+        int rightDist = this.rightDist;
+        int upDist = this.upDist;
+        int downDist = this.downDist;
         if (leftDist + rightDist < 1 || upDist + downDist < 1) {
             leftDist = 3;
             rightDist = 0;

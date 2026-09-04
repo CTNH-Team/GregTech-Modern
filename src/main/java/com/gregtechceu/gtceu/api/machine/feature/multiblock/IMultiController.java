@@ -39,7 +39,7 @@ public interface IMultiController extends IMachineFeature, IInteractedMachine {
 
     /**
      * Check MultiBlock Pattern. Just checking pattern without any other logic.
-     * You can override it but it's unsafe for calling. because it will also be called in an async thread.
+     * You can override it, but direct calls are unsafe because multiple lifecycle paths may request a check.
      * <br>
      * you should always use {@link IMultiController#checkPatternWithLock()} and
      * {@link IMultiController#checkPatternWithTryLock()} instead.
@@ -91,12 +91,67 @@ public interface IMultiController extends IMachineFeature, IInteractedMachine {
     }
 
     /**
-     * Whether Multiblock Formed.
-     * <br>
-     * NOTE: even machine is formed, it doesn't mean to workable!
-     * Its parts maybe invalid due to chunk unload.
+     * Whether the multiblock is currently safe to expose as formed to gameplay code. Implementations with deferred
+     * validation should return false while that validation is pending.
      */
     boolean isFormed();
+
+    /**
+     * The last successfully persisted or observed formation state, including while transient revalidation is pending.
+     */
+    boolean isStructureFormedSnapshot();
+
+    /**
+     * The mirrored orientation owned by the last completed structure validation.
+     */
+    boolean isStructureFlippedSnapshot();
+
+    /**
+     * Whether this controller is waiting for a full, server-thread structure validation.
+     * <p>
+     * This is deliberately separate from {@link #isStructureFormedSnapshot()}: a controller may retain its formation
+     * snapshot while one of its structure chunks is temporarily unavailable, but it must not operate until validation
+     * succeeds.
+     */
+    boolean isStructureRevalidationPending();
+
+    /**
+     * Update the transient structure-validation state. Implementations must pause and resume work subscriptions when
+     * this value changes.
+     */
+    void setStructureRevalidationPending(boolean pending);
+
+    /**
+     * Whether the structure is both formed and fully validated for operation.
+     */
+    default boolean isStructureOperational() {
+        return isStructureFormedSnapshot() && !isStructureRevalidationPending();
+    }
+
+    /**
+     * Stable identity for the controller's current structure-ownership epoch. A definitive invalidation retires the
+     * epoch, while transient unloads retain it; the next successful formation receives a newer identity. Zero means
+     * no ownership epoch has been assigned. Callers must pair it with {@code self().getPos()}.
+     */
+    long getStructureInstanceId();
+
+    /**
+     * Assign a persistent ownership-epoch identity.
+     */
+    void setStructureInstanceId(long instanceId);
+
+    /**
+     * Called after this exact controller state has been installed in the world mapping. Controllers persist the
+     * participating chunk set so their first post-restart validation cannot select another geometry while an old
+     * structure chunk is unavailable.
+     */
+    void onStructureMappingInstalled(long[] mappedChunks);
+
+    /**
+     * Snapshot of chunks owned by the last confirmed structure validation. Schedulers use this to wait for the exact
+     * unloaded chunks without requesting them.
+     */
+    long[] getConfirmedStructureChunks();
 
     /**
      * Get MultiblockState. It records all structure-related information.
@@ -105,10 +160,9 @@ public interface IMultiController extends IMachineFeature, IInteractedMachine {
     MultiblockState getMultiblockState();
 
     /**
-     * Called in an async thread. It's unsafe, Don't modify anything of world but checking information.
-     * It will be called per 5 tick.
+     * Called on the server thread for controllers waiting to form or recover from an unloaded chunk.
      *
-     * @param periodID period Tick
+     * @param periodID current level tick counter
      */
     void asyncCheckPattern(long periodID);
 

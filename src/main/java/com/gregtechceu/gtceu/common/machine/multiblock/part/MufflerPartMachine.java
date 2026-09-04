@@ -79,7 +79,7 @@ public class MufflerPartMachine extends TieredPartMachine implements IMufflerMac
     public void clientTick() {
         super.clientTick();
         for (IMultiController controller : getControllers()) {
-            if (controller instanceof IWorkLogicMachine workLogicMachine &&
+            if (controller.isStructureOperational() && controller instanceof IWorkLogicMachine workLogicMachine &&
                     workLogicMachine.getWorkLogic().isWorking()) {
                 emitPollutionParticles();
                 break;
@@ -99,6 +99,16 @@ public class MufflerPartMachine extends TieredPartMachine implements IMufflerMac
     @Override
     public void removedFromController(IMultiController controller) {
         super.removedFromController(controller);
+        unsubscribeSnowIfDetached();
+    }
+
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        super.unloadedFromController(controller);
+        unsubscribeSnowIfDetached();
+    }
+
+    private void unsubscribeSnowIfDetached() {
         if (controllers.isEmpty()) {
             unsubscribe(snowSubscription);
             snowSubscription = null;
@@ -108,7 +118,7 @@ public class MufflerPartMachine extends TieredPartMachine implements IMufflerMac
     private void tryBreakSnow() {
         if (getOffsetTimer() % 10 == 0) {
             for (IMultiController controller : getControllers()) {
-                if (controller instanceof IWorkLogicMachine workLogicMachine &&
+                if (controller.isStructureOperational() && controller instanceof IWorkLogicMachine workLogicMachine &&
                         workLogicMachine.getWorkLogic().isWorking()) {
                     BlockPos mufflerPos = getPos().relative(getFrontFacing());
                     GTUtil.tryBreakSnow(getLevel(), mufflerPos, getLevel().getBlockState(mufflerPos), true);

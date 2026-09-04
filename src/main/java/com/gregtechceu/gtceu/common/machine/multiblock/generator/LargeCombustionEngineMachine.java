@@ -198,7 +198,7 @@ public class LargeCombustionEngineMachine extends RecipeElectricMultiblockMachin
 
         builder.addFuelNeededLine(getRecipeFluidInputInfo(), recipeLogic.getMaxProgress());
 
-        if (isFormed && isOxygenBoosted) {
+        if (isStructureOperational() && isOxygenBoosted) {
             final var key = isExtreme() ? "gtceu.multiblock.large_combustion_engine.liquid_oxygen_boosted" :
                     "gtceu.multiblock.large_combustion_engine.oxygen_boosted";
             builder.addCustom(tl -> tl.add(Component.translatable(key).withStyle(ChatFormatting.AQUA)));

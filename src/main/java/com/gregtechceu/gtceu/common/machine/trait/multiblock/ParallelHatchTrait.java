@@ -52,6 +52,7 @@ public class ParallelHatchTrait extends MachineTrait implements IMultiblockMachi
     @Override
     public void onStructureFormed() {
         IMultiblockMachineTrait.super.onStructureFormed();
+        parallelHatch = null;
         for (var part : getMultiMachine().getParts()) {
             if (part instanceof IParallelHatch pHatch) {
                 parallelHatch = pHatch;

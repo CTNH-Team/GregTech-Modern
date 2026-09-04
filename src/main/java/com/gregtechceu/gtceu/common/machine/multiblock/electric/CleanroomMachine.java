@@ -23,6 +23,7 @@ import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.misc.EnergyContainerList;
 import com.gregtechceu.gtceu.api.pattern.BlockPattern;
 import com.gregtechceu.gtceu.api.pattern.FactoryBlockPattern;
+import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 import com.gregtechceu.gtceu.api.pattern.Predicates;
 import com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate;
 import com.gregtechceu.gtceu.common.capability.EnvironmentalHazardSavedData;
@@ -77,6 +78,12 @@ import static com.gregtechceu.gtceu.api.pattern.util.RelativeDirection.*;
 public class CleanroomMachine extends WorkableElectricMultiblockMachine
                               implements ICleanroomProvider, IDisplayUIMachine, IDataInfoProvider {
 
+    protected enum DimensionScanResult {
+        VALID,
+        INVALID,
+        UNLOADED
+    }
+
     public static final int CLEAN_AMOUNT_THRESHOLD = 95;
     public static final int MIN_CLEAN_AMOUNT = 0;
 
@@ -87,6 +94,7 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
     @Persisted
     @Getter
     private int lDist = 0, rDist = 0, bDist = 0, fDist = 0, hDist = 0;
+    private DimensionScanResult lastDimensionScanResult = DimensionScanResult.INVALID;
     @Nullable
     private CleanroomType cleanroomType = null;
     @Persisted
@@ -116,6 +124,7 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
         super.onStructureFormed();
         tier = Math.min(GTValues.MAX, tier);
 
+        maintenanceMachine = null;
         for (IMultiPart part : getParts()) {
             if (part instanceof IMaintenanceMachine maintenance) {
                 maintenanceMachine = maintenance;
@@ -198,8 +207,12 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
      * Scans for blocks around the controller to update the dimensions
      */
     public void updateStructureDimensions() {
+        lastDimensionScanResult = scanStructureDimensions();
+    }
+
+    protected DimensionScanResult scanStructureDimensions() {
         Level world = getLevel();
-        if (world == null) return;
+        if (world == null) return DimensionScanResult.INVALID;
         Direction front = getFrontFacing();
         Direction back = front.getOpposite();
         Direction left = front.getCounterClockWise();
@@ -222,27 +235,48 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
         // find the left, right, back, and front distances for the structure pattern
         // maximum size is 15x15x15 including walls, so check 7 block radius around the controller for blocks
         for (int i = 1; i < 8; i++) {
-            if (lDist == 0 && isBlockEdge(world, lPos, left)) lDist = i;
-            if (rDist == 0 && isBlockEdge(world, rPos, right)) rDist = i;
-            if (bDist == 0 && isBlockEdge(world, bPos, back)) bDist = i;
-            if (fDist == 0 && isBlockEdge(world, fPos, front)) fDist = i;
+            if (lDist == 0) {
+                BlockPos next = lPos.relative(left);
+                if (world.isOutsideBuildHeight(next)) return DimensionScanResult.INVALID;
+                if (!world.isLoaded(next)) return DimensionScanResult.UNLOADED;
+                if (isBlockEdge(world, lPos, left)) lDist = i;
+            }
+            if (rDist == 0) {
+                BlockPos next = rPos.relative(right);
+                if (world.isOutsideBuildHeight(next)) return DimensionScanResult.INVALID;
+                if (!world.isLoaded(next)) return DimensionScanResult.UNLOADED;
+                if (isBlockEdge(world, rPos, right)) rDist = i;
+            }
+            if (bDist == 0) {
+                BlockPos next = bPos.relative(back);
+                if (world.isOutsideBuildHeight(next)) return DimensionScanResult.INVALID;
+                if (!world.isLoaded(next)) return DimensionScanResult.UNLOADED;
+                if (isBlockEdge(world, bPos, back)) bDist = i;
+            }
+            if (fDist == 0) {
+                BlockPos next = fPos.relative(front);
+                if (world.isOutsideBuildHeight(next)) return DimensionScanResult.INVALID;
+                if (!world.isLoaded(next)) return DimensionScanResult.UNLOADED;
+                if (isBlockEdge(world, fPos, front)) fDist = i;
+            }
             if (lDist != 0 && rDist != 0 && bDist != 0 && fDist != 0) break;
         }
 
         // height is diameter instead of radius, so it needs to be done separately
         for (int i = 1; i < 15; i++) {
+            BlockPos next = hPos.relative(Direction.DOWN);
+            if (world.isOutsideBuildHeight(next)) return DimensionScanResult.INVALID;
+            if (!world.isLoaded(next)) return DimensionScanResult.UNLOADED;
             if (isBlockFloor(world, hPos, Direction.DOWN)) hDist = i;
             if (hDist != 0) break;
         }
 
         if (Math.abs(lDist - rDist) > 1 || Math.abs(bDist - fDist) > 1) {
-            this.isFormed = false;
-            return;
+            return DimensionScanResult.INVALID;
         }
 
         if (lDist < MIN_RADIUS || rDist < MIN_RADIUS || bDist < MIN_RADIUS || fDist < MIN_RADIUS || hDist < MIN_DEPTH) {
-            this.isFormed = false;
-            return;
+            return DimensionScanResult.INVALID;
         }
 
         this.lDist = lDist;
@@ -250,6 +284,17 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
         this.bDist = bDist;
         this.fDist = fDist;
         this.hDist = hDist;
+        return DimensionScanResult.VALID;
+    }
+
+    protected boolean isBlockEdgeAt(Level world, BlockPos pos) {
+        var state = world.getBlockState(pos);
+        return state == getCasingState() || state == getGlassState();
+    }
+
+    protected boolean isBlockFloorAt(Level world, BlockPos pos) {
+        var state = world.getBlockState(pos);
+        return state == getCasingState() || state == getGlassState() || state.is(CustomTags.CLEANROOM_FLOORS);
     }
 
     /**
@@ -259,8 +304,8 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
      * @return if a block is a valid wall block at pos moved in direction
      */
     public boolean isBlockEdge(Level world, BlockPos.MutableBlockPos pos, Direction direction) {
-        var state = world.getBlockState(pos.move(direction));
-        return state == getCasingState() || state == getGlassState();
+        pos.move(direction);
+        return world.isLoaded(pos) && isBlockEdgeAt(world, pos);
     }
 
     /**
@@ -270,8 +315,22 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
      * @return if a block is a valid floor block at pos moved in direction
      */
     public boolean isBlockFloor(Level world, BlockPos.MutableBlockPos pos, Direction direction) {
-        var state = world.getBlockState(pos.move(direction));
-        return state == getCasingState() || state == getGlassState() || state.is(CustomTags.CLEANROOM_FLOORS);
+        pos.move(direction);
+        return world.isLoaded(pos) && isBlockFloorAt(world, pos);
+    }
+
+    @Override
+    public boolean checkPattern() {
+        // Assume compatibility implementations which override the legacy void hook completed their own scan.
+        lastDimensionScanResult = DimensionScanResult.VALID;
+        updateStructureDimensions();
+        DimensionScanResult result = lastDimensionScanResult;
+        if (result != DimensionScanResult.VALID) {
+            getMultiblockState().setError(result == DimensionScanResult.UNLOADED ?
+                    MultiblockState.UNLOAD_ERROR : MultiblockState.UNINIT_ERROR);
+            return false;
+        }
+        return buildPatternFromCurrentDimensions().checkPatternAt(getMultiblockState(), false);
     }
 
     @Override
@@ -279,13 +338,16 @@ public class CleanroomMachine extends WorkableElectricMultiblockMachine
         // return the default structure, even if there is no valid size found
         // this means auto-build will still work, and prevents terminal crashes.
         if (getLevel() != null) updateStructureDimensions();
+        return buildPatternFromCurrentDimensions();
+    }
 
+    protected BlockPattern buildPatternFromCurrentDimensions() {
         // these can sometimes get set to 0 when loading the game, breaking JEI
-        if (lDist < MIN_RADIUS) lDist = MIN_RADIUS;
-        if (rDist < MIN_RADIUS) rDist = MIN_RADIUS;
-        if (bDist < MIN_RADIUS) bDist = MIN_RADIUS;
-        if (fDist < MIN_RADIUS) fDist = MIN_RADIUS;
-        if (hDist < MIN_DEPTH) hDist = MIN_DEPTH;
+        int lDist = Math.max(this.lDist, MIN_RADIUS);
+        int rDist = Math.max(this.rDist, MIN_RADIUS);
+        int bDist = Math.max(this.bDist, MIN_RADIUS);
+        int fDist = Math.max(this.fDist, MIN_RADIUS);
+        int hDist = Math.max(this.hDist, MIN_DEPTH);
 
         if (this.getFrontFacing() == Direction.EAST || this.getFrontFacing() == Direction.WEST) {
             int tmp = lDist;

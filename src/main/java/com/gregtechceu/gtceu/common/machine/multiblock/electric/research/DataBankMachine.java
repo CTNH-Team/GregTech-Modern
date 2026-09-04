@@ -71,6 +71,10 @@ public class DataBankMachine extends WorkableElectricMultiblockMachine implement
     @Override
     public void onStructureFormed() {
         super.onStructureFormed();
+        dataAccesses.clear();
+        transmitters.clear();
+        receivers.clear();
+        maintenance = null;
         for (IMultiPart part : getParts()) {
             Block block = part.self().getBlockState().getBlock();
             if (part instanceof IDataAccessMachine hatch && PartAbility.DATA_ACCESS.isApplicable(block)) {
@@ -123,6 +127,7 @@ public class DataBankMachine extends WorkableElectricMultiblockMachine implement
     public void onStructureInvalid() {
         super.onStructureInvalid();
         energyUsage = 0;
+        maintenance = null;
         dataAccesses.clear();
         transmitters.clear();
         receivers.clear();

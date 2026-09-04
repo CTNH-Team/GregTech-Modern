@@ -7,6 +7,7 @@ import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.pattern.BlockPattern;
 import com.gregtechceu.gtceu.api.pattern.FactoryBlockPattern;
+import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 import com.gregtechceu.gtceu.api.pattern.Predicates;
 import com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
@@ -49,6 +50,12 @@ import static com.gregtechceu.gtceu.api.pattern.util.RelativeDirection.*;
 
 public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
 
+    protected enum DimensionScanResult {
+        VALID,
+        INVALID,
+        UNLOADED
+    }
+
     private static final int MIN_RADIUS = 1;
     private static final int MIN_DEPTH = 2;
     private static final int MAX_HEIGHT = 5;
@@ -64,6 +71,7 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
     private int fDist = 0;
     @DescSynced
     private int hDist = 0;
+    private DimensionScanResult lastDimensionScanResult = DimensionScanResult.INVALID;
 
     private boolean hasAir = false;
 
@@ -83,6 +91,7 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
     public void onStructureFormed() {
         super.onStructureFormed();
         hasAir = false;
+        logPos.clear();
         if (getMultiblockState().getMatchContext().containsKey("logPos")) {
             Long2BooleanMap logPositions = getMultiblockState().getMatchContext().get("logPos");
             for (var entry : logPositions.long2BooleanEntrySet()) {
@@ -107,12 +116,29 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
     @Override
     public BlockPattern getPattern() {
         updateDimensions();
+        return buildPatternFromCurrentDimensions();
+    }
 
-        if (lDist < MIN_RADIUS) lDist = MIN_RADIUS;
-        if (rDist < MIN_RADIUS) rDist = MIN_RADIUS;
-        if (fDist < MIN_RADIUS) fDist = MIN_RADIUS;
-        if (bDist < MIN_RADIUS) bDist = MIN_RADIUS;
-        if (hDist < MIN_DEPTH) hDist = MIN_DEPTH;
+    @Override
+    public boolean checkPattern() {
+        // Assume compatibility implementations which override the legacy void hook completed their own scan.
+        lastDimensionScanResult = DimensionScanResult.VALID;
+        updateDimensions();
+        DimensionScanResult result = lastDimensionScanResult;
+        if (result != DimensionScanResult.VALID) {
+            getMultiblockState().setError(result == DimensionScanResult.UNLOADED ?
+                    MultiblockState.UNLOAD_ERROR : MultiblockState.UNINIT_ERROR);
+            return false;
+        }
+        return buildPatternFromCurrentDimensions().checkPatternAt(getMultiblockState(), false);
+    }
+
+    protected BlockPattern buildPatternFromCurrentDimensions() {
+        int lDist = Math.max(this.lDist, MIN_RADIUS);
+        int rDist = Math.max(this.rDist, MIN_RADIUS);
+        int fDist = Math.max(this.fDist, MIN_RADIUS);
+        int bDist = Math.max(this.bDist, MIN_RADIUS);
+        int hDist = Math.max(this.hDist, MIN_DEPTH);
 
         if (this.getFrontFacing().getAxis() == Direction.Axis.X) {
             int tmp = lDist;
@@ -208,8 +234,12 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
     }
 
     public void updateDimensions() {
+        lastDimensionScanResult = scanDimensions();
+    }
+
+    protected DimensionScanResult scanDimensions() {
         Level level = getLevel();
-        if (level == null) return;
+        if (level == null) return DimensionScanResult.INVALID;
         Direction front = getFrontFacing();
         Direction back = front.getOpposite();
         Direction left = RelativeDirection.LEFT.getRelative(front, getUpwardsFacing(), false);
@@ -230,22 +260,45 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
         int hDist = 0;
 
         for (int i = 1; i <= MAX_HEIGHT; i++) {
-            if (lDist != 0 && rDist != 0 && hDist != 0) break;
-            if (lDist == 0 && isBlockWall(level, lPos, left)) lDist = i;
-            if (rDist == 0 && isBlockWall(level, rPos, right)) rDist = i;
-            if (bDist == 0 && isBlockWall(level, bPos, back)) bDist = i;
-            if (fDist == 0 && isBlockWall(level, fPos, front)) fDist = i;
-            if (hDist == 0 && isBlockFloor(level, hPos)) hDist = i;
+            if (lDist != 0 && rDist != 0 && bDist != 0 && fDist != 0 && hDist != 0) break;
+            if (lDist == 0) {
+                lPos.move(left);
+                if (level.isOutsideBuildHeight(lPos)) return DimensionScanResult.INVALID;
+                if (!level.isLoaded(lPos)) return DimensionScanResult.UNLOADED;
+                if (isBlockWallAt(level, lPos)) lDist = i;
+            }
+            if (rDist == 0) {
+                rPos.move(right);
+                if (level.isOutsideBuildHeight(rPos)) return DimensionScanResult.INVALID;
+                if (!level.isLoaded(rPos)) return DimensionScanResult.UNLOADED;
+                if (isBlockWallAt(level, rPos)) rDist = i;
+            }
+            if (bDist == 0) {
+                bPos.move(back);
+                if (level.isOutsideBuildHeight(bPos)) return DimensionScanResult.INVALID;
+                if (!level.isLoaded(bPos)) return DimensionScanResult.UNLOADED;
+                if (isBlockWallAt(level, bPos)) bDist = i;
+            }
+            if (fDist == 0) {
+                fPos.move(front);
+                if (level.isOutsideBuildHeight(fPos)) return DimensionScanResult.INVALID;
+                if (!level.isLoaded(fPos)) return DimensionScanResult.UNLOADED;
+                if (isBlockWallAt(level, fPos)) fDist = i;
+            }
+            if (hDist == 0) {
+                hPos.move(Direction.DOWN);
+                if (level.isOutsideBuildHeight(hPos)) return DimensionScanResult.INVALID;
+                if (!level.isLoaded(hPos)) return DimensionScanResult.UNLOADED;
+                if (isBlockFloorAt(level, hPos)) hDist = i;
+            }
         }
 
         if (Math.abs(lDist - rDist) > 1 || Math.abs(bDist - fDist) > 1) {
-            this.isFormed = false;
-            return;
+            return DimensionScanResult.INVALID;
         }
 
         if (lDist < MIN_RADIUS || rDist < MIN_RADIUS || fDist < MIN_RADIUS || bDist < MIN_RADIUS || hDist < MIN_DEPTH) {
-            this.isFormed = false;
-            return;
+            return DimensionScanResult.INVALID;
         }
 
         this.lDist = lDist;
@@ -253,14 +306,15 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
         this.fDist = fDist;
         this.bDist = bDist;
         this.hDist = hDist;
+        return DimensionScanResult.VALID;
     }
 
-    private static boolean isBlockWall(Level level, BlockPos.MutableBlockPos pos, Direction direction) {
-        return level.getBlockState(pos.move(direction)).is(CustomTags.CHARCOAL_PILE_IGNITER_WALLS);
+    private static boolean isBlockWallAt(Level level, BlockPos pos) {
+        return level.getBlockState(pos).is(CustomTags.CHARCOAL_PILE_IGNITER_WALLS);
     }
 
-    private static boolean isBlockFloor(Level level, BlockPos.MutableBlockPos pos) {
-        return level.getBlockState(pos.move(Direction.DOWN)).is(Blocks.BRICKS);
+    private static boolean isBlockFloorAt(Level level, BlockPos pos) {
+        return level.getBlockState(pos).is(Blocks.BRICKS);
     }
 
     @Override
@@ -303,7 +357,7 @@ public class CharcoalPileIgniterMachine extends WorkableMultiblockMachine {
     @Override
     public InteractionResult onUse(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
                                    BlockHitResult hit) {
-        if (!isFormed() || hasAir) {
+        if (!isStructureOperational() || hasAir) {
             return super.onUse(state, level, pos, player, hand, hit);
         }
         ItemStack stack = player.getItemInHand(hand);

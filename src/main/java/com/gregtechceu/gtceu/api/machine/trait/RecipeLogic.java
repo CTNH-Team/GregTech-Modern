@@ -141,6 +141,10 @@ public class RecipeLogic extends WorkLogic {
 
     @Override
     public void serverTick() {
+        if (!workMachine.isWorkLogicAvailable()) {
+            unsubscribeTick();
+            return;
+        }
         if (!isSuspend()) {
             if (!isIdle() && lastRecipe != null) {
                 if (progress < duration) {

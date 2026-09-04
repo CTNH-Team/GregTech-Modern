@@ -33,6 +33,11 @@ public class ComputationNetworkManager {
         return MANAGERS.computeIfAbsent(level, ComputationNetworkManager::new);
     }
 
+    /** Drop the strong level/port graph when a dimension closes. */
+    public static void release(ServerLevel level) {
+        MANAGERS.remove(level);
+    }
+
     private final ServerLevel level;
     private final Set<ComputationPortTrait> ports = new HashSet<>();
     private final List<ComputationNetwork> networks = new ArrayList<>();

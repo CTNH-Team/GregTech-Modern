@@ -90,7 +90,11 @@ public class BlockPattern {
     public boolean checkPatternAt(MultiblockState worldState, boolean savePredicate) {
         IMultiController controller = worldState.getController();
         if (controller == null) {
-            worldState.setError(new PatternStringError("no controller found"));
+            if (!worldState.world.isLoaded(worldState.controllerPos)) {
+                worldState.setError(MultiblockState.UNLOAD_ERROR);
+            } else {
+                worldState.setError(new PatternStringError("no controller found"));
+            }
             return false;
         }
         BlockPos centerPos = controller.self().getPos();
@@ -99,13 +103,37 @@ public class BlockPattern {
                 new Direction[] { Direction.SOUTH, Direction.NORTH, Direction.EAST, Direction.WEST };
         Direction upwardsFacing = controller.self().getUpwardsFacing();
         boolean allowsFlip = controller.self().allowFlip();
+        boolean preserveOwnedFlip = allowsFlip && controller.isStructureFormedSnapshot();
+        boolean preferredFlip = preserveOwnedFlip && controller.isStructureFlippedSnapshot();
+        boolean sawUnloadedPosition = false;
         for (Direction direction : facings) {
-            boolean result = checkPatternAt(worldState, centerPos, direction, upwardsFacing, false, savePredicate);
-            if (result) {
+            if (checkPatternAt(worldState, centerPos, direction, upwardsFacing, preferredFlip, savePredicate)) {
                 return true;
-            } else if (allowsFlip) {
-                return checkPatternAt(worldState, centerPos, direction, upwardsFacing, true, savePredicate);
             }
+            sawUnloadedPosition |= worldState.error == MultiblockState.UNLOAD_ERROR;
+            if (allowsFlip) {
+                // A formed controller owns one persisted mirrored orientation. If that exact candidate cannot be
+                // inspected, accepting the opposite orientation could orphan its unloaded parts and addon state.
+                if (preserveOwnedFlip && sawUnloadedPosition) {
+                    worldState.setError(MultiblockState.UNLOAD_ERROR);
+                    return false;
+                }
+                if (checkPatternAt(worldState, centerPos, direction, upwardsFacing, !preferredFlip, savePredicate)) {
+                    return true;
+                }
+                sawUnloadedPosition |= worldState.error == MultiblockState.UNLOAD_ERROR;
+                if (sawUnloadedPosition) {
+                    worldState.setError(MultiblockState.UNLOAD_ERROR);
+                }
+                // Preserve the existing flippable-controller search space. Expanding it to all four facings would turn
+                // one queued validation into as many as eight complete structure scans.
+                return false;
+            }
+        }
+        if (sawUnloadedPosition) {
+            // A later orientation mismatch must not turn an earlier unloaded-chunk result into a definitive structure
+            // failure. Any uninspectable candidate can still be the valid orientation once its chunks return.
+            worldState.setError(MultiblockState.UNLOAD_ERROR);
         }
         return false;
     }
@@ -117,6 +145,11 @@ public class BlockPattern {
 
     public boolean checkPatternAt(MultiblockState worldState, BlockPos centerPos, Direction frontFacing,
                                   Direction upwardsFacing, boolean isFlipped, boolean savePredicate) {
+        IMultiController controller = worldState.getController();
+        if (controller == null) {
+            worldState.setError(new PatternStringError("no controller found"));
+            return false;
+        }
         boolean findFirstAisle = false;
         int minZ = -centerOffset[4];
         worldState.clean();
@@ -149,7 +182,7 @@ public class BlockPattern {
                                 machineBlockEntity.getMetaMachine() instanceof IMultiPart part) { // add detected parts
                             if (!predicate.isAny()) {
                                 if (part.isFormed() && !part.canShared() &&
-                                        !part.hasController(worldState.controllerPos)) { // check part can be shared
+                                        !part.hasController(controller)) { // check part can be shared
                                     canPartShared = false;
                                     worldState.setError(new PatternStringError("multiblocked.pattern.error.share"));
                                 } else {

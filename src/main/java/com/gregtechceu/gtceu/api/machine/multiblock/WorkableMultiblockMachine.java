@@ -114,15 +114,20 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
     }
 
     public void updateActiveBlocks(boolean active) {
-        if (activeBlocks != null) {
-            for (long pos : activeBlocks) {
-                var blockPos = BlockPos.of(pos);
-                var blockState = getLevel().getBlockState(blockPos);
-                if (blockState.hasProperty(GTBlockStateProperties.ACTIVE)) {
-                    var newState = blockState.setValue(GTBlockStateProperties.ACTIVE, active);
-                    if (newState != blockState) {
-                        getLevel().setBlock(blockPos, newState, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
-                    }
+        var level = getLevel();
+        if (activeBlocks == null || level == null) {
+            return;
+        }
+        for (long pos : activeBlocks) {
+            var blockPos = BlockPos.of(pos);
+            if (!level.isLoaded(blockPos)) {
+                continue;
+            }
+            var blockState = level.getBlockState(blockPos);
+            if (blockState.hasProperty(GTBlockStateProperties.ACTIVE)) {
+                var newState = blockState.setValue(GTBlockStateProperties.ACTIVE, active);
+                if (newState != blockState) {
+                    level.setBlock(blockPos, newState, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
                 }
             }
         }
@@ -186,6 +191,8 @@ public abstract class WorkableMultiblockMachine extends MultiblockControllerMach
 
     @Override
     public boolean isWorkLogicAvailable() {
-        return isFormed && !getMultiblockState().hasError();
+        // Pattern errors are server-owned and are not synchronized as a client-side MultiblockState. The pending
+        // facade is synchronized, so it remains safe to use for status rendering on either side.
+        return isStructureOperational() && (isRemote() || !getMultiblockState().hasError());
     }
 }

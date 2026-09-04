@@ -90,7 +90,7 @@ public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine imple
     @OnlyIn(Dist.CLIENT)
     public void clientTick() {
         super.clientTick();
-        if (isFormed) {
+        if (isStructureOperational()) {
             var pos = this.getPos();
             var facing = this.getFrontFacing().getOpposite();
             float xPos = facing.getStepX() * 0.76F + pos.getX() + 0.5F;
@@ -178,6 +178,9 @@ public class PrimitiveBlastFurnaceMachine extends PrimitiveWorkableMachine imple
     }
 
     private void hurtEntitiesAndBreakSnow() {
+        if (!isStructureOperational()) {
+            return;
+        }
         BlockPos middlePos = self().getPos().offset(getFrontFacing().getOpposite().getNormal());
         getLevel().getEntities(null, new AABB(middlePos)).forEach(e -> e.hurt(e.damageSources().lava(), 3.0f));
 

@@ -79,5 +79,7 @@ public class AdvancedMonitorPartMachine extends MonitorPartMachine implements II
     @Override
     public void onUnload() {
         unsubscribe(clickResetSubscription);
+        clickResetSubscription = null;
+        super.onUnload();
     }
 }

@@ -90,6 +90,7 @@ public class HPCAMachine extends WorkableElectricMultiblockMachine implements Co
         super.onStructureFormed();
         List<IFluidHandler> coolantContainers = new ArrayList<>();
         List<IHPCAComponentHatch> componentHatches = new ArrayList<>();
+        maintenance = null;
 
         for (IMultiPart part : getParts()) {
 
@@ -204,7 +205,7 @@ public class HPCAMachine extends WorkableElectricMultiblockMachine implements Co
 
         // we need to know what components we have on the client
         if (getLevel().isClientSide) {
-            if (isFormed) {
+            if (isStructureOperational()) {
                 hpcaHandler.tryGatherClientComponents(this.getLevel(), this.getPos(), this.getFrontFacing(),
                         this.getUpwardsFacing(), this.isFlipped);
             } else {

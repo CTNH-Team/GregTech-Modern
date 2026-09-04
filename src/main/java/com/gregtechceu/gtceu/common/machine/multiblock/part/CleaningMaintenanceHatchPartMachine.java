@@ -48,6 +48,16 @@ public class CleaningMaintenanceHatchPartMachine extends AutoMaintenanceHatchPar
     @Override
     public void removedFromController(IMultiController controller) {
         super.removedFromController(controller);
+        clearCleanroom(controller);
+    }
+
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        super.unloadedFromController(controller);
+        clearCleanroom(controller);
+    }
+
+    private void clearCleanroom(IMultiController controller) {
         if (controller instanceof MetaMachine machine) {
             var receiver = machine.getTrait(CleanroomReceiverTrait.class);
             if (receiver != null && receiver.getCleanroom() == DUMMY_CLEANROOM) {

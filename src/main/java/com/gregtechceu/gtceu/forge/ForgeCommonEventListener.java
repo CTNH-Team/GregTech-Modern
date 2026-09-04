@@ -54,6 +54,7 @@ import com.gregtechceu.gtceu.integration.map.WaypointManager;
 import com.gregtechceu.gtceu.integration.map.cache.server.ServerCache;
 import com.gregtechceu.gtceu.utils.TaskHandler;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -81,6 +82,7 @@ import net.minecraftforge.event.entity.living.*;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.level.ChunkWatchEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -233,6 +235,24 @@ public class ForgeCommonEventListener {
         }
     }
 
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void wakeMultiblocksAfterBreak(BlockEvent.BreakEvent event) {
+        if (event.getLevel() instanceof ServerLevel serverLevel) {
+            BlockPos changedPos = event.getPos().immutable();
+            runOnServerThread(serverLevel,
+                    () -> MultiblockWorldSavedData.getOrCreate(serverLevel).onBlockChanged(changedPos));
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void wakeMultiblocksAfterPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getLevel() instanceof ServerLevel serverLevel) {
+            BlockPos changedPos = event.getPos().immutable();
+            runOnServerThread(serverLevel,
+                    () -> MultiblockWorldSavedData.getOrCreate(serverLevel).onBlockChanged(changedPos));
+        }
+    }
+
     @SubscribeEvent
     public static void registerCommand(RegisterCommandsEvent event) {
         GTCommands.register(event.getDispatcher(), event.getBuildContext());
@@ -253,11 +273,40 @@ public class ForgeCommonEventListener {
     public static void levelTick(TickEvent.LevelTickEvent event) {
         if (event.phase == TickEvent.Phase.END && event.level instanceof ServerLevel serverLevel) {
             TaskHandler.onTickUpdate(serverLevel);
+            MultiblockWorldSavedData.getOrCreate(serverLevel).tick();
             ComputationNetworkManager.get(serverLevel).tick();
             if (ConfigHolder.INSTANCE.gameplay.environmentalHazards) {
                 EnvironmentalHazardSavedData.getOrCreate(serverLevel).tick();
                 LocalizedHazardSavedData.getOrCreate(serverLevel).tick();
             }
+        }
+    }
+
+    @SubscribeEvent
+    public static void chunkUnload(ChunkEvent.Unload event) {
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ChunkPos chunkPos = event.getChunk().getPos();
+        runOnServerThread(serverLevel,
+                () -> MultiblockWorldSavedData.getOrCreate(serverLevel).onChunkUnload(chunkPos));
+    }
+
+    @SubscribeEvent
+    public static void chunkLoad(ChunkEvent.Load event) {
+        if (!(event.getLevel() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ChunkPos chunkPos = event.getChunk().getPos();
+        runOnServerThread(serverLevel,
+                () -> MultiblockWorldSavedData.getOrCreate(serverLevel).onChunkLoad(chunkPos));
+    }
+
+    private static void runOnServerThread(ServerLevel serverLevel, Runnable action) {
+        if (serverLevel.getServer().isSameThread()) {
+            action.run();
+        } else {
+            serverLevel.getServer().execute(action);
         }
     }
 
@@ -275,6 +324,7 @@ public class ForgeCommonEventListener {
         if (event.getLevel() instanceof ServerLevel serverLevel) {
             TaskHandler.onWorldUnLoad(serverLevel);
             MultiblockWorldSavedData.getOrCreate(serverLevel).releaseExecutorService();
+            ComputationNetworkManager.release(serverLevel);
             ServerCache.instance.invalidateWorld(serverLevel);
         } else if (event.getLevel().isClientSide()) {
             ClientCacheManager.saveCaches();

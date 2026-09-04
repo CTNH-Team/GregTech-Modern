@@ -144,7 +144,8 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
     //////////////////////////////////////
     protected void updatePreHeatSubscription() {
         // do preheat logic for heat cool down and charge internal energy container
-        if (heat > 0 || (inputEnergyContainers != null && inputEnergyContainers.getEnergyStored() > 0 &&
+        if (heat > 0 || (isStructureOperational() && inputEnergyContainers != null &&
+                inputEnergyContainers.getEnergyStored() > 0 &&
                 innerEnergyContainer.getEnergyStored() < innerEnergyContainer.getEnergyCapacity())) {
             preHeatSubs = subscribeServerTick(preHeatSubs, this::updateHeat);
         } else if (preHeatSubs != null) {
@@ -234,13 +235,13 @@ public class FusionReactorMachine extends RecipeElectricMultiblockMachine {
         // Don't drain heat when there is not enough energy and there is still some recipe progress, as that makes it
         // doubly hard to complete the recipe
         // (Will have to recover heat and recipe progress)
-        if ((getRecipeLogic().isIdle() || !isWorkingEnabled() ||
+        if ((!isStructureOperational() || getRecipeLogic().isIdle() || !isWorkingEnabled() ||
                 (getRecipeLogic().isWaiting() && getRecipeLogic().getProgress() == 0)) && heat > 0) {
             heat = heat <= 10000 ? 0 : (heat - 10000);
         }
         // charge the internal energy storage
         var leftStorage = innerEnergyContainer.getEnergyCapacity() - innerEnergyContainer.getEnergyStored();
-        if (inputEnergyContainers != null && leftStorage > 0) {
+        if (isStructureOperational() && inputEnergyContainers != null && leftStorage > 0) {
             innerEnergyContainer.addEnergy(inputEnergyContainers.removeEnergy(leftStorage));
         }
         updatePreHeatSubscription();

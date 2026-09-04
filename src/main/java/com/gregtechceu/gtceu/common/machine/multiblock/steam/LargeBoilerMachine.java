@@ -110,7 +110,8 @@ public class LargeBoilerMachine extends RecipeMultiblockMachine implements IExpl
     }
 
     protected void updateCurrentTemperature() {
-        if (recipeLogic.isWorking()) {
+        boolean structureOperational = isStructureOperational() && !getMultiblockState().hasError();
+        if (structureOperational && recipeLogic.isWorking()) {
             if (getOffsetTimer() % 10 == 0) {
                 if (currentTemperature < getMaxTemperature()) {
                     currentTemperature = Mth.clamp(currentTemperature + heatSpeed * 10, 0, getMaxTemperature());
@@ -120,7 +121,7 @@ public class LargeBoilerMachine extends RecipeMultiblockMachine implements IExpl
             currentTemperature -= getCoolDownRate();
         }
 
-        if (isFormed() && getOffsetTimer() % TICKS_PER_STEAM_GENERATION == 0) {
+        if (structureOperational && getOffsetTimer() % TICKS_PER_STEAM_GENERATION == 0) {
             var maxDrain = currentTemperature * throttle * TICKS_PER_STEAM_GENERATION /
                     (ConfigHolder.INSTANCE.machines.largeBoilers.steamPerWater * 100);
             if (currentTemperature < 100) {

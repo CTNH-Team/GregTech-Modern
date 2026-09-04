@@ -159,7 +159,8 @@ public class RotorHolderPartMachine extends TieredPartMachine
     }
 
     private void updateRotorSpeed() {
-        if (isFormed() && getControllers().first() instanceof IWorkableMultiController workable) {
+        if (isFormed() && !getControllers().isEmpty() &&
+                getControllers().first() instanceof IWorkableMultiController workable) {
             if (workable.getWorkLogic().isWorking()) return;
         }
         if (!hasRotor()) {
@@ -185,7 +186,8 @@ public class RotorHolderPartMachine extends TieredPartMachine
         }
         if (self().getOffsetTimer() % 20 == 0) {
             var numMaintenanceProblems = 0;
-            if (isFormed() && getControllers().first() instanceof IMaintenanceMachine maintenance) {
+            if (isFormed() && !getControllers().isEmpty() &&
+                    getControllers().first() instanceof IMaintenanceMachine maintenance) {
                 numMaintenanceProblems = maintenance.getNumMaintenanceProblems();
             }
             damageRotor(1 + numMaintenanceProblems);
@@ -194,7 +196,8 @@ public class RotorHolderPartMachine extends TieredPartMachine
     }
 
     public int getTierDifference() {
-        if (isFormed() && getControllers().first() instanceof ITieredMachine tieredMachine) {
+        if (isFormed() && !getControllers().isEmpty() &&
+                getControllers().first() instanceof ITieredMachine tieredMachine) {
             return getTier() - tieredMachine.getTier();
         }
         return -1;

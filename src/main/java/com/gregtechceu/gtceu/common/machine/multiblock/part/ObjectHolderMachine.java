@@ -25,11 +25,11 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib.utils.Position;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -90,11 +90,18 @@ public class ObjectHolderMachine extends MultiblockPartMachine implements IObjec
         }
     }
 
-    @MustBeInvokedByOverriders
     @Override
-    public void removedFromController(IMultiController controller) {
-        super.removedFromController(controller);
-        isLocked = false;
+    public void onControllerBindingRetired(BlockPos controllerPos, long instanceId) {
+        if (!isFormed()) {
+            isLocked = false;
+        }
+    }
+
+    @Override
+    public void unloadedFromController(IMultiController controller) {
+        // Keep the consumed research inputs locked while either side is merely unloaded. A successful revalidation
+        // reconnects this holder to the same in-progress recipe; only a definitive invalidation may unlock it.
+        super.unloadedFromController(controller);
     }
 
     private boolean isDataItemFacing(@Nullable Direction direction) {

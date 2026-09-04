@@ -63,7 +63,7 @@ public class MultiblockTankMachine extends MultiblockControllerMachine implement
         var superResult = super.onUse(state, world, pos, player, hand, hit);
 
         if (superResult != InteractionResult.PASS) return superResult;
-        if (!isFormed()) return InteractionResult.FAIL;
+        if (!isStructureOperational()) return InteractionResult.FAIL;
 
         return InteractionResult.PASS; // Otherwise let MetaMachineBlock.use() open the UI
     }
@@ -71,7 +71,7 @@ public class MultiblockTankMachine extends MultiblockControllerMachine implement
     @Override
     @Nullable
     public IFluidHandlerModifiable getFluidHandlerCap(@Nullable Direction side, boolean useCoverCapability) {
-        if (isFormed) {
+        if (isStructureOperational()) {
             return super.getFluidHandlerCap(side, useCoverCapability);
         }
         return null;

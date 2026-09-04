@@ -1,7 +1,5 @@
 package com.gregtechceu.gtceu.core.mixins;
 
-import com.gregtechceu.gtceu.api.pattern.MultiblockWorldSavedData;
-
 import com.lowdragmc.lowdraglib.async.AsyncThreadData;
 
 import net.minecraft.server.level.ChunkHolder;
@@ -60,8 +58,7 @@ public abstract class ServerChunkProviderMixin {
 
     @Inject(method = "getChunkNow", at = @At(value = "HEAD"), cancellable = true)
     private void getTileEntity(int pChunkX, int pChunkZ, CallbackInfoReturnable<LevelChunk> cir) {
-        if (Thread.currentThread() != this.mainThread &&
-                (MultiblockWorldSavedData.isThreadService() || AsyncThreadData.isThreadService())) {
+        if (Thread.currentThread() != this.mainThread && AsyncThreadData.isThreadService()) {
             long i = ChunkPos.asLong(pChunkX, pChunkZ);
 
             for (int j = 0; j < 4; ++j) {
