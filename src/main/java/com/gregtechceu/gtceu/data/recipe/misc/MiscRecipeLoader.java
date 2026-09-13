@@ -1,6 +1,5 @@
 package com.gregtechceu.gtceu.data.recipe.misc;
 
-import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
 import com.gregtechceu.gtceu.api.data.chemical.material.MarkerMaterials.Color;
 import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
 import com.gregtechceu.gtceu.api.recipe.ingredient.FluidContainerIngredient;
@@ -44,17 +43,6 @@ public class MiscRecipeLoader {
                 "PWP", "SLS", "PPP", 'P', new MaterialEntry(plate, Steel), 'W',
                 new MaterialEntry(wireGtSingle, Copper), 'S', new MaterialEntry(screw, RedAlloy), 'L',
                 CustomTags.LV_CIRCUITS);
-        // Potin Recipe
-        VanillaRecipeHelper.addShapelessRecipe(provider, "potin_dust", ChemicalHelper.get(dust, Potin, 8),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Tin),
-                new MaterialEntry(dust, Tin),
-                new MaterialEntry(dust, Lead));
 
         MIXER_RECIPES.recipeBuilder("fermented_spider_eye_brown").duration(100).EUt(VA[ULV])
                 .inputItems(dust, Sugar)
@@ -423,14 +411,6 @@ public class MiscRecipeLoader {
         VanillaRecipeHelper.addShapelessRecipe(provider, "brown_dye_from_metal_mixture", new ItemStack(Items.BROWN_DYE),
                 new MaterialEntry(dust, MetalMixture));
 
-        // NAN Certificate
-        EXTRUDER_RECIPES.recipeBuilder("nan_certificate")
-                .inputItems(block, Neutronium, 64)
-                .inputItems(block, Neutronium, 64)
-                .outputItems(NAN_CERTIFICATE)
-                .addMaterialInfo(true)
-                .duration(Integer.MAX_VALUE).EUt(VA[ULV]).save(provider);
-
         // Fertilizer
         MIXER_RECIPES.recipeBuilder("fertilizer")
                 .inputItems(new ItemStack(Blocks.DIRT))
@@ -504,9 +484,6 @@ public class MiscRecipeLoader {
                     .duration(200)
                     .save(provider);
 
-            VanillaRecipeHelper.addShapelessRecipe(provider, "pumpkin_pie_from_dough", new ItemStack(Items.PUMPKIN_PIE),
-                    new ItemStack(Blocks.PUMPKIN), new ItemStack(Items.SUGAR), CustomTags.DOUGHS);
-
             VanillaRecipeHelper.addShapelessRecipe(provider, "cookie_from_dough", new ItemStack(Items.COOKIE, 8),
                     CustomTags.DOUGHS, new ItemStack(Items.COCOA_BEANS));
 
@@ -539,9 +516,6 @@ public class MiscRecipeLoader {
                     .EUt(VA[ULV])
                     .duration(400)
                     .save(provider);
-
-            VanillaRecipeHelper.addShapelessRecipe(provider, "pumpkin_pie_from_dough", new ItemStack(Items.PUMPKIN_PIE),
-                    new ItemStack(Blocks.PUMPKIN), CustomTags.DOUGHS, new ItemStack(Items.SUGAR), 'r', 'k');
 
             VanillaRecipeHelper.addShapelessRecipe(provider, "cookie", new ItemStack(Items.COOKIE, 4),
                     new ItemStack(Items.COCOA_BEANS), CustomTags.DOUGHS, new ItemStack(Items.SUGAR), 'r');
@@ -595,12 +569,6 @@ public class MiscRecipeLoader {
                 .save(provider);
 
         // Coke Brick and Firebrick decomposition
-        EXTRACTOR_RECIPES.recipeBuilder("extract_coke_oven_bricks")
-                .inputItems(GTBlocks.CASING_COKE_BRICKS.asStack())
-                .outputItems(COKE_OVEN_BRICK, 4)
-                .duration(300).EUt(2)
-                .save(provider);
-
         EXTRACTOR_RECIPES.recipeBuilder("extract_primitive_bricks")
                 .inputItems(GTBlocks.CASING_PRIMITIVE_BRICKS.asStack())
                 .outputItems(FIRECLAY_BRICK, 4)

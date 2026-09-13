@@ -81,18 +81,9 @@ public class CraftingRecipeLoader {
         VanillaRecipeHelper.addShapedRecipe(provider, "wooden_shape_brick", WOODEN_FORM_BRICK.asStack(), "k ", " X",
                 'X', WOODEN_FORM_EMPTY.asStack());
 
-        VanillaRecipeHelper.addShapedRecipe(provider, "compressed_coke_clay", COMPRESSED_COKE_CLAY.asStack(3), "XXX",
-                "SYS", "SSS", 'Y', WOODEN_FORM_BRICK.asStack(), 'X', new ItemStack(Items.CLAY_BALL), 'S',
-                ItemTags.SAND);
-        VanillaRecipeHelper.addShapelessRecipe(provider, "fireclay_dust", ChemicalHelper.get(dust, Fireclay, 2),
-                new MaterialEntry(dust, Brick), new MaterialEntry(dust, Clay));
-        VanillaRecipeHelper.addSmeltingRecipe(provider, "coke_oven_brick", COMPRESSED_COKE_CLAY.asStack(),
-                COKE_OVEN_BRICK.asStack(), 0.3f);
         VanillaRecipeHelper.addSmeltingRecipe(provider, "fireclay_brick", COMPRESSED_FIRECLAY.asStack(),
                 FIRECLAY_BRICK.asStack(), 0.3f);
 
-        VanillaRecipeHelper.addSmeltingRecipe(provider, "wrought_iron_nugget", ChemicalHelper.getTag(nugget, Iron),
-                ChemicalHelper.get(nugget, WroughtIron));
         VanillaRecipeHelper.addShapelessRecipe(provider, "nugget_disassembling_iron",
                 new ItemStack(Items.IRON_NUGGET, 9), new ItemStack(Items.IRON_INGOT), 's');
 
@@ -113,11 +104,6 @@ public class CraftingRecipeLoader {
         VanillaRecipeHelper.addShapedRecipe(provider, "styrene_rubber_ring",
                 ChemicalHelper.get(ring, StyreneButadieneRubber), "k", "P", 'P',
                 ChemicalHelper.get(plate, StyreneButadieneRubber));
-
-        VanillaRecipeHelper.addShapelessRecipe(provider, "iron_magnetic_stick", ChemicalHelper.get(rod, IronMagnetic),
-                new MaterialEntry(rod, Iron), new MaterialEntry(dust, Redstone),
-                new MaterialEntry(dust, Redstone), new MaterialEntry(dust, Redstone),
-                new MaterialEntry(dust, Redstone));
 
         VanillaRecipeHelper.addShapedRecipe(provider, "component_grinder_diamond", COMPONENT_GRINDER_DIAMOND.asStack(),
                 "XSX", "SDS", "XSX", 'X', new MaterialEntry(dust, Diamond), 'S',
@@ -160,12 +146,6 @@ public class CraftingRecipeLoader {
                 "III", "MFR", 'B', new ItemStack(Blocks.IRON_BARS), 'I', ITEM_FILTER.asStack(), 'M',
                 ELECTRIC_MOTOR_MV.asStack(), 'F', new MaterialEntry(frameGt, Steel), 'R',
                 new MaterialEntry(rotor, Steel));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "filter_casing_sterile",
-                GTBlocks.FILTER_CASING_STERILE.asStack(), "BEB", "ISI", "MFR", 'B',
-                new MaterialEntry(pipeLargeFluid, Polybenzimidazole), 'E', EMITTER_ZPM.asStack(), 'I',
-                ITEM_FILTER.asStack(), 'S', BLACKLIGHT.asStack(), 'M', ELECTRIC_MOTOR_ZPM.asStack(), 'F',
-                new MaterialEntry(frameGt, Tritanium), 'R', new MaterialEntry(rotor, NaquadahAlloy));
-
         ///////////////////////////////////////////////////
         // Shapes and Molds //
         ///////////////////////////////////////////////////

@@ -61,8 +61,6 @@ public class MetaTileEntityLoader {
         registerMachineRecipe(provider, false, GTMachines.HULL, "PLP", "CHC", 'P', HULL_PLATE, 'L', PLATE, 'C', CABLE,
                 'H', CASING);
 
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_coke_bricks", GTBlocks.CASING_COKE_BRICKS.asStack(),
-                "XX", "XX", 'X', GTItems.COKE_OVEN_BRICK);
         VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_bronze_bricks",
                 GTBlocks.CASING_BRONZE_BRICKS.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PhP", "PBP",
                 "PwP", 'P', new MaterialEntry(TagPrefix.plate, GTMaterials.Bronze), 'B',
@@ -91,11 +89,6 @@ public class MetaTileEntityLoader {
                 GTBlocks.CASING_TUNGSTENSTEEL_ROBUST.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PhP",
                 "PFP", "PwP", 'P', new MaterialEntry(TagPrefix.plate, GTMaterials.TungstenSteel), 'F',
                 new MaterialEntry(TagPrefix.frameGt, GTMaterials.TungstenSteel));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_hsse_sturdy",
-                GTBlocks.CASING_HSSE_STURDY.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PhP", "PFP", "PwP",
-                'P', new MaterialEntry(TagPrefix.plate, GTMaterials.HSSE), 'F',
-                new MaterialEntry(TagPrefix.frameGt, GTMaterials.Europium));
-
         VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_steel_turbine_casing",
                 GTBlocks.CASING_STEEL_TURBINE.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PhP", "PFP",
                 "PwP", 'P', new MaterialEntry(TagPrefix.plate, GTMaterials.Magnalium), 'F',
@@ -192,17 +185,6 @@ public class MetaTileEntityLoader {
                 GTBlocks.CASING_GRATE.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PVP", "PFP", "PMP", 'P',
                 new ItemStack(Blocks.IRON_BARS, 1), 'F', new MaterialEntry(TagPrefix.frameGt, GTMaterials.Steel),
                 'M', GTItems.ELECTRIC_MOTOR_MV, 'V', new MaterialEntry(TagPrefix.rotor, GTMaterials.Steel));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_assembly_control",
-                GTBlocks.CASING_ASSEMBLY_CONTROL.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "CPC", "SFE",
-                "CMC", 'C', CustomTags.EV_CIRCUITS, 'P', GTItems.HIGH_POWER_INTEGRATED_CIRCUIT, 'S',
-                GTItems.SENSOR_IV.asStack(), 'F', new MaterialEntry(TagPrefix.frameGt, GTMaterials.TungstenSteel),
-                'E', GTItems.EMITTER_IV.asStack(), 'M', GTItems.ELECTRIC_MOTOR_IV);
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "casing_assembly_line",
-                GTBlocks.CASING_ASSEMBLY_LINE.asStack(ConfigHolder.INSTANCE.recipes.casingsPerCraft), "PGP", "AFA",
-                "PGP", 'P', new MaterialEntry(TagPrefix.plate, GTMaterials.Steel), 'G',
-                new MaterialEntry(TagPrefix.gear, GTMaterials.Ruridit), 'A', GTItems.ROBOT_ARM_IV.asStack(), 'F',
-                ChemicalHelper.get(TagPrefix.frameGt, GTMaterials.TungstenSteel));
-
         VanillaRecipeHelper.addShapedRecipe(provider, true, "warning_sign_yellow_stripes",
                 GTBlocks.YELLOW_STRIPES_BLOCK_A.asStack(), "Y  ", " M ", "  B", 'M',
                 GTBlocks.CASING_STEEL_SOLID.asStack(), 'Y', Tags.Items.DYES_YELLOW, 'B', Tags.Items.DYES_BLACK);
@@ -394,12 +376,6 @@ public class MetaTileEntityLoader {
                 GTMachines.AUTO_MAINTENANCE_HATCH.asStack(), "CMC", "RHR", "CMC", 'C', CIRCUIT.get(HV), 'M',
                 GTMachines.MAINTENANCE_HATCH.asStack(), 'R', ROBOT_ARM.get(HV), 'H',
                 GTMachines.HULL[HV].asStack());
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "maintenance_hatch_cleaning",
-                GTMachines.CLEANING_MAINTENANCE_HATCH.asStack(), "CMC", "RHR", "WCW", 'C',
-                CIRCUIT.get(GTValues.UV), 'M', GTMachines.AUTO_MAINTENANCE_HATCH.asStack(), 'R',
-                ROBOT_ARM.get(GTValues.UV), 'H', GTMachines.HULL[GTValues.UV].asStack(), 'W',
-                new MaterialEntry(TagPrefix.cableGtSingle, GTMaterials.YttriumBariumCuprate));
-
         // TODO Access Interface
         // VanillaRecipeHelper.addShapedRecipe(provider, true, "machine_access_interface",
         // GTMachines.MACHINE_HATCH.getStackForm(), "CHS", 'C', CustomTags.IV), 'H',
@@ -521,12 +497,6 @@ public class MetaTileEntityLoader {
                 new MaterialEntry(TagPrefix.plate, GTMaterials.Steel), 'P',
                 new MaterialEntry(TagPrefix.pipeSmallFluid, GTMaterials.TinAlloy));
         // MULTI BLOCK CONTROLLERS
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "bronze_primitive_blast_furnace",
-                GTMultiMachines.PRIMITIVE_BLAST_FURNACE.asStack(), "hRS", "PBR", "dRS", 'R',
-                new MaterialEntry(TagPrefix.rod, GTMaterials.Iron), 'S',
-                new MaterialEntry(TagPrefix.screw, GTMaterials.Iron), 'P',
-                new MaterialEntry(TagPrefix.plate, GTMaterials.Iron), 'B',
-                GTBlocks.CASING_PRIMITIVE_BRICKS.asStack());
         VanillaRecipeHelper.addShapedRecipe(provider, true, "coke_oven", GTMultiMachines.COKE_OVEN.asStack(), "PIP",
                 "IwI",
                 "PIP", 'P', GTBlocks.CASING_COKE_BRICKS.asStack(), 'I',
@@ -687,22 +657,6 @@ public class MetaTileEntityLoader {
                 "CRC", "RMR", "EWE", 'M', GTMachines.HULL[HV].asStack(), 'E', GTItems.ELECTRIC_MOTOR_HV, 'R',
                 new MaterialEntry(TagPrefix.rotor, GTMaterials.Steel), 'C', CustomTags.HV_CIRCUITS, 'W',
                 new MaterialEntry(TagPrefix.cableGtSingle, GTMaterials.Gold));
-
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "steam_turbine_lv", GTMachines.STEAM_TURBINE[LV].asStack(),
-                "PCP", "RMR", "EWE", 'M', GTMachines.HULL[GTValues.LV].asStack(), 'E', GTItems.ELECTRIC_MOTOR_LV, 'R',
-                new MaterialEntry(TagPrefix.rotor, GTMaterials.Tin), 'C', CustomTags.LV_CIRCUITS, 'W',
-                new MaterialEntry(TagPrefix.cableGtSingle, GTMaterials.Tin), 'P',
-                new MaterialEntry(TagPrefix.pipeNormalFluid, GTMaterials.Bronze));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "steam_turbine_mv", GTMachines.STEAM_TURBINE[MV].asStack(),
-                "PCP", "RMR", "EWE", 'M', GTMachines.HULL[GTValues.MV].asStack(), 'E', GTItems.ELECTRIC_MOTOR_MV, 'R',
-                new MaterialEntry(TagPrefix.rotor, GTMaterials.Bronze), 'C', CustomTags.MV_CIRCUITS, 'W',
-                new MaterialEntry(TagPrefix.cableGtSingle, GTMaterials.Copper), 'P',
-                new MaterialEntry(TagPrefix.pipeNormalFluid, GTMaterials.Steel));
-        VanillaRecipeHelper.addShapedRecipe(provider, true, "steam_turbine_hv", GTMachines.STEAM_TURBINE[HV].asStack(),
-                "PCP", "RMR", "EWE", 'M', GTMachines.HULL[HV].asStack(), 'E', GTItems.ELECTRIC_MOTOR_HV, 'R',
-                new MaterialEntry(TagPrefix.rotor, GTMaterials.Steel), 'C', CustomTags.HV_CIRCUITS, 'W',
-                new MaterialEntry(TagPrefix.cableGtSingle, GTMaterials.Gold), 'P',
-                new MaterialEntry(TagPrefix.pipeNormalFluid, GTMaterials.StainlessSteel));
 
         // TODO Crafting station
         // VanillaRecipeHelper.addShapedRecipe(provider, true, "workbench_bronze", GTMachines.WORKBENCH.getStackForm(),

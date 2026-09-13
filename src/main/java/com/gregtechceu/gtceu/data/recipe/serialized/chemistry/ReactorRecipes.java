@@ -533,12 +533,6 @@ public class ReactorRecipes {
                 .outputItems(dust, Calcite, 5)
                 .duration(500).EUt(VA[LV]).save(provider);
 
-        CHEMICAL_RECIPES.recipeBuilder("calcite_from_quicklime")
-                .inputItems(dust, Quicklime, 2)
-                .inputFluids(CarbonDioxide.getFluid(1000))
-                .outputItems(dust, Calcite, 5)
-                .duration(80).EUt(VA[LV]).save(provider);
-
         CHEMICAL_RECIPES.recipeBuilder("magnesite_from_magnesia")
                 .inputItems(dust, Magnesia, 2)
                 .inputFluids(CarbonDioxide.getFluid(1000))
@@ -722,12 +716,5 @@ public class ReactorRecipes {
                 .outputFluids(PolychlorinatedBiphenyl.getFluid(1000))
                 .outputFluids(HydrochloricAcid.getFluid(2000))
                 .duration(200).EUt(VH[HV]).save(provider);
-
-        CHEMICAL_RECIPES.recipeBuilder("hydrogen_peroxide")
-                .inputFluids(Hydrogen.getFluid(2000))
-                .inputFluids(Oxygen.getFluid(2000))
-                .circuitMeta(1)
-                .outputFluids(HydrogenPeroxide.getFluid(1000))
-                .duration(3000).EUt(VHA[HV]).save(provider);
     }
 }
