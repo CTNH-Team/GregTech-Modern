@@ -13,9 +13,11 @@ import com.gregtechceu.gtceu.utils.FormattingUtil;
 
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
@@ -25,6 +27,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +56,27 @@ public abstract class LongDistanceEndpointMachine extends MetaMachine implements
     public LongDistanceEndpointMachine(IMachineBlockEntity holder, LongDistancePipeType pipeType) {
         super(holder);
         this.pipeType = Objects.requireNonNull(pipeType);
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("formed", getLink() != null);
+        data.putString("io", getIoType().getTooltip());
+        data.putString("output", getOutputFacing().getName());
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        String io = data.getString("io");
+        tooltip.add(Component.translatable(data.getBoolean("formed") ? "gtceu.top.ldp_endpoint.is_formed" :
+                "gtceu.top.ldp_endpoint.not_formed"));
+        tooltip.add(Component.translatable("gtceu.top.ldp_endpoint.io_type", Component.translatable(io)
+                .withStyle(io.contains("import") ? ChatFormatting.GREEN : ChatFormatting.RED)));
+        tooltip.add(Component.translatable("gtceu.top.ldp_endpoint.output_direction",
+                FormattingUtil.toEnglishName(data.getString("output"))));
     }
 
     protected void updateRefreshNetSubscription() {

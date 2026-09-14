@@ -1,8 +1,8 @@
 package com.gregtechceu.gtceu.common.network.packets;
 
-import com.gregtechceu.gtceu.api.machine.feature.IHasCircuitSlot;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.api.machine.trait.ProgrammableCircuitSlotTrait;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.IntCircuitIngredient;
-import com.gregtechceu.gtceu.common.item.IntCircuitBehaviour;
 import com.gregtechceu.gtceu.common.network.GTNetwork;
 
 import com.lowdragmc.lowdraglib.gui.modular.ModularUIContainer;
@@ -39,11 +39,12 @@ public class CPacketEmiSetCircuit implements GTNetwork.INetPacket {
                 configuration > IntCircuitIngredient.CIRCUIT_MAX ||
                 player.containerMenu.containerId != containerId ||
                 !(player.containerMenu instanceof ModularUIContainer menu) ||
-                !(menu.getModularUI().holder instanceof IHasCircuitSlot circuitMachine) ||
-                !circuitMachine.isCircuitSlotEnabled()) {
+                !(menu.getModularUI().holder instanceof MetaMachine machine)) {
             return;
         }
-        circuitMachine.getCircuitInventory().setStackInSlot(0, IntCircuitBehaviour.stack(configuration));
+        var circuitSlot = machine.getTrait(ProgrammableCircuitSlotTrait.class);
+        if (circuitSlot == null) return;
+        circuitSlot.setCurrentCircuit(configuration);
         menu.broadcastChanges();
     }
 }

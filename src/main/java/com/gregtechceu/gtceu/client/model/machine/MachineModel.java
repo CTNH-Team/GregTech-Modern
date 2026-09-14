@@ -4,10 +4,9 @@ import com.gregtechceu.gtceu.GTCEu;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputFluid;
-import com.gregtechceu.gtceu.api.machine.feature.IAutoOutputItem;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiController;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.client.model.BaseBakedModel;
 import com.gregtechceu.gtceu.client.model.GTModelProperties;
 import com.gregtechceu.gtceu.client.model.IBlockEntityRendererBakedModel;
@@ -228,7 +227,9 @@ public final class MachineModel extends BaseBakedModel implements ICoverableRend
         }
 
         // render output overlays
-        if (machine instanceof IAutoOutputItem autoOutputItem) {
+        var autoOutput = machine.getTrait(AutoOutputTrait.class);
+        if (autoOutput != null && autoOutput.hasAutoOutputItem()) {
+            var autoOutputItem = autoOutput;
             var itemFace = autoOutputItem.getOutputFacingItems();
             if (itemFace != null && side == itemFace) {
                 quads.add(StaticFaceBakery.bakeFace(StaticFaceBakery.OUTPUT_OVERLAY, side, pipeOverlaySprite));
@@ -238,7 +239,8 @@ public final class MachineModel extends BaseBakedModel implements ICoverableRend
                 }
             }
         }
-        if (machine instanceof IAutoOutputFluid autoOutputFluid) {
+        if (autoOutput != null && autoOutput.hasAutoOutputFluid()) {
+            var autoOutputFluid = autoOutput;
             var fluidFace = autoOutputFluid.getOutputFacingFluids();
             if (fluidFace != null && side == fluidFace) {
                 quads.add(StaticFaceBakery.bakeFace(StaticFaceBakery.OUTPUT_OVERLAY, side, pipeOverlaySprite));

@@ -256,6 +256,7 @@ public class MetaMachineBlock extends Block implements IMachineBlock {
                     machineLife.onMachineRemoved();
                 }
                 if (machine != null) {
+                    machine.onMachineDestroyed();
                     for (Direction direction : GTUtil.DIRECTIONS) {
                         machine.getCoverContainer().removeCover(direction, null);
                     }
@@ -312,6 +313,10 @@ public class MetaMachineBlock extends Block implements IMachineBlock {
 
         if (machine instanceof IInteractedMachine interactedMachine) {
             var result = interactedMachine.onUse(state, world, pos, player, hand, hit);
+            if (result != InteractionResult.PASS) return result;
+        }
+        if (machine != null) {
+            var result = machine.onTraitUse(state, world, pos, player, hand, hit);
             if (result != InteractionResult.PASS) return result;
         }
         if (shouldOpenUi && machine instanceof IUIMachine uiMachine &&

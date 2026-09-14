@@ -33,7 +33,7 @@ public class EnergyHatchPartMachine extends TieredIOPartMachine implements IExpl
     public EnergyHatchPartMachine(IMachineBlockEntity holder, int tier, IO io, int amperage, Object... args) {
         super(holder, tier, io);
         this.amperage = amperage;
-        this.energyContainer = createEnergyContainer(args);
+        this.energyContainer = attachTrait(createEnergyContainer(args));
     }
 
     //////////////////////////////////////

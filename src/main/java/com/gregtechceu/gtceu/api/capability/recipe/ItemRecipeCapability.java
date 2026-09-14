@@ -2,11 +2,13 @@ package com.gregtechceu.gtceu.api.capability.recipe;
 
 import com.gregtechceu.gtceu.api.gui.widget.LargeStackSlotWidget;
 import com.gregtechceu.gtceu.api.gui.widget.SlotWidget;
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.ResearchData;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
+import com.gregtechceu.gtceu.api.recipe.ingredient.IChancedIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.IntCircuitIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.ItemIngredient;
 import com.gregtechceu.gtceu.api.recipe.ingredient.item.RangedItemIngredient;
@@ -30,7 +32,9 @@ import com.lowdragmc.lowdraglib.utils.LocalizationUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -41,6 +45,10 @@ import it.unimi.dsi.fastutil.objects.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
+import snownee.jade.api.ui.IElementHelper;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,6 +64,50 @@ public class ItemRecipeCapability extends RecipeCapability<ItemIngredient> {
     protected ItemRecipeCapability(String name, int color, boolean doRenderSlot,
                                    Codec<ItemIngredient> contentCodec) {
         super(name, color, doRenderSlot, contentCodec);
+    }
+
+    @Override
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<ItemIngredient> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        if (io != IO.OUT || tick) return;
+        var recipe = logic.getLastRecipe();
+        if (recipe == null) return;
+        IElementHelper helper = tooltip.getElementHelper();
+        var chanceFunction = recipe.getType().getChanceFunction();
+        if (!contents.isEmpty()) {
+            tooltip.add(Component.translatable("gtceu.top.item_auto_output", ""));
+        }
+        for (var ingredient : contents) {
+            RangedItemIngredient ranged = ingredient instanceof RangedItemIngredient value ? value :
+                    ingredient.isChanced() && ingredient.getInner() instanceof RangedItemIngredient value ? value :
+                            null;
+            ItemStack stack = firstStack(ranged != null ? ranged.getInner().getItems() : ingredient.getItems());
+            if (stack.isEmpty()) continue;
+            MutableComponent text = CommonComponents.space();
+            if (ranged != null) {
+                text.append(Component.translatable("gtceu.gui.content.range", ranged.getMinCount(), ranged.getCount()));
+            } else {
+                int count = stack.getCount();
+                if (ingredient.isChanced()) count = Math.max(1,
+                        (int) Math.round((double) count * recipe.getTotalRuns() *
+                                chanceFunction.getBoostedChance(ingredient.getChance(), recipe.tier,
+                                        recipe.tier + recipe.ocLevel) /
+                                IChancedIngredient.MAX_CHANCE));
+                text.append(String.valueOf(count));
+            }
+            stack.setCount(1);
+            text.append(Component.translatable("gtceu.gui.content.times_item",
+                    stack.getDisplayName().copy().withStyle(ChatFormatting.WHITE)).withStyle(ChatFormatting.WHITE));
+            tooltip.add(helper.smallItem(stack));
+            tooltip.append(text);
+        }
+    }
+
+    private static ItemStack firstStack(ItemStack[] stacks) {
+        for (var stack : stacks) {
+            if (!stack.isEmpty()) return stack.copy();
+        }
+        return ItemStack.EMPTY;
     }
 
     @Override

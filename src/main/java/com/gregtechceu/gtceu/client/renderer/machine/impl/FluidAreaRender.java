@@ -1,11 +1,13 @@
 package com.gregtechceu.gtceu.client.renderer.machine.impl;
 
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IFluidRenderMulti;
+import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
+import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.pattern.util.RelativeDirection;
 import com.gregtechceu.gtceu.client.renderer.block.FluidBlockRenderer;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRenderType;
 import com.gregtechceu.gtceu.client.util.RenderUtil;
+import com.gregtechceu.gtceu.common.machine.trait.multiblock.MultiblockFluidRendererTrait;
 import com.gregtechceu.gtceu.config.ConfigHolder;
 
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -27,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaRender> {
+public class FluidAreaRender extends DynamicRender<MultiblockControllerMachine, FluidAreaRender> {
 
     public static final List<RelativeDirection> DEFAULT_FACES = Collections.singletonList(RelativeDirection.UP);
 
@@ -38,7 +40,7 @@ public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaR
             BuiltInRegistries.FLUID.byNameCodec().optionalFieldOf("fixed_fluid").forGetter(FluidAreaRender::getFixedFluid),
             RelativeDirection.CODEC.listOf().optionalFieldOf("drawn_faces", DEFAULT_FACES).forGetter(FluidAreaRender::getDrawFaces)
     ).apply(instance, FluidAreaRender::new));
-    public static final DynamicRenderType<IFluidRenderMulti, FluidAreaRender> TYPE = new DynamicRenderType<>(FluidAreaRender.CODEC);
+    public static final DynamicRenderType<MultiblockControllerMachine, FluidAreaRender> TYPE = new DynamicRenderType<>(FluidAreaRender.CODEC);
     // spotless:on
 
     @Getter
@@ -64,7 +66,7 @@ public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaR
     }
 
     @Override
-    public DynamicRenderType<IFluidRenderMulti, FluidAreaRender> getType() {
+    public DynamicRenderType<MultiblockControllerMachine, FluidAreaRender> getType() {
         return TYPE;
     }
 
@@ -74,21 +76,23 @@ public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaR
     }
 
     @Override
-    public void render(IFluidRenderMulti machine, float partialTick,
+    public void render(MultiblockControllerMachine machine, float partialTick,
                        PoseStack poseStack, MultiBufferSource buffer,
                        int packedLight, int packedOverlay) {
+        var fluidRenderer = machine.getTrait(MultiblockFluidRendererTrait.class);
         if (!ConfigHolder.INSTANCE.client.renderer.renderFluids) return;
-        if (!machine.isFormed() || machine.getFluidOffsets() == null) {
+        if (!machine.isFormed() || fluidRenderer == null) {
             return;
         }
         if (!fixedFluid) {
-            var lastRecipe = machine.getRecipeLogic().getLastRecipe();
+            if (!(machine instanceof IRecipeLogicMachine recipeMachine)) return;
+            var lastRecipe = recipeMachine.getRecipeLogic().getLastRecipe();
             if (lastRecipe == null) {
                 cachedRecipe = null;
                 cachedFluid = null;
             } else if (machine.self().getOffsetTimer() % 20 == 0 || lastRecipe.id != cachedRecipe) {
                 cachedRecipe = lastRecipe.id;
-                if (machine.isActive()) {
+                if (recipeMachine.isActive()) {
                     cachedFluid = RenderUtil.getRecipeFluidToRender(lastRecipe);
                 } else {
                     cachedFluid = null;
@@ -110,7 +114,7 @@ public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaR
                     machine.self().isFlipped());
             if (dir.getAxis() != Direction.Axis.Y) dir = dir.getOpposite();
 
-            fluidBlockRenderer.drawPlane(dir, machine.getFluidOffsets(), pose, consumer, cachedFluid,
+            fluidBlockRenderer.drawPlane(dir, fluidRenderer.getFluidOffsets(), pose, consumer, cachedFluid,
                     RenderUtil.FluidTextureType.STILL, packedOverlay, machine.self().getPos());
             poseStack.popPose();
         }
@@ -122,14 +126,16 @@ public class FluidAreaRender extends DynamicRender<IFluidRenderMulti, FluidAreaR
     }
 
     @Override
-    public boolean shouldRenderOffScreen(IFluidRenderMulti machine) {
+    public boolean shouldRenderOffScreen(MultiblockControllerMachine machine) {
         return true;
     }
 
     @Override
-    public AABB getRenderBoundingBox(IFluidRenderMulti machine) {
+    public AABB getRenderBoundingBox(MultiblockControllerMachine machine) {
         AABB box = super.getRenderBoundingBox(machine);
-        var offsets = machine.getFluidOffsets();
+        var fluidRenderer = machine.getTrait(MultiblockFluidRendererTrait.class);
+        if (fluidRenderer == null) return box.inflate(getViewDistance());
+        var offsets = fluidRenderer.getFluidOffsets();
         for (var offset : offsets) {
             box = box.minmax(new AABB(offset));
         }

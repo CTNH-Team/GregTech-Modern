@@ -2,6 +2,7 @@ package com.gregtechceu.gtceu.api.capability.recipe;
 
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.content.ContentListMap;
@@ -21,6 +22,9 @@ import net.minecraft.network.chat.Component;
 
 import com.mojang.serialization.Codec;
 import org.apache.commons.lang3.mutable.MutableInt;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.List;
 
@@ -45,6 +49,28 @@ public class EURecipeCapability extends RecipeCapability<Long> {
     @Override
     public Long copyWithMultiplier(Long content, float multiplier) {
         return (long) (content * multiplier);
+    }
+
+    @Override
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<Long> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
+        if (!tick) return;
+        long eut = contents.stream().mapToLong(Long::longValue).sum();
+        if (eut == 0) return;
+
+        long voltage = logic.machine.getDisplayRecipeVoltage();
+        if (voltage <= 0) voltage = GTValues.V[GTValues.LV];
+        int tier = GTUtil.getTierByVoltage(voltage);
+        var rate = Component.translatable("gtceu.jade.amperage_use",
+                FormattingUtil.formatNumber2Places((float) Math.abs(eut) / voltage))
+                .withStyle(ChatFormatting.RED)
+                .append(Component.translatable("gtceu.jade.at").withStyle(ChatFormatting.GREEN));
+        if (tier < GTValues.TIER_COUNT) {
+            rate = rate.append(Component.literal(GTValues.VNF[tier])
+                    .withStyle(style -> style.withColor(GTValues.VC[tier])));
+        }
+        tooltip.add(Component.translatable(io == IO.IN ? "gtceu.top.energy_consumption" :
+                "gtceu.top.energy_production").append(" ").append(rate));
     }
 
     @Override

@@ -6,7 +6,6 @@ import java.util.function.Consumer;
 
 import static com.gregtechceu.gtceu.api.GTValues.*;
 import static com.gregtechceu.gtceu.api.data.tag.TagPrefix.*;
-import static com.gregtechceu.gtceu.common.data.GTItems.FERTILIZER;
 import static com.gregtechceu.gtceu.common.data.GTMaterials.*;
 import static com.gregtechceu.gtceu.common.data.GTRecipeTypes.DISTILLATION_RECIPES;
 import static com.gregtechceu.gtceu.common.data.GTRecipeTypes.DISTILLERY_RECIPES;
@@ -102,18 +101,6 @@ public class DistillationRecipes {
                 .inputFluids(FishOil.getFluid(1200))
                 .outputFluids(Lubricant.getFluid(500))
                 .duration(16).EUt(96).save(provider);
-
-        DISTILLATION_RECIPES.recipeBuilder("distill_fermented_biomass")
-                .inputFluids(FermentedBiomass.getFluid(1000))
-                .outputItems(FERTILIZER)
-                .outputFluids(AceticAcid.getFluid(25))
-                .outputFluids(Water.getFluid(375))
-                .outputFluids(Ethanol.getFluid(150))
-                .outputFluids(Methanol.getFluid(150))
-                .outputFluids(Ammonia.getFluid(100))
-                .outputFluids(CarbonDioxide.getFluid(400))
-                .outputFluids(Methane.getFluid(600))
-                .duration(75).EUt(180).save(provider);
 
         DISTILLATION_RECIPES.recipeBuilder("distill_biomass")
                 .inputFluids(Biomass.getFluid(1000))

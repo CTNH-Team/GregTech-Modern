@@ -11,11 +11,14 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.RecipeHelper;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.api.sound.AutoReleasedSound;
+import com.gregtechceu.gtceu.integration.jade.RecipeJadeTooltip;
 
 import com.lowdragmc.lowdraglib.misc.SyncableMap;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
+import net.minecraft.ChatFormatting;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeManager;
@@ -28,6 +31,9 @@ import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.*;
 
@@ -76,6 +82,35 @@ public class RecipeLogic extends WorkLogic {
     public RecipeLogic(IRecipeLogicMachine machine) {
         super(machine);
         this.machine = machine;
+    }
+
+    @Override
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                  IPluginConfig config) {
+        super.appendJadeTooltip(data, tooltip, accessor, config);
+        var recipeTypes = machine.self().getDefinition().getRecipeTypes();
+        if (recipeTypes.length > 1) {
+            var currentMode = machine.getRecipeType();
+            if (!accessor.showDetails()) {
+                tooltip.add(Component.translatable("gtceu.top.machine_mode").append(
+                        Component.translatable(currentMode.registryName.toString().replace(':', '.'))));
+            } else {
+                tooltip.add(Component.translatable("gtceu.top.machine_mode"));
+                for (var recipeType : recipeTypes) {
+                    tooltip.add(Component.literal(recipeType == currentMode ? " > " : "   ")
+                            .append(Component.translatable(recipeType.registryName.toString().replace(':', '.'))));
+                }
+            }
+        }
+        if (isWorking() && lastRecipe != null) {
+            RecipeJadeTooltip.appendRunningRecipe(this, lastRecipe, tooltip, accessor, config);
+        }
+        if (!failureReasonsMap.isEmpty()) {
+            tooltip.add(Component.translatable("gtceu.recipe_logic.setup_fail")
+                    .withStyle(ChatFormatting.RED));
+            failureReasonsMap.values().forEach(reason -> tooltip
+                    .add(Component.literal(" - ").append(reason)));
+        }
     }
 
     /**
@@ -335,9 +370,6 @@ public class RecipeLogic extends WorkLogic {
             duration = 0;
         }
     }
-
-    // Remains for legacy + for subclasses
-    public void inValid() {}
 
     //////////////////////////////////////
     // ******** MISC *********//

@@ -7,9 +7,6 @@ import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 
 import com.mojang.serialization.Codec;
-import it.unimi.dsi.fastutil.objects.ObjectIterator;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -23,14 +20,15 @@ public class ContentListMap {
             ContentListMap::contentListCodec)
             .xmap(ContentListMap::new, ContentListMap::asMap);
 
-    private final Map<RecipeCapability<?>, List<?>> contentsMap;
+    private final SortedMap<RecipeCapability<?>, List<?>> contentsMap;
 
     public ContentListMap() {
-        contentsMap = new Reference2ObjectArrayMap<>();
+        contentsMap = new TreeMap<>(RecipeCapability.COMPARATOR);
     }
 
     private ContentListMap(Map<RecipeCapability<?>, List<?>> contentsMap) {
-        this.contentsMap = contentsMap;
+        this();
+        this.contentsMap.putAll(contentsMap);
     }
 
     public <T> List<T> get(RecipeCapability<T> capability) {
@@ -110,13 +108,6 @@ public class ContentListMap {
         return contents == null ? 0 : contents.size();
     }
 
-    public ObjectIterator<Reference2ObjectMap.Entry<RecipeCapability<?>, List<?>>> fastIterator() {
-        if (contentsMap instanceof Reference2ObjectArrayMap<RecipeCapability<?>, List<?>> r) {
-            return r.reference2ObjectEntrySet().fastIterator();
-        }
-        throw new RuntimeException();
-    }
-
     public Map<RecipeCapability<?>, List<?>> asMap() {
         return contentsMap;
     }
@@ -182,19 +173,19 @@ public class ContentListMap {
     }
 
     public ContentListMap copyWithMultiplier(int multiplier) {
-        Map<RecipeCapability<?>, List<?>> newMap = new Reference2ObjectArrayMap<>();
+        ContentListMap copy = new ContentListMap();
         forEachEntry(new EntryConsumer() {
 
             @Override
             public <T> void accept(RecipeCapability<T> cap, List<T> list) {
-                var newList = new ArrayList<>();
+                List<T> newList = new ArrayList<>();
                 for (var content : list) {
                     newList.add(cap.copyWithMultiplier(content, multiplier));
                 }
-                newMap.put(cap, newList);
+                copy.put(cap, newList);
             }
         });
-        return new ContentListMap(newMap);
+        return copy;
     }
 
     public void multiply(int multiplier) {

@@ -19,6 +19,7 @@ public class DetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testActivityDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ACTIVITY_DETECTOR.asStack(), Direction.WEST);
@@ -30,6 +31,7 @@ public class DetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testFluidDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_FLUID_DETECTOR.asStack(), Direction.WEST);
@@ -41,6 +43,7 @@ public class DetectorCoverTest {
 
     @GameTest(template = "electrolyzer", batch = "coverTests")
     public static void testItemDetectorCover(GameTestHelper helper) {
+        TestUtils.enableCreativeTankOutput(helper, new BlockPos(1, 2, 1));
         helper.pullLever(new BlockPos(2, 2, 2));
         MetaMachine machine = ((IMachineBlockEntity) helper.getBlockEntity(new BlockPos(1, 2, 1))).getMetaMachine();
         TestUtils.placeCover(helper, machine, GTItems.COVER_ITEM_DETECTOR.asStack(), Direction.WEST);

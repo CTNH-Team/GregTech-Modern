@@ -8,7 +8,6 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerList;
 import com.gregtechceu.gtceu.api.transfer.item.LargeStackItemHandler;
 
-import com.lowdragmc.lowdraglib.syncdata.ISubscription;
 import com.lowdragmc.lowdraglib.syncdata.annotation.DescSynced;
 import com.lowdragmc.lowdraglib.syncdata.annotation.Persisted;
 
@@ -18,7 +17,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.*;
@@ -40,10 +38,6 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
     public int activeRecipeType;
     @Getter
     public final Int2IntFunction tankScalingFunction;
-    @Nullable
-    @Getter
-    @Setter
-    private ICleanroomProvider cleanroom;
     @Persisted
     public final NotifiableItemStackHandler importItems;
     @Persisted
@@ -57,7 +51,6 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
     @Persisted
     @Getter
     protected int overclockTier;
-    protected final List<ISubscription> traitSubscriptions;
     @Persisted
     @DescSynced
     @Getter
@@ -73,12 +66,12 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.tankScalingFunction = tankScalingFunction;
+        attachTrait(new CleanroomReceiverTrait(this));
 
-        this.traitSubscriptions = new ArrayList<>();
-        this.importItems = createImportItemHandler(args);
-        this.exportItems = createExportItemHandler(args);
-        this.importFluids = createImportFluidHandler(args);
-        this.exportFluids = createExportFluidHandler(args);
+        this.importItems = attachTrait(createImportItemHandler(args));
+        this.exportItems = attachTrait(createExportItemHandler(args));
+        this.importFluids = attachTrait(createImportFluidHandler(args));
+        this.exportFluids = attachTrait(createExportFluidHandler(args));
     }
 
     protected NotifiableItemStackHandler createImportItemHandler(Object... args) {
@@ -141,16 +134,13 @@ public abstract class RecipeTieredMachine extends WorkableTieredMachine implemen
             }
         }
         recipeHandlerList = RecipeHandlerList.of(list);
-        traitSubscriptions.add(recipeHandlerList.subscribe(recipeLogic::updateTickSubscription));
+        recipeLogic.addNotifier(recipeHandlerList::subscribe);
     }
 
     @Override
     public void onUnload() {
         super.onUnload();
-        traitSubscriptions.forEach(ISubscription::unsubscribe);
-        traitSubscriptions.clear();
         recipeHandlerList = null;
-        recipeLogic.inValid();
     }
 
     @Override

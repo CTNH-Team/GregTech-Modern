@@ -42,7 +42,7 @@ public class CreativeComputationProviderMachine extends MetaMachine
 
     public CreativeComputationProviderMachine(IMachineBlockEntity holder) {
         super(holder);
-        new DirectComputationPortTrait(this, true, this, null);
+        attachTrait(new DirectComputationPortTrait(this, true, this, null));
     }
 
     @Override

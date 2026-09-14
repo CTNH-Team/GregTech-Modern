@@ -1,9 +1,5 @@
 package com.gregtechceu.gtceu.data.recipe.serialized.chemistry;
 
-import com.gregtechceu.gtceu.api.data.chemical.ChemicalHelper;
-import com.gregtechceu.gtceu.api.data.chemical.material.stack.MaterialEntry;
-import com.gregtechceu.gtceu.data.recipe.VanillaRecipeHelper;
-
 import net.minecraft.data.recipes.FinishedRecipe;
 
 import java.util.function.Consumer;
@@ -128,18 +124,6 @@ public class MixerRecipes {
                 .save(provider);
 
         // Alloys
-        VanillaRecipeHelper.addShapelessRecipe(provider, "dust_brass", ChemicalHelper.get(dust, Brass, 3),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Zinc));
-
-        VanillaRecipeHelper.addShapelessRecipe(provider, "dust_bronze", ChemicalHelper.get(dust, Bronze, 3),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Copper),
-                new MaterialEntry(dust, Tin));
-
         MIXER_RECIPES.recipeBuilder("red_alloy").duration(100).EUt(VA[ULV])
                 .inputItems(dust, Copper)
                 .inputItems(dust, Redstone, 4)

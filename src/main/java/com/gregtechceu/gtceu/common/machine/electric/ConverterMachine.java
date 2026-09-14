@@ -7,7 +7,6 @@ import com.gregtechceu.gtceu.api.item.tool.GTToolType;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
-import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
 import com.gregtechceu.gtceu.common.machine.trait.ConverterTrait;
 
 import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
@@ -15,6 +14,7 @@ import com.lowdragmc.lowdraglib.gui.texture.ResourceTexture;
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -24,6 +24,9 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.Set;
 
@@ -35,21 +38,31 @@ public class ConverterMachine extends TieredEnergyMachine {
 
     public static final BooleanProperty FE_TO_EU_PROPERTY = GTMachineModelProperties.IS_FE_TO_EU;
 
-    public ConverterMachine(IMachineBlockEntity holder, int tier, int amps, Object... args) {
-        super(holder, tier, args, amps);
+    public ConverterMachine(IMachineBlockEntity holder, int tier, int amps) {
+        super(holder, tier, machine -> {
+            var converter = new ConverterTrait((ConverterMachine) machine, amps);
+            machine.attachTrait(converter.getFeContainer());
+            return converter;
+        });
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("feToEu", isFeToEu());
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        tooltip.add(
+                Component.translatable(data.getBoolean("feToEu") ? "gtceu.top.convert_fe" : "gtceu.top.convert_eu"));
     }
 
     //////////////////////////////////////
     // ***** Initialization ******//
     //////////////////////////////////////
-    @Override
-    protected NotifiableEnergyContainer createEnergyContainer(Object... args) {
-        if (args.length > 0 && args[args.length - 1] instanceof Integer ampsValue) {
-            return new ConverterTrait(this, ampsValue);
-        }
-        throw new IllegalArgumentException("ConverterMachine need args [amps] for initialization");
-    }
-
     public ConverterTrait getConverterTrait() {
         return (ConverterTrait) energyContainer;
     }

@@ -24,10 +24,12 @@ public interface IWorkLogicMachine extends IMachineFeature, IWorkable {
     }
 
     default void notifyWorkingEnabledChanged(boolean oldValue, boolean newValue) {
-        if (this instanceof MetaMachine metaMachine &&
-                metaMachine.getRenderState().hasProperty(GTMachineModelProperties.IS_WORKING_ENABLED)) {
-            metaMachine.setRenderState(metaMachine.getRenderState()
-                    .setValue(GTMachineModelProperties.IS_WORKING_ENABLED, newValue));
+        if (this instanceof MetaMachine metaMachine) {
+            metaMachine.getAllTraits().forEach(trait -> trait.onWorkAllowedChanged(newValue));
+            if (metaMachine.getRenderState().hasProperty(GTMachineModelProperties.IS_WORKING_ENABLED)) {
+                metaMachine.setRenderState(metaMachine.getRenderState()
+                        .setValue(GTMachineModelProperties.IS_WORKING_ENABLED, newValue));
+            }
         }
     }
 

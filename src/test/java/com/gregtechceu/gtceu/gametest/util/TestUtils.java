@@ -14,10 +14,12 @@ import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
+import com.gregtechceu.gtceu.api.machine.trait.AutoOutputTrait;
 import com.gregtechceu.gtceu.api.placeholder.MultiLineComponent;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.common.item.CoverPlaceBehavior;
+import com.gregtechceu.gtceu.common.machine.storage.CreativeTankMachine;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -238,6 +240,23 @@ public class TestUtils {
     public static MetaMachine setMachine(GameTestHelper helper, BlockPos pos, MachineDefinition machineDefinition) {
         helper.setBlock(pos, machineDefinition.getBlock());
         return ((IMachineBlockEntity) Objects.requireNonNull(helper.getBlockEntity(pos))).getMetaMachine();
+    }
+
+    public static void enableCreativeTankOutput(GameTestHelper helper, BlockPos target) {
+        BlockPos targetPos = helper.absolutePos(target);
+        for (BlockPos relativePos : BlockPos.betweenClosed(BlockPos.ZERO, new BlockPos(4, 4, 4))) {
+            BlockEntity blockEntity = helper.getLevel().getBlockEntity(helper.absolutePos(relativePos));
+            if (blockEntity instanceof IMachineBlockEntity holder &&
+                    holder.getMetaMachine() instanceof CreativeTankMachine tank) {
+                BlockPos delta = targetPos.subtract(blockEntity.getBlockPos());
+                Direction outputDirection = Direction.getNearest(delta.getX(), delta.getY(), delta.getZ());
+                var autoOutput = tank.getTrait(AutoOutputTrait.class);
+                autoOutput.setOutputFacingFluids(outputDirection);
+                autoOutput.setAutoOutputFluids(true);
+                return;
+            }
+        }
+        helper.assertTrue(false, "electrolyzer template does not contain a creative tank");
     }
 
     public static void assertEqual(GameTestHelper helper, List<MutableComponent> text, String s) {

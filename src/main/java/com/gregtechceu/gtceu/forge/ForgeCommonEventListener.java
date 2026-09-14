@@ -210,10 +210,14 @@ public class ForgeCommonEventListener {
     @SubscribeEvent
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
         var blockState = event.getLevel().getBlockState(event.getPos());
-        if (blockState.hasBlockEntity() && blockState.getBlock() instanceof MetaMachineBlock block &&
-                block.getMachine(event.getLevel(), event.getPos()) instanceof IInteractedMachine machine) {
-            if (machine.onLeftClick(event.getEntity(), event.getLevel(), event.getHand(), event.getPos(),
-                    event.getFace())) {
+        if (blockState.hasBlockEntity() && blockState.getBlock() instanceof MetaMachineBlock block) {
+            var machine = block.getMachine(event.getLevel(), event.getPos());
+            if (machine == null) return;
+            boolean cancel = machine instanceof IInteractedMachine interacted &&
+                    interacted.onLeftClick(event.getEntity(), event.getLevel(), event.getHand(), event.getPos(),
+                            event.getFace());
+            if (cancel || machine.onTraitLeftClick(event.getEntity(), event.getLevel(), event.getHand(),
+                    event.getPos(), event.getFace())) {
                 event.setCanceled(true);
             }
         }

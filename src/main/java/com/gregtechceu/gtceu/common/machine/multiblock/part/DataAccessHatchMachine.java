@@ -60,7 +60,7 @@ public class DataAccessHatchMachine extends TieredPartMachine
         super(holder, tier);
         this.isCreative = isCreative;
         this.recipes = isCreative ? Collections.emptySet() : new ObjectOpenHashSet<>();
-        this.importItems = createImportItemHandler();
+        this.importItems = attachTrait(createImportItemHandler());
     }
 
     protected NotifiableItemStackHandler createImportItemHandler() {

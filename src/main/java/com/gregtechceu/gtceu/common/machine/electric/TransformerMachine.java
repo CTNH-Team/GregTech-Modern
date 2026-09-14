@@ -3,6 +3,7 @@ package com.gregtechceu.gtceu.common.machine.electric;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.IControllable;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.api.machine.TieredEnergyMachine;
 import com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties;
 import com.gregtechceu.gtceu.api.machine.trait.NotifiableEnergyContainer;
@@ -13,6 +14,7 @@ import com.lowdragmc.lowdraglib.syncdata.annotation.UpdateListener;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -22,6 +24,9 @@ import net.minecraft.world.phys.BlockHitResult;
 
 import lombok.Getter;
 import lombok.Setter;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
@@ -43,10 +48,39 @@ public class TransformerMachine extends TieredEnergyMachine implements IControll
     @Getter
     private final int baseAmp;
 
-    public TransformerMachine(IMachineBlockEntity holder, int tier, int baseAmp, Object... args) {
-        super(holder, tier, baseAmp, args);
+    public TransformerMachine(IMachineBlockEntity holder, int tier, int baseAmp) {
+        super(holder, tier, machine -> createEnergyContainer(machine, tier, baseAmp));
         this.isWorkingEnabled = true;
         this.baseAmp = baseAmp;
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putBoolean("transformUp", isTransformUp());
+        data.putInt("front", getFrontFacing().get3DDataValue());
+        data.putInt("tier", getTier());
+        data.putInt("amperage", baseAmp);
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        int tier = data.getInt("tier");
+        int amperage = data.getInt("amperage");
+        boolean transformUp = data.getBoolean("transformUp");
+        tooltip.add(Component.translatable(transformUp ? "gtceu.top.transform_up" : "gtceu.top.transform_down",
+                transformUp ? GTValues.VNF[tier] + " §r(" + amperage * 4 + "A) -> " + GTValues.VNF[tier + 1] +
+                        " §r(" + amperage + "A)" :
+                        GTValues.VNF[tier + 1] + " §r(" + amperage + "A) -> " + GTValues.VNF[tier] + " §r(" +
+                                amperage * 4 + "A)"));
+        boolean front = accessor.getHitResult().getDirection() == Direction.from3DDataValue(data.getInt("front"));
+        boolean input = transformUp != front;
+        int displayedTier = input == transformUp ? tier : tier + 1;
+        int displayedAmperage = input == transformUp ? amperage * 4 : amperage;
+        tooltip.add(Component.translatable(input ? "gtceu.top.transform_input" : "gtceu.top.transform_output",
+                GTValues.VNF[displayedTier] + " §r(" + displayedAmperage + "A)"));
     }
 
     //////////////////////////////////////
@@ -57,16 +91,16 @@ public class TransformerMachine extends TieredEnergyMachine implements IControll
         updateEnergyContainer(newValue);
     }
 
-    @Override
-    protected NotifiableEnergyContainer createEnergyContainer(Object... args) {
-        var amp = (args.length > 0 && args[0] instanceof Integer a) ? a : 1;
+    private static NotifiableEnergyContainer createEnergyContainer(MetaMachine machine,
+                                                                   int tier, int amp) {
         NotifiableEnergyContainer energyContainer;
-        long tierVoltage = GTValues.V[getTier()];
-        // Since this.baseAmp is not yet initialized, we substitute with 1A as default
-        energyContainer = new NotifiableEnergyContainer(this, tierVoltage * 8L, tierVoltage * 4, amp, tierVoltage,
+        long tierVoltage = GTValues.V[tier];
+        energyContainer = new NotifiableEnergyContainer(machine, tierVoltage * 8L, tierVoltage * 4, amp, tierVoltage,
                 4L * amp);
-        energyContainer.setSideInputCondition(s -> s == getFrontFacing() && isWorkingEnabled());
-        energyContainer.setSideOutputCondition(s -> s != getFrontFacing() && isWorkingEnabled());
+        energyContainer.setSideInputCondition(
+                s -> s == machine.getFrontFacing() && ((TransformerMachine) machine).isWorkingEnabled());
+        energyContainer.setSideOutputCondition(
+                s -> s != machine.getFrontFacing() && ((TransformerMachine) machine).isWorkingEnabled());
         return energyContainer;
     }
 

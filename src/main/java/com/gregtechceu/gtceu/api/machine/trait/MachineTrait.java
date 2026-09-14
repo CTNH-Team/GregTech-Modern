@@ -8,15 +8,21 @@ import com.lowdragmc.lowdraglib.syncdata.IEnhancedManaged;
 import com.lowdragmc.lowdraglib.syncdata.field.FieldManagedStorage;
 import com.lowdragmc.lowdraglib.syncdata.field.ManagedFieldHolder;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.client.model.data.ModelData;
 
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -37,10 +43,17 @@ public abstract class MachineTrait implements IEnhancedManaged {
     @Setter
     protected Predicate<@Nullable Direction> capabilityValidator;
 
-    public MachineTrait(MetaMachine machine) {
+    @Getter
+    @Setter
+    private int traitPriority = 1;
+
+    protected MachineTrait(MetaMachine machine) {
         this.machine = machine;
         this.capabilityValidator = side -> true;
-        machine.attachTraits(this);
+    }
+
+    protected List<Class<?>> validMachineClasses() {
+        return List.of();
     }
 
     @Override
@@ -59,9 +72,23 @@ public abstract class MachineTrait implements IEnhancedManaged {
 
     public void onMachineLoad() {}
 
-    public void onMachineUnLoad() {}
+    public void onMachineUnload() {}
+
+    public void onMachineDestroyed() {}
+
+    public void onNeighborChanged(Block block, BlockPos fromPos, boolean isMoving) {}
+
+    public void onWorkAllowedChanged(boolean isWorkAllowed) {}
 
     public void updateModelData(ModelData.Builder builder) {}
+
+    public void writeJadeData(CompoundTag data, BlockAccessor accessor) {}
+
+    public void appendJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {}
+
+    public int jadePriority() {
+        return 0;
+    }
 
     public MachineRenderState getRenderState() {
         return getMachine().getRenderState();

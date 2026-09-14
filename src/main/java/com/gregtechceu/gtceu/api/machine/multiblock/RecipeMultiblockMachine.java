@@ -2,9 +2,9 @@ package com.gregtechceu.gtceu.api.machine.multiblock;
 
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeHandler;
 import com.gregtechceu.gtceu.api.machine.IMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.ICleanroomProvider;
 import com.gregtechceu.gtceu.api.machine.feature.IRecipeLogicMachine;
 import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
+import com.gregtechceu.gtceu.api.machine.trait.CleanroomReceiverTrait;
 import com.gregtechceu.gtceu.api.machine.trait.MachineTrait;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
@@ -36,10 +36,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
                                               implements IRecipeLogicMachine {
 
-    @Nullable
-    @Getter
-    @Setter
-    private ICleanroomProvider cleanroom;
     @Getter
     public final RecipeLogic recipeLogic;
     @Getter
@@ -61,6 +57,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
         this.recipeTypes = getDefinition().getRecipeTypes();
         this.activeRecipeType = 0;
         this.recipeHandlerLists = new ArrayList<>();
+        attachTrait(new CleanroomReceiverTrait(this));
     }
 
     @Override
@@ -78,7 +75,6 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
     @Override
     public void onUnload() {
         super.onUnload();
-        recipeLogic.inValid();
     }
 
     @Override
@@ -89,7 +85,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
 
         for (IMultiPart part : getParts()) {
             var handlerLists = part.getRecipeHandlers();
-            handlerLists.forEach(h -> traitSubscriptions.add(h.subscribe(recipeLogic::updateTickSubscription)));
+            handlerLists.forEach(h -> recipeLogic.addNotifier(h::subscribe));
             recipeHandlerLists.addAll(handlerLists);
         }
 
@@ -101,7 +97,7 @@ public abstract class RecipeMultiblockMachine extends WorkableMultiblockMachine
         }
         var selfHandlerList = RecipeHandlerList.of(list);
         recipeHandlerLists.add(selfHandlerList);
-        traitSubscriptions.add(selfHandlerList.subscribe(recipeLogic::updateTickSubscription));
+        recipeLogic.addNotifier(selfHandlerList::subscribe);
     }
 
     @Override

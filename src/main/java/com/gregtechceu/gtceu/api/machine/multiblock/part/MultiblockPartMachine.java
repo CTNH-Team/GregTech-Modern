@@ -92,7 +92,7 @@ public class MultiblockPartMachine extends MetaMachine implements IMultiPart {
         if (handlerList == null) {
             List<IRecipeHandler<?>> handlers = new ArrayList<>();
             IO handlerIO = null;
-            for (var trait : traits) {
+            for (var trait : getAllTraits()) {
                 if (trait instanceof IRecipeHandler<?> rht) {
                     if (handlerIO == null) handlerIO = rht.getHandlerIO();
                     handlers.add(rht);

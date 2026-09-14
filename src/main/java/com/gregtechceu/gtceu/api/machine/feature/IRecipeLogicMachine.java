@@ -1,6 +1,5 @@
 package com.gregtechceu.gtceu.api.machine.feature;
 
-import com.gregtechceu.gtceu.api.capability.ICleanroomReceiver;
 import com.gregtechceu.gtceu.api.capability.recipe.IRecipeCapabilityHolder;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
@@ -8,7 +7,6 @@ import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
 import com.gregtechceu.gtceu.api.recipe.handler.RecipeHandlerGroup;
 import com.gregtechceu.gtceu.config.ConfigHolder;
-import com.gregtechceu.gtceu.integration.jade.provider.RecipeLogicProvider;
 
 import net.minecraft.network.chat.Component;
 
@@ -18,8 +16,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * A machine can handle recipes.
  */
-public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogicMachine, ICleanroomReceiver,
-                                     IVoidable {
+public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogicMachine, IVoidable {
 
     /**
      * RecipeType held
@@ -124,7 +121,7 @@ public interface IRecipeLogicMachine extends IRecipeCapabilityHolder, IWorkLogic
     }
 
     /**
-     * Display recipe voltage used by {@link RecipeLogicProvider}
+     * Display recipe voltage used by the recipe Jade tooltip.
      */
 
     default long getDisplayRecipeVoltage() {

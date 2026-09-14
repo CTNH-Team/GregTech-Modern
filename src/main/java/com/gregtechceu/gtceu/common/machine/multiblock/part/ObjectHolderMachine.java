@@ -42,7 +42,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 public class ObjectHolderMachine extends MultiblockPartMachine implements IObjectHolder, IMachineLife {
 
     @Persisted
-    private final NotifiableItemStackHandler inputItemHandler = new NotifiableItemStackHandler(this, 1, IO.IN, IO.BOTH);
+    private final NotifiableItemStackHandler inputItemHandler;
     @Persisted
     private final DataItemHandler dataItemHandler;
 
@@ -52,7 +52,8 @@ public class ObjectHolderMachine extends MultiblockPartMachine implements IObjec
 
     public ObjectHolderMachine(IMachineBlockEntity holder) {
         super(holder);
-        dataItemHandler = new DataItemHandler(this);
+        inputItemHandler = attachTrait(new NotifiableItemStackHandler(this, 1, IO.IN, IO.BOTH));
+        dataItemHandler = attachTrait(new DataItemHandler(this));
         inputItemHandler.setCapabilityValidator(direction -> !isDataItemFacing(direction));
     }
 

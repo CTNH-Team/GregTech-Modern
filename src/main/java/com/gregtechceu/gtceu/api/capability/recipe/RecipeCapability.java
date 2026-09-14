@@ -1,5 +1,6 @@
 package com.gregtechceu.gtceu.api.capability.recipe;
 
+import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
@@ -20,6 +21,9 @@ import com.mojang.serialization.Codec;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.*;
 
@@ -32,7 +36,9 @@ public abstract class RecipeCapability<T> {
     // public static final Codec<Map<RecipeCapability<?>, List<?>>> CODEC = new DispatchedMapCodec<>(
     // RecipeCapability.DIRECT_CODEC,
     // RecipeCapability::contentCodec);
-    public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator.comparingInt(o -> o.sortIndex);
+    public static final Comparator<RecipeCapability<?>> COMPARATOR = Comparator
+            .<RecipeCapability<?>>comparingInt(o -> o.sortIndex)
+            .thenComparing(o -> o.name);
     private static int index = 0;
 
     public final String name;
@@ -198,4 +204,8 @@ public abstract class RecipeCapability<T> {
     public List<?> getXEIIngredients(List<T> contents, GTRecipeDefinition recipe, IO io) {
         return new ArrayList<>();
     }
+
+    /** Adds this capability's current recipe contents to the Jade tooltip. */
+    public void appendJadeRecipeTooltip(IO io, boolean tick, List<T> contents, RecipeLogic logic,
+                                        ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {}
 }

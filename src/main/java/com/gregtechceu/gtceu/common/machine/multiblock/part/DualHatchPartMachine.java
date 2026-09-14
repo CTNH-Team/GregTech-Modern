@@ -55,13 +55,13 @@ public class DualHatchPartMachine extends ItemBusPartMachine {
 
     public DualHatchPartMachine(IMachineBlockEntity holder, int tier, IO io) {
         super(holder, tier, io, true);
-        this.tank = createTank(INITIAL_TANK_CAPACITY, FluidHatchPartMachine.TANKS[tier]);
-        this.shareTank = new NotifiableFluidTank(this,
+        this.tank = attachTrait(createTank(INITIAL_TANK_CAPACITY, FluidHatchPartMachine.TANKS[tier]));
+        this.shareTank = attachTrait(new NotifiableFluidTank(this,
                 io == IO.IN ? getShareTankSlots(getTier()) : 0,
                 INITIAL_TANK_CAPACITY,
                 io == IO.IN ? IO.IN : IO.NONE,
                 IO.NONE)
-                .shouldSearchContent(false);
+                .shouldSearchContent(false));
         shareTank.setCapabilityValidator(dir -> false);
     }
 

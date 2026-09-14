@@ -29,7 +29,7 @@ public class HullMachine extends TieredPartMachine implements IMonitorComponent 
     public HullMachine(IMachineBlockEntity holder, int tier) {
         super(holder, tier);
         if (GTCEu.Mods.isAE2Loaded()) {
-            this.gridNodeHost = AE2Compat.createGridNodeHost(this);
+            this.gridNodeHost = attachTrait(AE2Compat.createGridNodeHost(this));
         } else {
             this.gridNodeHost = null;
         }
@@ -38,7 +38,8 @@ public class HullMachine extends TieredPartMachine implements IMonitorComponent 
 
     protected void reinitializeEnergyContainer() {
         long tierVoltage = GTValues.V[getTier()];
-        this.energyContainer = new NotifiableEnergyContainer(this, tierVoltage * 16L, tierVoltage, 1L, tierVoltage, 1L);
+        this.energyContainer = attachTrait(
+                new NotifiableEnergyContainer(this, tierVoltage * 16L, tierVoltage, 1L, tierVoltage, 1L));
         this.energyContainer.setSideOutputCondition(s -> s == getFrontFacing());
     }
 

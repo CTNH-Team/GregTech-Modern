@@ -12,12 +12,18 @@ import com.gregtechceu.gtceu.api.machine.multiblock.WorkableElectricMultiblockMa
 import com.gregtechceu.gtceu.api.machine.trait.WorkLogic;
 import com.gregtechceu.gtceu.api.recipe.GTRecipe;
 import com.gregtechceu.gtceu.config.ConfigHolder;
+import com.gregtechceu.gtceu.utils.FormattingUtil;
+import com.gregtechceu.gtceu.utils.GTUtil;
 
 import net.minecraft.MethodsReturnNonnullByDefault;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 
 import lombok.Getter;
+import snownee.jade.api.BlockAccessor;
+import snownee.jade.api.ITooltip;
+import snownee.jade.api.config.IPluginConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +51,21 @@ public class DataBankMachine extends WorkableElectricMultiblockMachine implement
 
     public DataBankMachine(IMachineBlockEntity holder) {
         super(holder);
+    }
+
+    @Override
+    protected void writeMachineJadeData(CompoundTag data, BlockAccessor accessor) {
+        super.writeMachineJadeData(data, accessor);
+        data.putInt("energyUsage", energyUsage);
+    }
+
+    @Override
+    protected void appendMachineJadeTooltip(CompoundTag data, ITooltip tooltip, BlockAccessor accessor,
+                                            IPluginConfig config) {
+        super.appendMachineJadeTooltip(data, tooltip, accessor, config);
+        int usage = data.getInt("energyUsage");
+        tooltip.add(Component.translatable("gtceu.multiblock.energy_consumption", FormattingUtil.formatNumbers(usage),
+                Component.literal(GTValues.VNF[GTUtil.getTierByVoltage(usage)])));
     }
 
     @Override

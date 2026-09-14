@@ -42,19 +42,11 @@ public class CreativeTankMachine extends QuantumTankMachine {
 
     public CreativeTankMachine(IMachineBlockEntity holder) {
         super(holder, GTValues.MAX, 1);
+        autoOutputTrait.setTicksPerCycle(ticksPerCycle);
     }
 
     protected FluidCache createCacheFluidHandler(Object... args) {
         return new InfiniteCache(this);
-    }
-
-    protected void checkAutoOutput() {
-        if (getOffsetTimer() % ticksPerCycle == 0) {
-            if (isAutoOutputFluids() && getOutputFacingFluids() != null) {
-                cache.exportToNearby(getOutputFacingFluids());
-            }
-            updateAutoOutputSubscription();
-        }
     }
 
     @Override
@@ -64,20 +56,18 @@ public class CreativeTankMachine extends QuantumTankMachine {
 
     private InteractionResult updateStored(FluidStack fluid) {
         stored = new FluidStack(fluid, 1000);
-        onFluidChanged();
         return InteractionResult.SUCCESS;
     }
 
     private void setTicksPerCycle(String value) {
         if (value.isEmpty()) return;
         ticksPerCycle = Integer.parseInt(value);
-        onFluidChanged();
+        autoOutputTrait.setTicksPerCycle(ticksPerCycle);
     }
 
     private void setmBPerCycle(String value) {
         if (value.isEmpty()) return;
         mBPerCycle = Integer.parseInt(value);
-        onFluidChanged();
     }
 
     @Override
