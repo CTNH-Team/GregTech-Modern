@@ -101,7 +101,7 @@ public class SimpleGeneratorMachine extends RecipeTieredMachine
      */
     @Override
     public long getOverclockVoltage() {
-        return super.getOverclockVoltage() * amperage;
+        return GTValues.V[tier] * amperage;
     }
 
     /**
