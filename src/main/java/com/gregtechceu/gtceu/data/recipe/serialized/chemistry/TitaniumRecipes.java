@@ -25,7 +25,7 @@ public class TitaniumRecipes {
                 .inputItems(dust, Sodium, 2)
                 .outputItems(dust, Magnesium, 1)
                 .outputItems(dust, Salt, 4)
-                .duration(200).EUt(VA[HV]).save(provider);
+                .duration(200).EUt(VA[MV]).save(provider);
     }
 
     private static void solvayProcess(Consumer<FinishedRecipe> provider) {

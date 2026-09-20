@@ -539,12 +539,6 @@ public class ReactorRecipes {
                 .outputItems(dust, Magnesite, 5)
                 .duration(80).EUt(VA[LV]).save(provider);
 
-        CHEMICAL_RECIPES.recipeBuilder("magnesia_from_magnesite")
-                .inputItems(dust, Magnesite, 5)
-                .outputItems(dust, Magnesia, 2)
-                .outputFluids(CarbonDioxide.getFluid(1000))
-                .duration(240).EUt(VA[LV]).save(provider);
-
         CHEMICAL_RECIPES.recipeBuilder("rubber")
                 .inputItems(dust, RawRubber, 9)
                 .inputItems(dust, Sulfur)
