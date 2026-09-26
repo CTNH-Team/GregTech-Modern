@@ -187,12 +187,13 @@ public final class MaterialRecipeHandler {
         }
         int EUt = property.getEUtOverride();
         if (EUt <= 0) EUt = VA[MV];
+        int amperage = Math.max(1, property.getAmperageOverride());
 
         GTRecipeBuilder blastBuilder = BLAST_RECIPES.recipeBuilder("blast_" + material.getName())
                 .inputItems(dust, material)
                 .outputItems(output)
                 .blastFurnaceTemp(blastTemp)
-                .EUt(EUt);
+                .EUt(EUt, amperage);
 
         if (gasTier != null) {
             blastBuilder.copy("blast_" + material.getName())

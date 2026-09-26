@@ -41,7 +41,7 @@ public class ElementMaterials {
                 .rotorStats(100, 140, 2.0f, 128)
                 .cableProperties(V[EV], 1, 1)
                 .fluidPipeProperties(1166, 100, true)
-                .blast(1700, GasTier.LOW)
+                .blast(b -> b.temp(1700, GasTier.LOW).blastStats(VA[LV], 4, 0))
                 .buildAndRegister();
 
         Americium = new Material.Builder(GTCEu.id("americium"))
@@ -180,7 +180,7 @@ public class ElementMaterials {
                 .element(GTElements.Cr)
                 .rotorStats(130, 155, 3.0f, 512)
                 .fluidPipeProperties(2180, 35, true, true, false, false)
-                .blast(1700, GasTier.LOW)
+                .blast(b -> b.temp(1700, GasTier.LOW).blastStats(VA[MV], 1, 0))
                 .hazard(HazardProperty.HazardTrigger.SKIN_CONTACT, GTMedicalConditions.CARCINOGEN)
                 .buildAndRegister();
 
@@ -384,7 +384,7 @@ public class ElementMaterials {
                 .rotorStats(130, 115, 3.0f, 2560)
                 .fluidPipeProperties(3398, 250, true, false, true, false)
                 .blast(b -> b.temp(4500, GasTier.HIGH)
-                        .blastStats(VA[IV], 1100)
+                        .blastStats(VA[IV], 1,1100)
                         .vacuumStats(VA[EV], 250))
                 .buildAndRegister();
 
@@ -759,7 +759,7 @@ public class ElementMaterials {
                 .color(0x707078).secondaryColor(0x10293b).iconSet(METALLIC)
                 .flags(GENERATE_FOIL)
                 .element(GTElements.Si)
-                .blast(2273) // no gas tier for silicon
+                .blast(b -> b.temp(1700).blastStats(VA[MV], 1, 0)) // no gas tier for silicon
                 .buildAndRegister();
 
         Silver = new Material.Builder(GTCEu.id("silver"))
@@ -867,7 +867,7 @@ public class ElementMaterials {
                 .rotorStats(130, 115, 3.0f, 1600)
                 .fluidPipeProperties(2426, 150, true)
                 .blast(b -> b.temp(1941, GasTier.MID)
-                        .blastStats(VA[HV], 1500)
+                        .blastStats(VA[HV], 1, 1500)
                         .vacuumStats(VA[HV]))
                 .buildAndRegister();
 
@@ -890,7 +890,7 @@ public class ElementMaterials {
                 .cableProperties(V[IV], 2, 2)
                 .fluidPipeProperties(4618, 50, true, true, false, true)
                 .blast(b -> b.temp(3600, GasTier.MID)
-                        .blastStats(VA[EV], 1800)
+                        .blastStats(VA[EV], 1, 1800)
                         .vacuumStats(VA[HV], 300))
                 .buildAndRegister();
 

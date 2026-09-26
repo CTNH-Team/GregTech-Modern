@@ -631,7 +631,7 @@ public class FirstDegreeMaterials {
                 .rotorStats(160, 115, 4.0f, 480)
                 .fluidPipeProperties(2428, 75, true, true, true, false)
                 .blast(b -> b.temp(1700, GasTier.LOW)
-                        .blastStats(VA[HV], 1100))
+                        .blastStats(VA[MV], 4, 1100))
                 .buildAndRegister();
 
         Steel = new Material.Builder(GTCEu.id("steel"))
@@ -651,7 +651,7 @@ public class FirstDegreeMaterials {
                 .fluidPipeProperties(1855, 50, true)
                 .cableProperties(V[EV], 2, 2)
                 .blast(b -> b.temp(1000)
-                        .blastStats(VA[MV], 800)) // no gas tier for steel
+                        .blastStats(VA[LV], 2, 800)) // no gas tier for steel
                 .buildAndRegister();
 
         Stibnite = new Material.Builder(GTCEu.id("stibnite"))

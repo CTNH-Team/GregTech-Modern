@@ -5,7 +5,7 @@ import net.minecraft.data.recipes.FinishedRecipe;
 import java.util.function.Consumer;
 
 import static com.gregtechceu.gtceu.api.GTValues.*;
-import static com.gregtechceu.gtceu.api.data.tag.TagPrefix.*;
+import static com.gregtechceu.gtceu.api.data.tag.TagPrefix.dust;
 import static com.gregtechceu.gtceu.common.data.GTMaterials.*;
 import static com.gregtechceu.gtceu.common.data.GTRecipeTypes.DISTILLATION_RECIPES;
 import static com.gregtechceu.gtceu.common.data.GTRecipeTypes.DISTILLERY_RECIPES;
@@ -138,7 +138,7 @@ public class DistillationRecipes {
                 .outputFluids(Argon.getFluid(500))
                 .chancedOutput(dust, Ice, 9000, 0)
                 .disableDistilleryRecipes(true)
-                .duration(2000).EUt(VA[HV]).save(provider);
+                .duration(2000).EUt(VA[MV], 4).save(provider);
 
         DISTILLATION_RECIPES.recipeBuilder("distill_liquid_nether_air")
                 .inputFluids(LiquidNetherAir.getFluid(100000))
@@ -150,7 +150,7 @@ public class DistillationRecipes {
                 .outputFluids(Neon.getFluid(500))
                 .chancedOutput(dust, Ash, 2250, 0)
                 .disableDistilleryRecipes(true)
-                .duration(2000).EUt(VA[EV]).save(provider);
+                .duration(2000).EUt(VA[HV], 4).save(provider);
 
         DISTILLATION_RECIPES.recipeBuilder("distill_liquid_ender_air")
                 .inputFluids(LiquidEnderAir.getFluid(200000))
@@ -163,6 +163,6 @@ public class DistillationRecipes {
                 .outputFluids(Radon.getFluid(1000))
                 .chancedOutput(dust, EnderPearl, 1000, 0)
                 .disableDistilleryRecipes(true)
-                .duration(2000).EUt(VA[IV]).save(provider);
+                .duration(2000).EUt(VA[EV], 4).save(provider);
     }
 }

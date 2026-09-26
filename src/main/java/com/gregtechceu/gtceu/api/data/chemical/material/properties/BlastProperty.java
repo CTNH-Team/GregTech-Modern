@@ -1,10 +1,9 @@
 package com.gregtechceu.gtceu.api.data.chemical.material.properties;
 
-import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
-import com.gregtechceu.gtceu.common.data.GTMaterials;
-
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.gregtechceu.gtceu.api.recipe.ingredient.fluid.FluidIngredient;
+import com.gregtechceu.gtceu.common.data.GTMaterials;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -49,6 +48,17 @@ public class BlastProperty implements IMaterialProperty {
     private int EUtOverride = -1;
 
     /**
+     * The amperage (parallel count) of the EBF recipe.
+     * <p>
+     * EU/t is the single-line (per-amp) power; total EU/t is {@code EUt * amperage}.
+     * <p>
+     * Default: 1, meaning a single-amp recipe.
+     */
+    @Setter
+    @Getter
+    private int amperageOverride = 1;
+
+    /**
      * The duration of the EBF recipe, overriding the stock behavior.
      * <p>
      * Default: -1, meaning the duration will be: material.getMass() * 3
@@ -75,11 +85,12 @@ public class BlastProperty implements IMaterialProperty {
         this.gasTier = gasTier;
     }
 
-    public BlastProperty(int blastTemperature, GasTier gasTier, int eutOverride, int durationOverride,
-                         int vacuumEUtOverride, int vacuumDurationOverride) {
+    public BlastProperty(int blastTemperature, GasTier gasTier, int eutOverride, int amperageOverride
+            , int durationOverride, int vacuumEUtOverride, int vacuumDurationOverride) {
         this.blastTemperature = blastTemperature;
         this.gasTier = gasTier;
         this.EUtOverride = eutOverride;
+        this.amperageOverride = amperageOverride;
         this.durationOverride = durationOverride;
         this.vacuumEUtOverride = vacuumEUtOverride;
         this.vacuumDurationOverride = vacuumDurationOverride;
@@ -149,6 +160,7 @@ public class BlastProperty implements IMaterialProperty {
         private int temp;
         private GasTier gasTier;
         private int eutOverride = -1;
+        private int amperageOverride = 1;
         private int durationOverride = -1;
         private int vacuumEUtOverride = -1;
         private int vacuumDurationOverride = -1;
@@ -208,6 +220,19 @@ public class BlastProperty implements IMaterialProperty {
         }
 
         /**
+         * Set the EU/t (single-line power), amperage (parallel count) and duration of the EBF recipe for this Material.
+         * <p>
+         * The total EU/t becomes {@code eutOverride * amperageOverride}. Pass {@code 0} or {@code -1} as the duration
+         * to fall back to the stock auto-computed duration.
+         */
+        public Builder blastStats(int eutOverride, int amperageOverride, int durationOverride) {
+            this.eutOverride = eutOverride;
+            this.amperageOverride = amperageOverride;
+            this.durationOverride = durationOverride;
+            return this;
+        }
+
+        /**
          * Set the EU/t of the Vacuum Freezer recipe for the Hot Ingot of this Material.
          */
         public Builder vacuumStats(int eutOverride) {
@@ -225,7 +250,7 @@ public class BlastProperty implements IMaterialProperty {
         }
 
         public BlastProperty build() {
-            return new BlastProperty(temp, gasTier, eutOverride, durationOverride, vacuumEUtOverride,
+            return new BlastProperty(temp, gasTier, eutOverride, amperageOverride, durationOverride, vacuumEUtOverride,
                     vacuumDurationOverride);
         }
     }
