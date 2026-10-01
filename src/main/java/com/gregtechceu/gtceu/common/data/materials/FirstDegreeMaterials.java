@@ -346,6 +346,7 @@ public class FirstDegreeMaterials {
         Magnesite = new Material.Builder(GTCEu.id("magnesite"))
                 .dust().ore()
                 .color(0xfbfbf6).secondaryColor(0x80705e).iconSet(ROUGH)
+                .flags(DISABLE_DECOMPOSITION)
                 .components(Magnesium, 1, Carbon, 1, Oxygen, 3)
                 .buildAndRegister();
 

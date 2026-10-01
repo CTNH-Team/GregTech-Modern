@@ -61,7 +61,7 @@ public class SecondDegreeMaterials {
         Olivine = new Material.Builder(GTCEu.id("olivine"))
                 .gem().ore(2, 1)
                 .color(0xa7e404).secondaryColor(0x166439).iconSet(RUBY)
-                .appendFlags(EXT_METAL, NO_SMASHING, NO_SMELTING, HIGH_SIFTER_OUTPUT)
+                .appendFlags(EXT_METAL, NO_SMASHING, NO_SMELTING, HIGH_SIFTER_OUTPUT, DISABLE_DECOMPOSITION)
                 .components(Magnesium, 1, Iron, 1, SiliconDioxide, 2)
                 .buildAndRegister();
 
