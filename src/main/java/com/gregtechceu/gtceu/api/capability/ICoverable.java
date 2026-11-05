@@ -280,7 +280,7 @@ public interface ICoverable extends ITickSubscription, ICopyable {
         if (tag.isEmpty()) return;
         var def = GTRegistries.COVERS.get(new ResourceLocation(tag.getString("id")));
         ItemStack stack = ItemStack.of(tag.getCompound("item"));
-        if (def == null) return;
+        if (def == null || stack.isEmpty()) return;
 
         placeCoverOnSide(dir, stack, def, player);
 
