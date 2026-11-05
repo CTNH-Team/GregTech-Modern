@@ -21,6 +21,7 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
@@ -30,7 +31,9 @@ import joptsimple.internal.Strings;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInformation {
 
@@ -38,6 +41,7 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
     private static final String CONFIG_DATA = "config_data";
     private static final String COPY_SOURCE = "copy_source";
     private static final String ITEMS_TO_PASTE = "items_to_paste";
+    private static final String COVER_ITEM = "item";
 
     private static final Component ENABLED = Component.translatable("behaviour.memory_card.enabled");
     private static final Component DISABLED = Component.translatable("behaviour.memory_card.disabled");
@@ -82,7 +86,7 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
             if (blockEntity instanceof IMachineBlockEntity machineBlockEntity) {
                 configTag.putString(COPY_SOURCE,
                         (new ItemStack(blockEntity.getBlockState().getBlock().asItem())).getDisplayName().getString());
-                configTag.merge(gatherMachineConfig(machineBlockEntity.getMetaMachine()));
+                copyInto(configTag, gatherMachineConfig(machineBlockEntity.getMetaMachine()));
 
                 ListTag itemsTag = new ListTag();
                 machineBlockEntity.getMetaMachine().getItemsRequiredToPaste()
@@ -91,7 +95,9 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
             } else if (blockEntity instanceof PipeBlockEntity<?, ?> pipeBE) {
                 configTag.putString(COPY_SOURCE,
                         (new ItemStack(blockEntity.getBlockState().getBlock().asItem())).getDisplayName().getString());
-                configTag.merge(gatherPipeConfig(pipeBE));
+                var pipeConfig = gatherPipeConfig(pipeBE);
+                pipeConfig.put(COVER, pipeBE.getCoverContainer().copyConfig(new CompoundTag()));
+                copyInto(configTag, pipeConfig);
 
                 ListTag itemsTag = new ListTag();
                 pipeBE.getItemsRequiredToPaste().forEach(v -> itemsTag.add(v.serializeNBT()));
@@ -108,10 +114,7 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
             var tag = stack.getTagElement(CONFIG_DATA);
             if (tag == null) return InteractionResult.FAIL;
 
-            List<ItemStack> items = new ArrayList<>();
-            tag.getList(ITEMS_TO_PASTE, CompoundTag.TAG_COMPOUND).forEach(t -> {
-                if (t instanceof CompoundTag c) items.add(ItemStack.of(c));
-            });
+            List<ItemStack> items = gatherItemsRequiredToPaste(tag);
 
             if (!player.isCreative() && !GTTransferUtils.extractItemsFromPlayerInv(player, items, true)) {
                 player.displayClientMessage(Component.translatable("behaviour.memory_card.client_msg.missing_items"),
@@ -130,6 +133,47 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
         }
 
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Copies every key of the freshly gathered config into the stored config tag instead of merging it, so that entries
+     * which are no longer present on the source (for example a cover that has been removed) are not kept around.
+     */
+    private static void copyInto(CompoundTag target, CompoundTag source) {
+        for (String key : source.getAllKeys()) {
+            target.put(key, source.get(key).copy());
+        }
+    }
+
+    /**
+     * Collects every item the player has to own to paste the stored configuration. Besides the item list recorded at
+     * copy time, the covers stored in the configuration are taken into account, so that a cover can never be installed
+     * without its item being consumed.
+     */
+    private static List<ItemStack> gatherItemsRequiredToPaste(CompoundTag tag) {
+        Map<Item, Integer> required = new LinkedHashMap<>();
+
+        tag.getList(ITEMS_TO_PASTE, CompoundTag.TAG_COMPOUND).forEach(t -> {
+            if (t instanceof CompoundTag c) {
+                ItemStack stack = ItemStack.of(c);
+                if (!stack.isEmpty()) required.merge(stack.getItem(), stack.getCount(), Math::max);
+            }
+        });
+
+        Map<Item, Integer> coverItems = new LinkedHashMap<>();
+        CompoundTag covers = tag.getCompound(COVER);
+        for (Direction dir : GTUtil.DIRECTIONS) {
+            CompoundTag coverTag = covers.getCompound(dir.getName());
+            if (coverTag.isEmpty()) continue;
+            ItemStack stack = ItemStack.of(coverTag.getCompound(COVER_ITEM));
+            if (stack.isEmpty()) continue;
+            coverItems.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+        coverItems.forEach((item, count) -> required.merge(item, count, Math::max));
+
+        List<ItemStack> items = new ArrayList<>();
+        required.forEach((item, count) -> items.add(new ItemStack(item, count)));
+        return items;
     }
 
     //// Logic for actual config options
@@ -309,14 +353,8 @@ public class MachineConfigCopyBehaviour implements IInteractionItem, IAddInforma
         if (tag.contains(CIRCUIT)) tooltip.add(Component.translatable("behaviour.setting.tooltip.circuit_config")
                 .append(Component.literal(Integer.toString(tag.getInt(CIRCUIT))).withStyle(ChatFormatting.YELLOW)));
 
-        if (tag.contains(ITEMS_TO_PASTE)) {
-            List<ItemStack> items = new ArrayList<>();
-            tag.getList(ITEMS_TO_PASTE, CompoundTag.TAG_COMPOUND).forEach(t -> {
-                if (t instanceof CompoundTag c) items.add(ItemStack.of(c));
-            });
-
-            if (items.isEmpty()) return;
-
+        List<ItemStack> items = gatherItemsRequiredToPaste(tag);
+        if (!items.isEmpty()) {
             tooltip.add(Component.empty());
             tooltip.add(Component.translatable("behaviour.memory_card.tooltip.items_to_paste"));
 
